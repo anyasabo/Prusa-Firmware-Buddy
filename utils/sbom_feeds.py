@@ -255,7 +255,8 @@ def cmd_gh(args) -> int:
     known = vex_known()
     repos = {}
     for key, e in manifest().items():
-        m = re.match(r"https?://github\.com/([^/]+)/([^/.]+)", e["upstream"])
+        m = re.match(r"https?://github\.com/([^/]+)/([^/.]+)",
+                     e.get("repository", ""))
         if m and e.get("scope", "shipped") == "shipped":
             repos.setdefault(f"{m.group(1)}/{m.group(2)}", []).append(e)
     for repo, entries in sorted(repos.items()):

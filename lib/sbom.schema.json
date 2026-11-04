@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/prusa3d/Prusa-Firmware-Buddy/lib/sbom.schema.json",
   "title": "Buddy vendored component manifest (lib/sbom.yml)",
   "type": "object",
   "required": [
@@ -33,7 +32,6 @@
       "required": [
         "name",
         "version",
-        "upstream",
         "upstream_commit",
         "cpe",
         "purl",
@@ -52,9 +50,15 @@
             "null"
           ]
         },
-        "upstream": {
+        "repository": {
           "type": "string",
-          "pattern": "^(https?|git)://"
+          "pattern": "^(https?|git)://",
+          "description": "upstream git repository"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https?://",
+          "description": "download location of the archive or binary, when the code does not come from a repository"
         },
         "upstream_commit": {
           "oneOf": [
@@ -68,7 +72,8 @@
         },
         "upstream_sha256": {
           "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of the archive at url"
         },
         "subrepo_commit": {
           "$ref": "#/$defs/sha1"
@@ -202,6 +207,32 @@
         }
       },
       "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "repository"
+              ]
+            },
+            {
+              "required": [
+                "url"
+              ]
+            }
+          ]
+        },
+        {
+          "if": {
+            "required": [
+              "upstream_sha256"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
         {
           "if": {
             "properties": {

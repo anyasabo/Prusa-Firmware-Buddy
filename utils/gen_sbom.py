@@ -77,7 +77,12 @@ def component(path: str, entry: dict) -> dict:
     if entry.get("purl"):
         comp["purl"] = entry["purl"]
 
-    comp["externalReferences"] = [{"type": "vcs", "url": entry["upstream"]}]
+    refs = []
+    if entry.get("repository"):
+        refs.append({"type": "vcs", "url": entry["repository"]})
+    if entry.get("url"):
+        refs.append({"type": "distribution", "url": entry["url"]})
+    comp["externalReferences"] = refs
 
     pedigree = {}
     if entry.get("upstream_commit"):

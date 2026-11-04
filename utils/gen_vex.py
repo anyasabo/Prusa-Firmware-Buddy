@@ -99,7 +99,7 @@ TRIAGE = {
          "f_lseek past EOF exposes old cluster data; check whether Buddy ever extends files with f_lseek."
          ),
         (["CVE-2026-6688"], "affected",
-         "Size readdir's name buffer NAME_MAX + 1 (fork branch readdir-off-by-one, 4c9ad7e8a).",
+         "Size readdir's name buffer NAME_MAX + 1 (fork branch readdir-off-by-one, c1c5cf831).",
          "Buddy's caller has the pattern: dirnext_r (src/buddy/filesystem_fatfs.cpp) writes filename[len + 1] into libsysbase's char[NAME_MAX] buffer; a crafted FAT volume (254-byte UTF-8 LFN, NUL inside the 8.3 entry) gives a 1-byte stack write. Reproduced under ASan."
          ),
     ],

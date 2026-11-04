@@ -3,15 +3,17 @@
 
 Fails when:
 - the manifest does not validate against lib/sbom.schema.json,
-- a git-subrepo directory (one with a .gitrepo file) has no manifest entry,
-- a .gitrepo `commit` differs from the entry's `subrepo_commit`, which means the
+- an entry's path (a directory, or a file for single-file libraries) does not
+  exist,
+- a git-subrepo directory (one with a .gitrepo file) has no entry, or its
+  .gitrepo `commit` differs from the entry's `subrepo_commit`. That means the
   library was pulled or pushed without reviewing its version, upstream_commit,
   cpe and purl,
-- an entry points at a path (directory, or file for single-file
-  libraries) that does not exist,
+- an entry has a `subrepo_commit` but its directory has no .gitrepo,
 - a dependency that utils/bootstrap.py downloads (toolchain, SDKs, prebuilt
-  bootloaders and firmware) has no `bootstrap:<name>` entry, or the entry's
-  version differs from the one bootstrap.py pins.
+  bootloaders and firmware) has no `bootstrap:<name>` entry, the entry's
+  version differs from the one bootstrap.py pins, or a submodule entry's
+  upstream_commit is not the commit bootstrap.py fetches.
 
 Run from anywhere inside the repository. Needs pyyaml and jsonschema.
 """
@@ -23,6 +25,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 import yaml
@@ -57,21 +60,22 @@ def subrepo_commits(root: Path) -> dict[str, str]:
     return result
 
 
-def bootstrap_dependencies(root: Path) -> dict:
+def bootstrap_dependencies(root: Path) -> dict[str, Any]:
     """The `dependencies` dict literal from utils/bootstrap.py, without running it."""
     tree = ast.parse((root / BOOTSTRAP).read_text())
     for node in tree.body:
         if (isinstance(node, ast.Assign) and len(node.targets) == 1
                 and getattr(node.targets[0], "id", None) == "dependencies"):
-            return ast.literal_eval(node.value)
+            deps: dict[str, Any] = ast.literal_eval(node.value)
+            return deps
     raise RuntimeError(f"{BOOTSTRAP}: no `dependencies = {{...}}` literal")
 
 
-def check_bootstrap(root: Path, components: dict) -> list[str]:
+def check_bootstrap(root: Path, components: dict[str, Any]) -> list[str]:
     """Every bootstrap.py dependency is described, at the version it pins."""
-    errors = []
+    errors: list[str] = []
     deps = bootstrap_dependencies(root)
-    covered = set()
+    covered: set[str] = set()
     for key, entry in components.items():
         info = entry.get("bootstrap")
         if key.startswith(BOOTSTRAP_PREFIX) != (info is not None):
@@ -97,20 +101,20 @@ def check_bootstrap(root: Path, components: dict) -> list[str]:
             if url is None:
                 errors.append(f"{MANIFEST}: {key}: {name} has no submodule "
                               f"{sub} in {BOOTSTRAP}")
-            elif entry.get(
-                    "upstream_commit") and entry["upstream_commit"] not in url:
-                errors.append(
-                    f"{MANIFEST}: {key}: {BOOTSTRAP} fetches {url}, "
-                    f"not upstream_commit {entry['upstream_commit']}")
-    for name in sorted(set(deps) - covered):
-        errors.append(f"{BOOTSTRAP}: dependency {name} has no "
-                      f"`{BOOTSTRAP_PREFIX}{name}` entry in {MANIFEST} (use "
-                      f"scope: tool if it is not shipped)")
+            elif (commit :=
+                  entry.get("upstream_commit")) and commit not in url:
+                errors.append(f"{MANIFEST}: {key}: {BOOTSTRAP} fetches {url}, "
+                              f"not upstream_commit {commit}")
+    errors += [
+        f"{BOOTSTRAP}: dependency {name} has no `{BOOTSTRAP_PREFIX}{name}` "
+        f"entry in {MANIFEST} (use scope: tool if it is not shipped)"
+        for name in sorted(set(deps) - covered)
+    ]
     return errors
 
 
 def check(root: Path) -> list[str]:
-    errors = []
+    errors: list[str] = []
     try:
         manifest = yaml.safe_load((root / MANIFEST).read_text())
     except (OSError, yaml.YAMLError) as e:
@@ -126,13 +130,15 @@ def check(root: Path) -> list[str]:
 
     components = manifest["components"]
     for path in components:
-        if not path.startswith(BOOTSTRAP_PREFIX) and not (root /
-                                                          path).exists():
+        if path.startswith(BOOTSTRAP_PREFIX):
+            continue
+        if not (root / path).exists():
             errors.append(f"{MANIFEST}: {path}: path does not exist")
 
     errors += check_bootstrap(root, components)
 
-    for path, commit in sorted(subrepo_commits(root).items()):
+    subrepos = subrepo_commits(root)
+    for path, commit in sorted(subrepos.items()):
         entry = components.get(path)
         if entry is None:
             errors.append(
@@ -146,7 +152,6 @@ def check(root: Path) -> list[str]:
                 f"{MANIFEST}; check version, upstream_commit, cpe, purl and "
                 f"patches, then update subrepo_commit")
 
-    subrepos = set(subrepo_commits(root))
     for path, entry in components.items():
         if "subrepo_commit" in entry and path not in subrepos:
             errors.append(

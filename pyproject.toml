@@ -6,3 +6,40 @@ executionEnvironments = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+# ruff and ty cover only the SBOM tooling for now (see .pre-commit-config.yaml).
+# yapf formats; ruff only lints.
+[tool.ruff]
+target-version = "py311"
+include = [
+  "utils/check_sbom_manifest.py",
+  "utils/gen_sbom.py",
+  "utils/gen_vex.py",
+  "utils/match_nvdpp.py",
+  "utils/sbom_feeds.py",
+  "utils/sbom_manifest.py",
+  "tests/sbom/*.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "SIM", "C4", "RET", "PERF", "PLE", "PLW", "RUF", "I"]
+# Line length is yapf's job; it leaves long string literals alone.
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gen_sbom", "gen_vex", "match_nvdpp", "sbom_feeds", "sbom_manifest"]
+
+[tool.ty.environment]
+python-version = "3.11"
+root = ["utils"]
+
+[tool.ty.src]
+include = [
+  "utils/check_sbom_manifest.py",
+  "utils/gen_sbom.py",
+  "utils/gen_vex.py",
+  "utils/match_nvdpp.py",
+  "utils/sbom_feeds.py",
+  "utils/sbom_manifest.py",
+  "tests/sbom",
+]

@@ -1,7 +1,7 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "https://github.com/anyasabo/Prusa-Firmware-Buddy/blob/sbom-scanning/lib/vex.json",
- "author": "Buddy SBOM triage (see lib/sbom.yml and utils/gen_vex.py)",
+ "@id": "urn:uuid:e3ab1fc6-791d-5307-82e9-008b226f6bd3",
+ "author": "Buddy SBOM triage (utils/gen_vex.py)",
  "timestamp": "2026-11-04T00:00:00Z",
  "version": 1,
  "statements": [
@@ -669,6 +669,19 @@
   },
   {
    "vulnerability": {
+    "name": "CVE-2026-112062"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.2.0?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40347054b329d141b858cc7180bf2aa23c672dc6d7"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "The vulnerable memcpy in mdns_handle_response() (lib/WUI/mdns/mdns.c:1864, fixed upstream in ab2f69c7) runs only for answers that match a pending search request. Requests are created only by mdns_search_service(), which the firmware never calls (lib/WUI/wui.cpp uses only mdns_resp_init, mdns_resp_add_netif, mdns_resp_add_service_prusalink and mdns_resp_remove_netif)."
+  },
+  {
+   "vulnerability": {
     "name": "CVE-2020-22283"
    },
    "products": [
@@ -773,6 +786,19 @@
   },
   {
    "vulnerability": {
+    "name": "CVE-2026-119086"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "MPU-port issues; the ESP8266 port has no MPU support."
+  },
+  {
+   "vulnerability": {
     "name": "CVE-2021-31571"
    },
    "products": [
@@ -809,19 +835,6 @@
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
    "impact_statement": "Kernel size overflows reachable only through sizes chosen by the firmware itself (esp-nic), not by network input."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-119086"
-   },
-   "products": [
-    {
-     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
-   "impact_statement": "MPU-port issue; the ESP8266 port has no MPU support."
   },
   {
    "vulnerability": {

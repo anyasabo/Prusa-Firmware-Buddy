@@ -1,0 +1,130 @@
+# SBOM tooling checks and a vulnerability scan of the shipped firmware images.
+#
+# check: lint, types and tests of the SBOM tools; lib/sbom.yml matches the tree;
+#        lib/vex.json is regenerated from utils/gen_vex.py.
+# scan:  Grype on the CycloneDX SBOM of each image, with lib/vex.json. Fails on
+#        findings the VEX does not decide; known "affected" findings pass.
+name: SBOM
+
+on:
+  push:
+    branches: [sbom-scanning]
+    paths: &paths
+      - lib/sbom.yml
+      - lib/sbom.schema.json
+      - lib/vex.json
+      - "**/.gitrepo"
+      - utils/bootstrap.py
+      - utils/check_sbom_manifest.py
+      - utils/gen_sbom.py
+      - utils/gen_vex.py
+      - utils/match_nvdpp.py
+      - utils/sbom_feeds.py
+      - utils/sbom_manifest.py
+      - tests/sbom/**
+      - pyproject.toml
+      - .github/workflows/sbom.yml
+  pull_request:
+    paths: *paths
+  # New CVEs appear without code changes. Scheduled runs only fire for
+  # workflows on the default branch.
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_FILES: >-
+    utils/check_sbom_manifest.py utils/gen_sbom.py utils/gen_vex.py
+    utils/match_nvdpp.py utils/sbom_feeds.py utils/sbom_manifest.py
+    tests/sbom/conftest.py tests/sbom/test_sbom_tools.py
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Install tools
+        run: |
+          uv venv --python 3.12
+          uv pip install yapf==0.43.0 ruff==0.17.3 ty==0.0.97 pytest \
+            'pyyaml~=6.0' types-PyYAML 'jsonschema~=4.25.1'
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: yapf
+        run: yapf --diff ${{ env.PYTHON_FILES }}
+      - name: ruff
+        run: ruff check --output-format github ${{ env.PYTHON_FILES }}
+      - name: ty
+        run: ty check --python .venv --output-format github
+      - name: pytest
+        run: pytest -q tests/sbom
+      - name: Manifest matches the tree
+        run: python utils/check_sbom_manifest.py
+      - name: lib/vex.json is up to date
+        run: |
+          python utils/gen_vex.py
+          git diff --exit-code lib/vex.json || {
+            echo "::error file=lib/vex.json::run python utils/gen_vex.py and commit lib/vex.json"
+            exit 1
+          }
+
+  scan:
+    needs: check
+    runs-on: ubuntu-24.04
+    env:
+      GRYPE_VERSION: 0.121.1
+      GRYPE_SHA256: bc3ea3f9e6fd56ac781c08c6c5e614271b79f438200757f6932085c19b0a4657
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Install Grype
+        run: |
+          tarball="grype_${GRYPE_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$tarball" \
+            "https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/$tarball"
+          echo "$GRYPE_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/bin" grype
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Scan
+        run: |
+          mkdir -p out
+          for image in main esp8266-wifi esp32-wifi; do
+            uv run --no-project --python 3.12 --with 'pyyaml~=6.0' \
+              python utils/gen_sbom.py --image "$image" -o "out/$image.cdx.json"
+            grype "sbom:out/$image.cdx.json" --vex lib/vex.json -o json \
+              > "out/$image.grype.json"
+          done
+      - name: Findings not decided in lib/vex.json
+        run: |
+          python3 - out/*.grype.json <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json, sys
+          vex = json.load(open("lib/vex.json"))["statements"]
+          status = {(s["vulnerability"]["name"], p["@id"]): s["status"]
+                    for s in vex for p in s["products"]}
+          new = 0
+          for path in sys.argv[1:]:
+              image = path.split("/")[-1].removesuffix(".grype.json")
+              print(f"\n### {image}\n")
+              matches = json.load(open(path))["matches"]
+              if not matches:
+                  print("No open findings.")
+              for m in matches:
+                  purl, vuln = m["artifact"]["purl"], m["vulnerability"]
+                  ids = [vuln["id"]] + [r["id"] for r in m.get("relatedVulnerabilities", [])]
+                  known = next((status[i, purl] for i in ids if (i, purl) in status), None)
+                  new += known is None
+                  state = known or "**NEW**"
+                  print(f"- {state}: {', '.join(ids)} in {m['artifact']['name']} "
+                        f"{m['artifact']['version']} ({vuln.get('severity', '?')})")
+          print(f"\n{new} finding(s) not in lib/vex.json.")
+          sys.exit(1 if new else 0)
+          EOF
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sbom-and-scan
+          path: out/

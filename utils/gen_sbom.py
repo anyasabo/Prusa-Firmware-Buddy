@@ -23,12 +23,12 @@ import os
 import subprocess
 import sys
 import uuid
+from collections.abc import Collection
 from pathlib import Path
+from typing import Any
 
-import yaml
+from sbom_manifest import ROOT, Entry, load_components, scope
 
-ROOT = Path(__file__).resolve().parent.parent
-MANIFEST = ROOT / "lib" / "sbom.yml"
 NAMESPACE = uuid.UUID("5b0f2f6e-6a0e-4f8c-9d4e-62757464792d")
 
 
@@ -43,25 +43,25 @@ def git(*args: str) -> str:
 def build_time() -> str:
     epoch = os.environ.get("SOURCE_DATE_EPOCH") or git("log", "-1",
                                                        "--format=%ct")
-    t = datetime.datetime.fromtimestamp(int(epoch), datetime.timezone.utc)
+    t = datetime.datetime.fromtimestamp(int(epoch), datetime.UTC)
     return t.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def as_list(value) -> list:
+def as_list(value: Any) -> list[Any]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
 
 
-def patch_text(patch) -> str:
+def patch_text(patch: str | dict[str, str]) -> str:
     if isinstance(patch, dict):
         ((path, what), ) = patch.items()
         return f"{path}: {what}"
     return str(patch)
 
 
-def component(path: str, entry: dict) -> dict:
-    comp = {
+def component(path: str, entry: Entry) -> dict[str, Any]:
+    comp: dict[str, Any] = {
         "type": "library",
         "bom-ref": path,
         "name": entry["name"],
@@ -84,14 +84,14 @@ def component(path: str, entry: dict) -> dict:
         refs.append({"type": "distribution", "url": entry["url"]})
     comp["externalReferences"] = refs
 
-    pedigree = {}
+    pedigree: dict[str, Any] = {}
     if entry.get("upstream_commit"):
         pedigree["commits"] = [{"uid": entry["upstream_commit"]}]
     # The hash of what ships wins; otherwise the upstream release archive.
     digest = entry.get("shipped_sha256") or entry.get("upstream_sha256")
     if digest:
         comp["hashes"] = [{"alg": "SHA-256", "content": digest}]
-    if entry.get("scope", "shipped") != "shipped":
+    if scope(entry) != "shipped":
         comp["scope"] = "excluded"
     patches = entry.get("patches") or []
     if patches:
@@ -117,94 +117,83 @@ def component(path: str, entry: dict) -> dict:
         })
     if entry.get("first_party"):
         properties.append({"name": "buddy:first_party", "value": "true"})
-    properties.append({
-        "name": "buddy:scope",
-        "value": entry.get("scope", "shipped")
-    })
+    properties.append({"name": "buddy:scope", "value": scope(entry)})
     properties += [{
         "name": "buddy:image",
         "value": image
     } for image in entry.get("images", [])]
-    if entry.get("bootstrap"):
-        b = entry["bootstrap"]
-        properties.append({
-            "name":
-            "buddy:bootstrap",
-            "value":
-            "/".join(filter(
-                None, [b["dependency"], b.get("submodule")]))
-        })
+    if b := entry.get("bootstrap"):
+        dependency = "/".join(
+            filter(None, [b["dependency"], b.get("submodule")]))
+        properties.append({"name": "buddy:bootstrap", "value": dependency})
     comp["properties"] = properties
     return comp
 
 
-def selected(entry: dict, scopes: set[str], image: str | None) -> bool:
-    if entry.get("scope", "shipped") not in scopes:
+def selected(entry: Entry, scopes: Collection[str], image: str | None) -> bool:
+    if scope(entry) not in scopes:
         return False
     # Entries without `images` are assumed to be in the main firmware.
     return image is None or image in entry.get("images", ["main"])
 
 
-def generate(manifest: dict,
-             scopes: set[str] = frozenset({"shipped"}),
-             image: str | None = None) -> dict:
+def generate(components: dict[str, Entry],
+             scopes: Collection[str] = ("shipped", ),
+             image: str | None = None) -> dict[str, Any]:
     version = (ROOT / "version.txt").read_text().strip()
     head = git("rev-parse", "HEAD")
-    components = [
-        component(path, entry)
-        for path, entry in sorted(manifest["components"].items())
+    selected_components = [
+        component(path, entry) for path, entry in sorted(components.items())
         if selected(entry, scopes, image)
     ]
-    body = json.dumps(components, sort_keys=True)
+    body = json.dumps(selected_components, sort_keys=True)
     serial = uuid.uuid5(NAMESPACE, f"{version}\0{head}\0{body}")
-    return {
-        "bomFormat":
-        "CycloneDX",
-        "specVersion":
-        "1.6",
-        "serialNumber":
-        f"urn:uuid:{serial}",
-        "version":
-        1,
-        "metadata": {
-            "timestamp": build_time(),
-            "tools": {
-                "components": [{
-                    "type": "application",
-                    "name": "gen_sbom.py",
-                    "group": "Prusa-Firmware-Buddy",
-                }]
-            },
-            "component": {
-                "type":
-                "firmware",
-                "bom-ref":
-                "buddy",
-                "name":
-                "Prusa-Firmware-Buddy",
-                "version":
-                version,
-                "supplier": {
-                    "name": "Prusa Research a.s."
-                },
-                "externalReferences": [{
-                    "type": "vcs",
-                    "url": "https://github.com/prusa3d/Prusa-Firmware-Buddy",
-                    "comment": head,
-                }],
-            },
+    repo = {
+        "type": "vcs",
+        "url": "https://github.com/prusa3d/Prusa-Firmware-Buddy",
+        "comment": head,
+    }
+    firmware = {
+        "type": "firmware",
+        "bom-ref": "buddy",
+        "name": "Prusa-Firmware-Buddy",
+        "version": version,
+        "supplier": {
+            "name": "Prusa Research a.s."
         },
-        "components":
-        components,
+        "externalReferences": [repo],
+    }
+    tool = {
+        "type": "application",
+        "name": "gen_sbom.py",
+        "group": "Prusa-Firmware-Buddy",
+    }
+    metadata = {
+        "timestamp": build_time(),
+        "tools": {
+            "components": [tool]
+        },
+        "component": firmware,
+    }
+    refs = [c["bom-ref"] for c in selected_components]
+    return {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.6",
+        "serialNumber": f"urn:uuid:{serial}",
+        "version": 1,
+        "metadata": metadata,
+        "components": selected_components,
         "dependencies": [{
             "ref": "buddy",
-            "dependsOn": [c["bom-ref"] for c in components]
+            "dependsOn": refs
         }],
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-o",
                         "--output",
                         type=Path,
@@ -220,10 +209,8 @@ def main() -> int:
                         "marked scope=excluded")
     args = parser.parse_args()
 
-    manifest = yaml.safe_load(MANIFEST.read_text())
-    text = json.dumps(generate(manifest, {"shipped", *args.include},
-                               args.image),
-                      indent=2) + "\n"
+    sbom = generate(load_components(), {"shipped", *args.include}, args.image)
+    text = json.dumps(sbom, indent=2) + "\n"
     if args.output:
         args.output.write_text(text)
     else:

@@ -43,12 +43,36 @@ repos:
       language: python
       language_version: python3
       additional_dependencies: ['pyyaml~=6.0', 'jsonschema~=4.25.1']
+    - id: gen-vex
+      name: gen-vex
+      description: lib/vex.json must be regenerated after changing the triage table in utils/gen_vex.py.
+      entry: python utils/gen_vex.py
+      files: ^(utils/gen_vex\.py|utils/sbom_manifest\.py|lib/sbom\.yml|lib/vex\.json)$
+      pass_filenames: false
+      language: python
+      language_version: python3
+      additional_dependencies: ['pyyaml~=6.0']
+    - id: ty-sbom
+      name: ty (SBOM tooling)
+      description: Type-check the SBOM tools; the file list is [tool.ty.src] in pyproject.toml.
+      entry: ty check
+      files: ^(utils/(check_sbom_manifest|gen_sbom|gen_vex|match_nvdpp|sbom_feeds|sbom_manifest)\.py|tests/sbom/.*\.py|pyproject\.toml)$
+      pass_filenames: false
+      language: python
+      language_version: python3
+      additional_dependencies: ['ty==0.0.97', 'pyyaml~=6.0', 'types-PyYAML', 'jsonschema~=4.25.1', 'pytest']
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.
       entry: python utils/logging/generate_overview.py
       language: python
       language_version: python3
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.17.3
+  hooks:
+    # Lint only (yapf formats). Limited to the SBOM tooling for now.
+    - id: ruff-check
+      files: ^(utils/(check_sbom_manifest|gen_sbom|gen_vex|match_nvdpp|sbom_feeds|sbom_manifest)\.py|tests/sbom/.*\.py)$
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: 'v2.4.0'
   hooks:

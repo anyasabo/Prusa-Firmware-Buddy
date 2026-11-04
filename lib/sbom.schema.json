@@ -135,27 +135,6 @@
             ]
           }
         },
-        "cve-exclude-list": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "cve",
-              "reason"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "cve": {
-                "type": "string",
-                "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$"
-              },
-              "reason": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          }
-        },
         "scope": {
           "enum": [
             "shipped",

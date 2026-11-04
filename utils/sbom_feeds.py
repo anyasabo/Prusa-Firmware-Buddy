@@ -16,8 +16,7 @@ Fork-only tooling for the nightly scan; not meant for upstream. Subcommands:
       component (VulnCheck NVD++ export; attribution: NVD++ by VulnCheck).
       Catches CVEs that have no CPE data yet.
   kev CVE...
-      Which of the given CVEs are in VulnCheck KEV (needs
-      CLAUDE_VULNCHECK_TOKEN or VULNCHECK_TOKEN).
+      Which of the given CVEs are in VulnCheck KEV (needs VULNCHECK_TOKEN).
   espressif SDK_CLONE
       For each Espressif Wi-Fi advisory fix commit below, whether the pinned
       ESP8266 RTOS SDK commit contains it (git ancestry).
@@ -28,37 +27,37 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import gzip
-import io
 import json
 import os
 import re
 import subprocess
 import sys
+import urllib.error
 import urllib.request
-import zipfile
 from pathlib import Path
+from typing import Any
 
-import yaml
+from match_nvdpp import iter_cves, version_key
+from sbom_manifest import ROOT, Entry, load_components, scope
 
-ROOT = Path(__file__).resolve().parent.parent
-MANIFEST = ROOT / "lib" / "sbom.yml"
 VEX = ROOT / "lib" / "vex.json"
 
 # Espressif advisories with per-branch fix commits (ESP8266 RTOS SDK).
 # https://www.espressif.com/en/support/documents/advisories
-ESPRESSIF_FIXES = [
-    ("AR2020-002", "CVE-2020-12638", {
+# (advisory, CVEs, {branch: fix commit})
+ESPRESSIF_FIXES: list[tuple[str, list[str], dict[str, str]]] = [
+    ("AR2020-002", ["CVE-2020-12638"], {
         "master": "da3362ec",
         "release/v3.4": "da3362ec"
     }),
-    ("AR2021-003",
-     "CVE-2020-24586,CVE-2020-24587,CVE-2020-24588,CVE-2020-26146,CVE-2020-26147",
-     {
-         "master": "08e225dd",
-         "release/v3.4": "967752e2"
-     }),
-    ("AR2023-008", "CVE-2020-26142", {
+    ("AR2021-003", [
+        "CVE-2020-24586", "CVE-2020-24587", "CVE-2020-24588", "CVE-2020-26146",
+        "CVE-2020-26147"
+    ], {
+        "master": "08e225dd",
+        "release/v3.4": "967752e2"
+    }),
+    ("AR2023-008", ["CVE-2020-26142"], {
         "master": "816bf9bc",
         "release/v3.4": "d47d0f4d"
     }),
@@ -97,8 +96,8 @@ KEYWORDS = {
 }
 
 
-def manifest() -> dict:
-    return yaml.safe_load(MANIFEST.read_text())["components"]
+def shipped() -> list[Entry]:
+    return [e for e in load_components().values() if scope(e) == "shipped"]
 
 
 def vex_known() -> dict[str, str]:
@@ -110,9 +109,19 @@ def vex_known() -> dict[str, str]:
 
 # ---------------------------------------------------------------- mbedtls ---
 
+# Clauses of an "Affects" line are separated by ";", or by "," / "and" before
+# the next product or range ("..., all Mbed TLS 2.x versions and from 3.0").
+CLAUSE_SPLIT = re.compile(
+    r";|,(?=\s*(?:all|mbed|tf-psa|and)\b)|\band\b(?=\s*(?:all|mbed|from)\b)",
+    re.IGNORECASE)
+VERSION = r"\d+\.\d+(?:\.\d+)?"
 
-def vkey(v: str) -> tuple:
-    return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+
+def other_product(clause: str) -> bool:
+    """TF-PSA-Crypto, PolarSSL-only or Mbed Crypto-only clauses."""
+    return ("tf-psa" in clause
+            or ("polarssl" in clause and "mbed" not in clause)
+            or ("crypto" in clause and "mbed tls" not in clause))
 
 
 def affects(text: str,
@@ -121,59 +130,50 @@ def affects(text: str,
             released: str | None = None) -> bool | None:
     """Evaluate an advisory "Affects" line for one version. None = can't tell.
 
-    "All versions" means all versions at the time of the advisory, so it does
-    not cover releases published after the advisory date.
+    A line with no upper bound ("all versions", "1.3.0 and up") covers the
+    versions released before the advisory, not later ones.
     """
-    v = vkey(version)
-    # No upper bound ("all versions", "1.3.0 and up", "upwards") means
-    # versions up to the advisory date; later releases contain the fix.
-    plain = re.sub(r"<[^>]+>", " ", text)
+    v = version_key(version)
+    plain = re.sub(r"<[^>]+>", " ", text).replace("`", "")
     upper = re.search(r"through|\bto\b|up to|before|prior|until|<", plain,
-                      re.I)
+                      re.IGNORECASE)
     if adv_date and released and adv_date < released and not upper:
         return False
-    t = re.sub(r"<[^>]+>", " ", text).replace("`", "")
     hit = False
     understood = False
-    for clause in re.split(
-            r";|,(?=\s*(?:all|mbed|tf-psa|and)\b)|\band\b(?=\s*(?:all|mbed|from)\b)",
-            t,
-            flags=re.I):
+    for clause in CLAUSE_SPLIT.split(plain):
         c = clause.strip().lower()
-        if not c or "tf-psa" in c or "polarssl" in c and "mbed" not in c or "crypto" in c and "mbed tls" not in c:
+        if not c or other_product(c):
             continue
-        nums = re.findall(r"\d+\.\d+(?:\.\d+)?", c)
+        nums = re.findall(VERSION, c)
         major = re.search(
             r"mbed tls (\d+)(?:\.x)? versions|all mbed tls (\d+) ", c)
-        if major and v[0] != int(major.group(1) or major.group(2)):
+        if major and v[0] != version_key(major.group(1) or major.group(2))[0]:
             understood = True
             continue
         if re.search(r"all versions(?! from| since)|all version of",
                      c) and not nums:
             hit, understood = True, True
             continue
-        m = re.search(
-            r"(?:from|since)?\s*(\d+\.\d+(?:\.\d+)?)\s*(?:through|to|up to(?: and including)?|-)\s*(\d+\.\d+(?:\.\d+)?)",
-            c)
-        if m:
+        if m := re.search(
+                rf"(?:from|since)?\s*({VERSION})\s*(?:through|to|up to(?: and including)?|-)\s*({VERSION})",
+                c):
             understood = True
-            hit |= vkey(m.group(1)) <= v <= vkey(m.group(2))
+            hit |= version_key(m.group(1)) <= v <= version_key(m.group(2))
             continue
-        m = re.search(r"up to(?: and including)?\s+(\d+\.\d+(?:\.\d+)?)", c)
-        if m:
+        if m := re.search(rf"up to(?: and including)?\s+({VERSION})", c):
             understood = True
-            hit |= v <= vkey(m.group(1))
+            hit |= v <= version_key(m.group(1))
             continue
-        m = re.search(
-            r"(?:since|from)\s+(?:version\s+)?(\d+\.\d+(?:\.\d+)?)|(\d+\.\d+(?:\.\d+)?)\s+(?:and (?:above|later|up)|upwards)",
-            c)
-        if m:
+        if m := re.search(
+                rf"(?:since|from)\s+(?:version\s+)?({VERSION})|({VERSION})\s+(?:and (?:above|later|up)|upwards)",
+                c):
             understood = True
-            hit |= v >= vkey(m.group(1) or m.group(2))
+            hit |= v >= version_key(m.group(1) or m.group(2))
             continue
         if len(nums) == 1 and re.search(r"mbed tls\s+\d", c):
             understood = True
-            hit |= v == vkey(nums[0])
+            hit |= v == version_key(nums[0])
     return hit if understood else None
 
 
@@ -184,19 +184,32 @@ def release_date(version: str) -> str | None:
     """Upstream release date of an mbedTLS version (GitHub release), cached."""
     if version not in _RELEASES:
         _RELEASES[version] = None
+        # Older releases are tagged mbedtls-X.Y.Z; a 404 just means "try the next".
         for tag in (f"v{version}", f"mbedtls-{version}"):
             try:
-                _RELEASES[version] = gh_get(
-                    f"/repos/Mbed-TLS/mbedtls/releases/tags/{tag}"
-                )["published_at"][:10]
-                break
-            except Exception:
+                release = gh_get(
+                    f"/repos/Mbed-TLS/mbedtls/releases/tags/{tag}")
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    warn(f"release date of mbedTLS {version}: {e}")
                 continue
+            except urllib.error.URLError as e:
+                warn(f"release date of mbedTLS {version}: {e}")
+                break
+            _RELEASES[version] = release["published_at"][:10]
+            break
+        else:
+            warn(f"no release date for mbedTLS {version}; advisories without "
+                 f"an upper bound are reported as affecting it")
     return _RELEASES[version]
 
 
+def warn(message: str) -> None:
+    print(f"warning: {message}", file=sys.stderr)
+
+
 def adv_date(text: str) -> str | None:
-    m = re.search(r"^\*\*Date\*\*\s*\|\s*(.+)$", text, re.M)
+    m = re.search(r"^\*\*Date\*\*\s*\|\s*(.+)$", text, re.MULTILINE)
     if not m:
         return None
     d = m.group(1).split("(")[0].replace(" of ", " ")
@@ -209,17 +222,17 @@ def adv_date(text: str) -> str | None:
     return None
 
 
-def cmd_mbedtls(args) -> int:
+def cmd_mbedtls(args: argparse.Namespace) -> int:
     versions = sorted({(e["name"], str(e["version"]))
-                       for e in manifest().values()
+                       for e in load_components().values()
                        if e["name"].startswith("mbedtls") and e.get("version")
                        })
     known = vex_known()
     adv_dir = Path(args.docs) / "security-advisories"
     for f in sorted(adv_dir.glob("mbedtls-security-advisory-*.md")):
         text = f.read_text(errors="replace")
-        cve = re.search(r"^\*\*CVE\*\*\s*\|\s*(.+)$", text, re.M)
-        aff = re.search(r"^\*\*Affects\*\*\s*\|\s*(.+)$", text, re.M)
+        cve = re.search(r"^\*\*CVE\*\*\s*\|\s*(.+)$", text, re.MULTILINE)
+        aff = re.search(r"^\*\*Affects\*\*\s*\|\s*(.+)$", text, re.MULTILINE)
         if not aff:
             continue
         cves = re.findall(r"CVE-\d+-\d+", cve.group(1)) if cve else []
@@ -238,7 +251,7 @@ def cmd_mbedtls(args) -> int:
 # ------------------------------------------------------------- github ------
 
 
-def gh_get(path: str):
+def gh_get(path: str) -> Any:
     req = urllib.request.Request(f"https://api.github.com{path}",
                                  headers={
                                      "Accept": "application/vnd.github+json",
@@ -251,20 +264,20 @@ def gh_get(path: str):
         return json.load(r)
 
 
-def cmd_gh(args) -> int:
+def cmd_gh(args: argparse.Namespace) -> int:
     known = vex_known()
-    repos = {}
-    for key, e in manifest().items():
+    repos: dict[str, list[Entry]] = {}
+    for e in shipped():
         m = re.match(r"https?://github\.com/([^/]+)/([^/.]+)",
                      e.get("repository", ""))
-        if m and e.get("scope", "shipped") == "shipped":
+        if m:
             repos.setdefault(f"{m.group(1)}/{m.group(2)}", []).append(e)
     for repo, entries in sorted(repos.items()):
         try:
             advs = gh_get(
                 f"/repos/{repo}/security-advisories?state=published&per_page=100"
             )
-        except Exception as exc:  # private, renamed, rate-limited
+        except urllib.error.URLError as exc:  # private, renamed, rate-limited
             print(f"{'ERROR':20} {repo}: {exc}")
             continue
         for a in advs:
@@ -282,35 +295,25 @@ def cmd_gh(args) -> int:
 # -------------------------------------------------------------- nvd++ ------
 
 
-def cmd_nvdpp(args) -> int:
+def cmd_nvdpp(args: argparse.Namespace) -> int:
     known = vex_known()
-    since = (datetime.datetime.now(datetime.timezone.utc) -
+    since = (datetime.datetime.now(datetime.UTC) -
              datetime.timedelta(days=args.days)).strftime("%Y-%m-%d")
-    pats = []
-    for e in manifest().values():
-        if e.get("scope", "shipped") != "shipped":
+    patterns = []
+    for e in shipped():
+        name = e["name"]
+        words = KEYWORDS.get(name, [re.escape(name)] if len(name) > 5 else [])
+        patterns += [(name, re.compile(w, re.IGNORECASE)) for w in words]
+    for cve in iter_cves(Path(args.export)):
+        if cve.get("published",
+                   "") < since or cve.get("vulnStatus") == "Rejected":
             continue
-        words = KEYWORDS.get(
-            e["name"], [re.escape(e["name"])] if len(e["name"]) > 5 else [])
-        for w in words:
-            pats.append((e["name"], re.compile(w, re.I)))
-    with zipfile.ZipFile(args.export) as z:
-        for name in sorted(z.namelist()):
-            if not name.endswith(".json.gz"):
-                continue
-            for item in json.load(gzip.open(io.BytesIO(
-                    z.read(name))))["vulnerabilities"]:
-                c = item["cve"]
-                if c.get("published",
-                         "") < since or c.get("vulnStatus") == "Rejected":
-                    continue
-                d = next((x["value"]
-                          for x in c["descriptions"] if x["lang"] == "en"), "")
-                hits = sorted({n for n, p in pats if p.search(d)})
-                if hits:
-                    print(
-                        f"{known.get(c['id'], 'NEW'):20} {c['id']:16} {c['published'][:10]} "
-                        f"{','.join(hits)} | {d[:140]}")
+        text = next(
+            (d["value"] for d in cve["descriptions"] if d["lang"] == "en"), "")
+        hits = sorted({name for name, p in patterns if p.search(text)})
+        if hits:
+            print(f"{known.get(cve['id'], 'NEW'):20} {cve['id']:16} "
+                  f"{cve['published'][:10]} {','.join(hits)} | {text[:140]}")
     print("Data: NVD++ by VulnCheck (https://vulncheck.com/nvd2)",
           file=sys.stderr)
     return 0
@@ -319,9 +322,8 @@ def cmd_nvdpp(args) -> int:
 # ---------------------------------------------------------------- kev ------
 
 
-def cmd_kev(args) -> int:
-    tok = os.environ.get("VULNCHECK_TOKEN") or os.environ.get(
-        "CLAUDE_VULNCHECK_TOKEN")
+def cmd_kev(args: argparse.Namespace) -> int:
+    tok = os.environ.get("VULNCHECK_TOKEN")
     if not tok:
         sys.exit("kev: set VULNCHECK_TOKEN")
     for cve in args.cves:
@@ -338,22 +340,30 @@ def cmd_kev(args) -> int:
 # ----------------------------------------------------------- espressif -----
 
 
-def cmd_espressif(args) -> int:
-    sdk = manifest()["bootstrap:esp8266-rtos-sdk"]["upstream_commit"]
-    git = ["git", "-C", args.clone]
+def cmd_espressif(args: argparse.Namespace) -> int:
+    sdk = load_components()["bootstrap:esp8266-rtos-sdk"]["upstream_commit"]
+
+    def contains(commit: str) -> bool:
+        r = subprocess.run([
+            "git", "-C", args.clone, "merge-base", "--is-ancestor", commit, sdk
+        ],
+                           check=False)
+        if r.returncode not in (0, 1):  # e.g. a shallow clone lacks the commit
+            sys.exit(f"espressif: cannot tell whether {sdk[:10]} contains "
+                     f"{commit} in {args.clone}")
+        return r.returncode == 0
+
     for adv, cves, fixes in ESPRESSIF_FIXES:
-        fixed = any(
-            subprocess.run(
-                git + ["merge-base", "--is-ancestor", c, sdk]).returncode == 0
-            for c in fixes.values())
-        print(
-            f"{'fixed' if fixed else 'NOT FIXED':10} {adv} {cves} (pin {sdk[:10]})"
-        )
+        fixed = any(contains(c) for c in fixes.values())
+        print(f"{'fixed' if fixed else 'NOT FIXED':10} {adv} "
+              f"{','.join(cves)} (pin {sdk[:10]})")
     return 0
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("mbedtls-advisories")
     s.add_argument("docs")

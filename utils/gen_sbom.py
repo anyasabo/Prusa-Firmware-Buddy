@@ -82,11 +82,12 @@ def component(path: str, entry: dict) -> dict:
     pedigree = {}
     if entry.get("upstream_commit"):
         pedigree["commits"] = [{"uid": entry["upstream_commit"]}]
-    if entry.get("upstream_sha256"):
-        comp["hashes"] = [{
-            "alg": "SHA-256",
-            "content": entry["upstream_sha256"]
-        }]
+    # The hash of what ships wins; otherwise the upstream release archive.
+    digest = entry.get("shipped_sha256") or entry.get("upstream_sha256")
+    if digest:
+        comp["hashes"] = [{"alg": "SHA-256", "content": digest}]
+    if entry.get("scope", "shipped") != "shipped":
+        comp["scope"] = "excluded"
     patches = entry.get("patches") or []
     if patches:
         pedigree["patches"] = [{
@@ -111,16 +112,43 @@ def component(path: str, entry: dict) -> dict:
         })
     if entry.get("first_party"):
         properties.append({"name": "buddy:first_party", "value": "true"})
+    properties.append({
+        "name": "buddy:scope",
+        "value": entry.get("scope", "shipped")
+    })
+    properties += [{
+        "name": "buddy:image",
+        "value": image
+    } for image in entry.get("images", [])]
+    if entry.get("bootstrap"):
+        b = entry["bootstrap"]
+        properties.append({
+            "name":
+            "buddy:bootstrap",
+            "value":
+            "/".join(filter(
+                None, [b["dependency"], b.get("submodule")]))
+        })
     comp["properties"] = properties
     return comp
 
 
-def generate(manifest: dict) -> dict:
+def selected(entry: dict, scopes: set[str], image: str | None) -> bool:
+    if entry.get("scope", "shipped") not in scopes:
+        return False
+    # Entries without `images` are assumed to be in the main firmware.
+    return image is None or image in entry.get("images", ["main"])
+
+
+def generate(manifest: dict,
+             scopes: set[str] = frozenset({"shipped"}),
+             image: str | None = None) -> dict:
     version = (ROOT / "version.txt").read_text().strip()
     head = git("rev-parse", "HEAD")
     components = [
         component(path, entry)
         for path, entry in sorted(manifest["components"].items())
+        if selected(entry, scopes, image)
     ]
     body = json.dumps(components, sort_keys=True)
     serial = uuid.uuid5(NAMESPACE, f"{version}\0{head}\0{body}")
@@ -176,10 +204,21 @@ def main() -> int:
                         "--output",
                         type=Path,
                         help="output file (default: stdout)")
+    parser.add_argument("--image",
+                        help="only components in this firmware image (e.g. "
+                        "main, esp8266-wifi, bootloader)")
+    parser.add_argument("--include",
+                        action="append",
+                        choices=["test", "tool"],
+                        default=[],
+                        help="also list test-only or tool components, "
+                        "marked scope=excluded")
     args = parser.parse_args()
 
     manifest = yaml.safe_load(MANIFEST.read_text())
-    text = json.dumps(generate(manifest), indent=2) + "\n"
+    text = json.dumps(generate(manifest, {"shipped", *args.include},
+                               args.image),
+                      indent=2) + "\n"
     if args.output:
         args.output.write_text(text)
     else:

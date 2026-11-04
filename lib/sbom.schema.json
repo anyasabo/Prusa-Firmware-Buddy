@@ -3,48 +3,130 @@
   "$id": "https://github.com/prusa3d/Prusa-Firmware-Buddy/lib/sbom.schema.json",
   "title": "Buddy vendored component manifest (lib/sbom.yml)",
   "type": "object",
-  "required": ["components"],
+  "required": [
+    "components"
+  ],
   "additionalProperties": false,
   "properties": {
     "components": {
       "type": "object",
       "minProperties": 1,
-      "propertyNames": { "pattern": "^[A-Za-z0-9_./+-]+[^/]$" },
-      "additionalProperties": { "$ref": "#/$defs/component" }
+      "propertyNames": {
+        "pattern": "^([A-Za-z0-9_./+-]+[^/]|bootstrap:[A-Za-z0-9_.-]+(/[A-Za-z0-9_./+-]+)?)$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/component"
+      }
     }
   },
   "$defs": {
-    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "cpe": { "type": "string", "pattern": "^cpe:2\\.3:[aho](:[^:]+){10}$" },
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "cpe": {
+      "type": "string",
+      "pattern": "^cpe:2\\.3:[aho](:[^:]+){10}$"
+    },
     "component": {
       "type": "object",
-      "required": ["name", "version", "upstream", "upstream_commit", "cpe", "purl", "supplier", "license"],
+      "required": [
+        "name",
+        "version",
+        "upstream",
+        "upstream_commit",
+        "cpe",
+        "purl",
+        "supplier",
+        "license"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "version": { "type": ["string", "null"] },
-        "upstream": { "type": "string", "pattern": "^(https?|git)://" },
-        "upstream_commit": { "oneOf": [{ "$ref": "#/$defs/sha1" }, { "type": "null" }] },
-        "upstream_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "subrepo_commit": { "$ref": "#/$defs/sha1" },
-        "cpe": {
-          "oneOf": [
-            { "$ref": "#/$defs/cpe" },
-            { "type": "array", "items": { "$ref": "#/$defs/cpe" }, "minItems": 1, "uniqueItems": true },
-            { "type": "null" }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
           ]
         },
-        "purl": { "type": ["string", "null"], "pattern": "^pkg:[a-z]+/" },
-        "supplier": { "type": "string", "pattern": "^(Organization|Person): " },
-        "license": { "type": "string", "minLength": 1 },
-        "first_party": { "type": "boolean" },
-        "note": { "type": "string" },
+        "upstream": {
+          "type": "string",
+          "pattern": "^(https?|git)://"
+        },
+        "upstream_commit": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "upstream_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "subrepo_commit": {
+          "$ref": "#/$defs/sha1"
+        },
+        "cpe": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/cpe"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/cpe"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "purl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^pkg:[a-z]+/"
+        },
+        "supplier": {
+          "type": "string",
+          "pattern": "^(Organization|Person): "
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "first_party": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        },
         "patches": {
           "type": "array",
           "items": {
             "oneOf": [
-              { "type": "string" },
-              { "type": "object", "minProperties": 1, "maxProperties": 1, "additionalProperties": { "type": "string" } }
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "minProperties": 1,
+                "maxProperties": 1,
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
             ]
           }
         },
@@ -52,23 +134,120 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["cve", "reason"],
+            "required": [
+              "cve",
+              "reason"
+            ],
             "additionalProperties": false,
             "properties": {
-              "cve": { "type": "string", "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$" },
-              "reason": { "type": "string", "minLength": 1 }
+              "cve": {
+                "type": "string",
+                "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
+        },
+        "scope": {
+          "enum": [
+            "shipped",
+            "test",
+            "tool"
+          ],
+          "description": "shipped (default): code that ends up in something Prusa ships; test: unit tests only; tool: build or host tooling, not shipped"
+        },
+        "images": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "main",
+              "bootloader",
+              "puppy",
+              "esp8266-wifi",
+              "esp32-wifi",
+              "mmu",
+              "ac-controller"
+            ]
+          },
+          "description": "which shipped firmware images contain this code"
+        },
+        "bootstrap": {
+          "type": "object",
+          "required": [
+            "dependency",
+            "version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "dependency": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "submodule": {
+              "type": "string"
+            }
+          },
+          "description": "for bootstrap: keys: the utils/bootstrap.py dependency (and submodule path) this entry describes; version must equal bootstrap.py's"
+        },
+        "shipped_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of a prebuilt binary that is shipped as-is"
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "upstream_commit": { "type": "null" } } },
-          "then": { "required": ["note"] }
+          "if": {
+            "properties": {
+              "upstream_commit": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "note"
+            ]
+          }
         },
         {
-          "if": { "properties": { "version": { "type": "null" } } },
-          "then": { "required": ["note"] }
+          "if": {
+            "properties": {
+              "version": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "note"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "test"
+              }
+            },
+            "required": [
+              "scope"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "images"
+              ]
+            }
+          }
         }
       ]
     }

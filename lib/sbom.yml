@@ -142,6 +142,7 @@ components:
     patches: []  # identical to upstream
 
   lib/Catch2:
+    scope: test
     name: catch2
     version: 3.11.0-10-g31ee3beb
     upstream: https://github.com/catchorg/Catch2
@@ -344,6 +345,7 @@ components:
       - cmake/Utilities.cmake: pass --printer-subversion "0" to pack_fw.py
 
   lib/Prusa-Firmware-MMU/lib/Catch2:
+    scope: test
     name: catch2
     version: 3.1.1
     upstream: https://github.com/catchorg/Catch2
@@ -957,6 +959,7 @@ components:
       - "14 local commits: /DEVICE/path path format, device list fixes, MAX_HANDLES 16, no _reent->deviceData, truncate leak fix, LFN in struct dirent, RemoveDeviceByIndex(), CMakeLists.txt and config.h added"
 
   tests/stubs/FreeRTOS:
+    scope: test
     name: freertos-kernel
     version: 10.5.1
     upstream: https://github.com/FreeRTOS/FreeRTOS-Kernel
@@ -1063,3 +1066,628 @@ components:
       First-party, 8-line endian.h shim (be/htobe 16/32/64 via __builtin_bswap)
       added in 26fa24a27 so lib/nanocbor builds with newlib. Contains no third-party code.
     patches: []
+
+  # --- fetched by utils/bootstrap.py: toolchain, SDKs, prebuilt binaries (added 2026-11-03) ---
+  bootstrap:bootloader-coreone:
+    bootstrap:
+      dependency: bootloader-coreone
+      version: 2.6.0
+    name: prusa-bootloader-coreone
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    upstream_commit: null
+    upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
+    shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-coreone@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-coreone_indx:
+    bootstrap:
+      dependency: bootloader-coreone_indx
+      version: 2.6.0
+    name: prusa-bootloader-coreone_indx
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    upstream_commit: null
+    upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
+    shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-coreone_indx@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-coreonel:
+    bootstrap:
+      dependency: bootloader-coreonel
+      version: 2.6.0
+    name: prusa-bootloader-coreonel
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    upstream_commit: null
+    upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
+    shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-coreonel@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-coreonel_indx:
+    bootstrap:
+      dependency: bootloader-coreonel_indx
+      version: 2.6.0
+    name: prusa-bootloader-coreonel_indx
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    upstream_commit: null
+    upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
+    shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-coreonel_indx@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-indx_head:
+    bootstrap:
+      dependency: bootloader-indx_head
+      version: v303
+    name: prusa-bootloader-indx_head
+    version: v303
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-indx_head-v303-8B50471A-8B26-4941-8C05-68E364C27DF5.zip
+    upstream_commit: null
+    upstream_sha256: fe4d8ac90a30b49159a0f8bf45c071f14fefb2f0f1a3aba1c77c64d93d811411
+    shipped_sha256: 37cfb2363beece33e9d3f6e7cc74534382a7cd8efc7ab7ce82fd24aea0913060
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-indx_head@v303
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - puppy
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-ix:
+    bootstrap:
+      dependency: bootloader-ix
+      version: 2.6.0
+    name: prusa-bootloader-ix
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-ix-2.6.0-36BB9EB6-4DE5-4007-B635-EDD577CBB3BA.zip
+    upstream_commit: null
+    upstream_sha256: c65bc483bf34dec509044470a1a9396ee993755f13ce74c46b565edfa2ac2b78
+    shipped_sha256: ced00239b0e6a66f93bb5b3db93aaf370cfe31755bd55091f66f546f15302c72
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-ix@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-mini:
+    bootstrap:
+      dependency: bootloader-mini
+      version: 2.6.0
+    name: prusa-bootloader-mini
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mini-2.6.0-3F576FB7-DF99-4877-AB20-BF3CA45AD1FC.zip
+    upstream_commit: null
+    upstream_sha256: cec601e9f3a07e522afe5f8008f1149d0f53138756c0d42188ae2e9b2de1436a
+    shipped_sha256: e0ce69d2c10542bda0a4f05f1b273e21d74f280f8ef7108885d22b12a7300a0a
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-mini@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-mk3.5:
+    bootstrap:
+      dependency: bootloader-mk3.5
+      version: 2.6.0
+    name: prusa-bootloader-mk3.5
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    upstream_commit: null
+    upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
+    shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-mk3.5@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-mk4:
+    bootstrap:
+      dependency: bootloader-mk4
+      version: 2.6.0
+    name: prusa-bootloader-mk4
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    upstream_commit: null
+    upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
+    shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-mk4@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:bootloader-xl:
+    bootstrap:
+      dependency: bootloader-xl
+      version: 2.6.0
+    name: prusa-bootloader-xl
+    version: 2.6.0
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-xl-2.6.0-BBF9BE22-2A89-4B82-AAFA-A463F8AD2ABF.zip
+    upstream_commit: null
+    upstream_sha256: 7c7c585d6eed36f6fdd68b73c4aa754d72a27b1b887394c22a1d4dcd6248b719
+    shipped_sha256: 2618aa93a5c9fa8afc3619da0477066dbacdd723970f3715e37d2c7b1afc92b7
+    cpe: null
+    purl: pkg:generic/prusa-bootloader-xl@2.6.0
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - bootloader
+    note: Prebuilt closed-source Prusa bootloader, downloaded by utils/bootstrap.py without hash verification
+      and shipped in the .bbf. It reads FAT32 USB drives and parses BBF files. Contents unknown (per strings
+      it includes newlib from an older GCC); only Prusa can produce its SBOM.
+  bootstrap:firmware-coreonel_ac_controller:
+    bootstrap:
+      dependency: firmware-coreonel_ac_controller
+      version: 0.0.8
+    name: prusa-coreonel-ac-controller
+    version: 0.0.8
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/firmware-coreonel_ac_controller-0.0.8-ECD94653-E201-4B7C-A9D4-1439BF25D7E5.zip
+    upstream_commit: null
+    upstream_sha256: f6ccda960a8b6e584301faccd41392c2d2af8454247183c1611271e5d3dcf408
+    shipped_sha256: d2656304645504f035cc6d97953c6a8fea20f2707294c802350b17172f15c13f
+    cpe: null
+    purl: pkg:generic/prusa-coreonel-ac-controller@0.0.8
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - ac-controller
+    note: Prebuilt AC controller firmware (built from an older Buddy tree, per the audit). Closed binary;
+      no SBOM of its own.
+  bootstrap:firmware-coreonel_indx_ac_controller:
+    bootstrap:
+      dependency: firmware-coreonel_indx_ac_controller
+      version: 0.0.8
+    name: prusa-coreonel-ac-controller
+    version: 0.0.8
+    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/firmware-coreonel_ac_controller-0.0.8-ECD94653-E201-4B7C-A9D4-1439BF25D7E5.zip
+    upstream_commit: null
+    upstream_sha256: f6ccda960a8b6e584301faccd41392c2d2af8454247183c1611271e5d3dcf408
+    shipped_sha256: d2656304645504f035cc6d97953c6a8fea20f2707294c802350b17172f15c13f
+    cpe: null
+    purl: pkg:generic/prusa-coreonel-ac-controller@0.0.8
+    supplier: 'Organization: Prusa Research a.s.'
+    license: NOASSERTION
+    first_party: true
+    images:
+    - ac-controller
+    note: Prebuilt AC controller firmware (built from an older Buddy tree, per the audit). Closed binary;
+      no SBOM of its own.
+  bootstrap:firmware-mmu:
+    bootstrap:
+      dependency: firmware-mmu
+      version: 3.0.4
+    name: prusa-firmware-mmu
+    version: 3.0.4
+    upstream: https://github.com/prusa3d/Prusa-Firmware-MMU
+    upstream_commit: 48d4d920be0b5337aa6251489f5073bb5f878f1b
+    shipped_sha256: a8ff73678aad2ba51f53a5c038daf8bab4692f50061dd10789181fd79b1ba8c8
+    cpe: null
+    purl: pkg:github/prusa3d/prusa-firmware-mmu@v3.0.4
+    supplier: 'Organization: Prusa Research a.s.'
+    license: GPL-3.0-only
+    first_party: true
+    images:
+    - mmu
+    note: MMU3 firmware hex (release v3.0.4), shipped as /mmu/fw.bin. Not built from the vendored lib/Prusa-Firmware-MMU
+      source (3.0.2 era). The AVR image includes LUFA and avr-libc (no NVD CPEs). Licence 'only' unverified,
+      as for lib/Prusa-Firmware-MMU.
+  bootstrap:gcc-arm-none-eabi:
+    bootstrap:
+      dependency: gcc-arm-none-eabi
+      version: 13.3.1
+    name: arm-gnu-toolchain
+    version: 13.3.1
+    upstream: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: Arm Limited'
+    license: GPL-3.0-or-later
+    scope: tool
+    note: Arm GNU Toolchain 13.3.rel1 (compiler, binutils). Not shipped; its runtime libraries are (see
+      /newlib and /gcc-runtime). Record in CycloneDX formulation.
+  bootstrap:gcc-arm-none-eabi/newlib:
+    bootstrap:
+      dependency: gcc-arm-none-eabi
+      version: 13.3.1
+    name: newlib
+    version: 4.4.0
+    upstream: https://sourceware.org/git/newlib-cygwin.git
+    upstream_commit: null
+    cpe: cpe:2.3:a:newlib_project:newlib:4.4.0:*:*:*:*:*:*:*
+    purl: pkg:generic/newlib@4.4.0
+    supplier: 'Organization: newlib project (Red Hat)'
+    license: NOASSERTION
+    images:
+    - main
+    - puppy
+    note: newlib-nano 4.4.0 as built by Arm for 13.3.rel1 (libc_nano, libm, libnosys); anfc links the
+      full libc.a. Arm doesn't publish the exact source commit.
+  bootstrap:gcc-arm-none-eabi/gcc-runtime:
+    bootstrap:
+      dependency: gcc-arm-none-eabi
+      version: 13.3.1
+    name: gcc-runtime
+    version: 13.3.1
+    upstream: https://gcc.gnu.org/git/gcc.git
+    upstream_commit: null
+    cpe: cpe:2.3:a:gnu:gcc:13.3.1:*:*:*:*:*:*:*
+    purl: pkg:generic/gcc@13.3.1
+    supplier: 'Organization: GNU Project'
+    license: GPL-3.0-or-later WITH GCC-exception-3.1
+    images:
+    - main
+    - puppy
+    note: libgcc and libstdc++ (nano) linked into every Buddy image. Most NVD gcc CVEs concern the compiler
+      itself; triage per CVE.
+  bootstrap:esp8266-rtos-sdk:
+    bootstrap:
+      dependency: esp8266-rtos-sdk
+      version: a192988b7906680440213eefc730d99dec0ce237
+    name: esp8266-rtos-sdk
+    version: 3.4-63-ga192988b
+    upstream: https://github.com/espressif/ESP8266_RTOS_SDK
+    upstream_commit: a192988b7906680440213eefc730d99dec0ce237
+    cpe: cpe:2.3:a:espressif:esp8266_rtos_sdk:3.4:*:*:*:*:*:*:*
+    purl: pkg:github/espressif/esp8266_rtos_sdk@a192988b7906680440213eefc730d99dec0ce237
+    supplier: 'Organization: Espressif Systems'
+    license: Apache-2.0
+    images:
+    - esp8266-wifi
+    note: 'SDK for the ESP8266 Wi-Fi module firmware (lib/esp-nic, shipped as /esp/uart_wifi.bin, which
+      reports v3.4-63-ga192988b-dirty). Linked, per image strings: wpa_supplicant (incl. SAE and AP code),
+      mbedtls (bignum/ECC for the supplicant), FreeRTOS V10.0.1, nvs_flash, esp_event, vfs, pthread, spi_flash,
+      and Espressif''s closed Wi-Fi/PHY libraries. No lwIP strings found. The CPE version is the release
+      line; the commit is 63 past v3.4.'
+  bootstrap:esp8266-rtos-sdk/components/mbedtls/mbedtls:
+    bootstrap:
+      dependency: esp8266-rtos-sdk
+      version: a192988b7906680440213eefc730d99dec0ce237
+      submodule: components/mbedtls/mbedtls
+    name: mbedtls-espressif-fork
+    version: 2.16.5
+    upstream: https://github.com/espressif/mbedtls
+    upstream_commit: 9ef92c551eb8d92677034c3ec8078a8076febf41
+    cpe:
+    - cpe:2.3:a:arm:mbed_tls:2.16.5:*:*:*:*:*:*:*
+    - cpe:2.3:a:trustedfirmware:mbed_tls:2.16.5:*:*:*:*:*:*:*
+    purl: pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41
+    supplier: 'Organization: Espressif Systems'
+    license: Apache-2.0
+    images:
+    - esp8266-wifi
+    note: 'Espressif fork of Mbed TLS 2.16.5 (2.16 LTS, end of life 2021). Used by wpa_supplicant (crypto_mbedtls-bignum.c,
+      -ec.c: SAE/WPA3) in the Wi-Fi module image.'
+  bootstrap:esp8266-rtos-sdk/components/lwip/lwip:
+    bootstrap:
+      dependency: esp8266-rtos-sdk
+      version: a192988b7906680440213eefc730d99dec0ce237
+      submodule: components/lwip/lwip
+    name: esp-lwip
+    version: 2.1.3-dev
+    upstream: https://github.com/espressif/esp-lwip
+    upstream_commit: 4fd84abace0cd8a5a709c194fa54afb3cd39b3f7
+    cpe: cpe:2.3:a:lwip_project:lwip:2.1.3:*:*:*:*:*:*:*
+    purl: pkg:github/espressif/esp-lwip@4fd84abace0cd8a5a709c194fa54afb3cd39b3f7
+    supplier: 'Organization: Espressif Systems'
+    license: BSD-3-Clause
+    images:
+    - esp8266-wifi
+    note: Fetched and compiled with the SDK, but there are no lwIP strings in the shipped image, so it
+      may not be linked (esp-nic forwards raw frames). Confirm with the ESP link map before VEXing lwIP
+      CVEs.
+  bootstrap:esp8266-rtos-sdk/components/wpa_supplicant:
+    bootstrap:
+      dependency: esp8266-rtos-sdk
+      version: a192988b7906680440213eefc730d99dec0ce237
+    name: wpa_supplicant-espressif
+    version: null
+    upstream: https://github.com/espressif/ESP8266_RTOS_SDK/tree/a192988b7906680440213eefc730d99dec0ce237/components/wpa_supplicant
+    upstream_commit: a192988b7906680440213eefc730d99dec0ce237
+    cpe: null
+    purl: null
+    supplier: 'Organization: Espressif Systems'
+    license: BSD-3-Clause
+    images:
+    - esp8266-wifi
+    note: 'Espressif''s in-tree fork of hostap/wpa_supplicant (copyright years end in 2016, roughly the
+      hostap 2.6 era). Linked: rsn_supp (WPA/RSN 4-way handshake), SAE, AP-mode wpa_auth, CCMP, pmksa_cache.
+      This is the radio-facing parser. It has no upstream version string, so w1.fi:wpa_supplicant CVEs
+      need manual triage against the fork (e.g. the 2019 Dragonblood SAE set, CVE-2019-9494..9499).'
+  bootstrap:esp8266-rtos-sdk/components/freertos:
+    bootstrap:
+      dependency: esp8266-rtos-sdk
+      version: a192988b7906680440213eefc730d99dec0ce237
+    name: freertos-kernel-espressif
+    version: 10.0.1
+    upstream: https://github.com/espressif/ESP8266_RTOS_SDK/tree/a192988b7906680440213eefc730d99dec0ce237/components/freertos
+    upstream_commit: a192988b7906680440213eefc730d99dec0ce237
+    cpe: cpe:2.3:o:amazon:freertos:10.0.1:*:*:*:*:*:*:*
+    purl: null
+    supplier: 'Organization: Espressif Systems'
+    license: MIT
+    images:
+    - esp8266-wifi
+    note: FreeRTOS Kernel V10.0.1 as patched by Espressif for the ESP8266.
+  bootstrap:esp-idf:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+    name: esp-idf
+    version: 5.0.3
+    upstream: https://github.com/espressif/esp-idf
+    upstream_commit: e004907bd53b68e6db2e29ae335d8b38cbb39472
+    cpe: cpe:2.3:a:espressif:esp-idf:5.0.3:*:*:*:*:*:*:*
+    purl: pkg:github/espressif/esp-idf@v5.0.3
+    supplier: 'Organization: Espressif Systems'
+    license: Apache-2.0
+    images:
+    - esp32-wifi
+    note: SDK for the ESP32 Wi-Fi module firmware (XL). Includes in-tree wpa_supplicant and FreeRTOS V10.4.3
+      (ESP-IDF SMP fork). The shipped ESP32 image wasn't inspected; confirm what is linked.
+  bootstrap:esp-idf/components/mbedtls/mbedtls:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+      submodule: components/mbedtls/mbedtls
+    name: mbedtls-espressif-fork
+    version: 3.4.0
+    upstream: https://github.com/espressif/mbedtls
+    upstream_commit: f5fca55508d9d18961b10824d5cf5d8338c087f6
+    cpe:
+    - cpe:2.3:a:arm:mbed_tls:3.4.0:*:*:*:*:*:*:*
+    - cpe:2.3:a:trustedfirmware:mbed_tls:3.4.0:*:*:*:*:*:*:*
+    purl: pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6
+    supplier: 'Organization: Espressif Systems'
+    license: Apache-2.0
+    images:
+    - esp32-wifi
+    note: Espressif fork of Mbed TLS 3.4.0.
+  bootstrap:esp-idf/components/lwip/lwip:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+      submodule: components/lwip/lwip
+    name: esp-lwip
+    version: 2.1.3-dev
+    upstream: https://github.com/espressif/esp-lwip
+    upstream_commit: 57c29648ff40e2a19a51683717928aaf766a0495
+    cpe: cpe:2.3:a:lwip_project:lwip:2.1.3:*:*:*:*:*:*:*
+    purl: pkg:github/espressif/esp-lwip@57c29648ff40e2a19a51683717928aaf766a0495
+    supplier: 'Organization: Espressif Systems'
+    license: BSD-3-Clause
+    images:
+    - esp32-wifi
+    note: Espressif fork of lwIP (2.1.3 development line).
+  bootstrap:esp-idf/components/esp_wifi/lib:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+      submodule: components/esp_wifi/lib
+    name: esp32-wifi-lib
+    version: null
+    upstream: https://github.com/espressif/esp32-wifi-lib
+    upstream_commit: 9a2cbdc71044dd3f96ec828a9e88cea5bfd4efd0
+    cpe: null
+    purl: pkg:github/espressif/esp32-wifi-lib@9a2cbdc71044dd3f96ec828a9e88cea5bfd4efd0
+    supplier: 'Organization: Espressif Systems'
+    license: LicenseRef-Espressif-proprietary
+    images:
+    - esp32-wifi
+    note: Closed-source Wi-Fi MAC blobs; no version string. Identified by commit only.
+  bootstrap:esp-idf/components/esp_phy/lib:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+      submodule: components/esp_phy/lib
+    name: esp-phy-lib
+    version: null
+    upstream: https://github.com/espressif/esp-phy-lib
+    upstream_commit: 3ccfd015eb69dccde8fce39827e90acb318f7b09
+    cpe: null
+    purl: pkg:github/espressif/esp-phy-lib@3ccfd015eb69dccde8fce39827e90acb318f7b09
+    supplier: 'Organization: Espressif Systems'
+    license: LicenseRef-Espressif-proprietary
+    images:
+    - esp32-wifi
+    note: Closed-source PHY blobs; no version string. Identified by commit only.
+  bootstrap:esp-idf/components/heap/tlsf:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+      submodule: components/heap/tlsf
+    name: tlsf
+    version: null
+    upstream: https://github.com/espressif/tlsf
+    upstream_commit: 8c9cd0517adf99e363812e9a295dfe3898fdd345
+    cpe: null
+    purl: pkg:github/espressif/tlsf@8c9cd0517adf99e363812e9a295dfe3898fdd345
+    supplier: 'Organization: Espressif Systems'
+    license: BSD-3-Clause
+    images:
+    - esp32-wifi
+    note: TLSF allocator (Espressif fork); no version string. Identified by commit only.
+  bootstrap:esp-idf/components/bootloader/subproject/components/micro-ecc/micro-ecc:
+    bootstrap:
+      dependency: esp-idf
+      version: 5.0.3
+      submodule: components/bootloader/subproject/components/micro-ecc/micro-ecc
+    name: micro-ecc
+    version: null
+    upstream: https://github.com/kmackay/micro-ecc
+    upstream_commit: d037ec89546fad14b5c4d5456c2e23a71e554966
+    cpe: null
+    purl: pkg:github/kmackay/micro-ecc@d037ec89546fad14b5c4d5456c2e23a71e554966
+    supplier: 'Person: Ken MacKay'
+    license: BSD-2-Clause
+    images:
+    - esp32-wifi
+    note: Used by the ESP32 second-stage bootloader for secure-boot signature checks, if enabled. NVD
+      has micro-ecc_project:micro-ecc, but none of its versions maps to a commit. Identified by commit
+      only.
+  bootstrap:clang-format:
+    bootstrap:
+      dependency: clang-format
+      version: 16-83817c2f
+    name: clang-format
+    version: 16-83817c2f
+    upstream: https://github.com/prusa3d/clang-format-binaries
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:cmake:
+    bootstrap:
+      dependency: cmake
+      version: 3.28.3
+    name: cmake
+    version: 3.28.3
+    upstream: https://cmake.org
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:ninja:
+    bootstrap:
+      dependency: ninja
+      version: 1.10.2
+    name: ninja
+    version: 1.10.2
+    upstream: https://ninja-build.org
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:mini404:
+    bootstrap:
+      dependency: mini404
+      version: 0.9.10
+    name: mini404
+    version: 0.9.10
+    upstream: https://github.com/vintagepc/MINI404
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:cmsis-svd:
+    bootstrap:
+      dependency: cmsis-svd
+      version: 40327a4d2dff0992682be2872aaa6e096f35d2f4
+    name: cmsis-svd
+    version: 40327a4d2dff0992682be2872aaa6e096f35d2f4
+    upstream: https://github.com/cmsis-svd/cmsis-svd-data
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:cmsis-svd-h5:
+    bootstrap:
+      dependency: cmsis-svd-h5
+      version: c7e833e81e79e3396e1078832d936ae6578a8bc1
+    name: cmsis-svd-h5
+    version: c7e833e81e79e3396e1078832d936ae6578a8bc1
+    upstream: https://github.com/cmsis-svd/cmsis-svd-data
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:cmsis-svd-c0:
+    bootstrap:
+      dependency: cmsis-svd-c0
+      version: ce4b873ae4a471cf28d7a7c9c69ded252d949672
+    name: cmsis-svd-c0
+    version: ce4b873ae4a471cf28d7a7c9c69ded252d949672
+    upstream: https://github.com/cmsis-svd/cmsis-svd-data
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.
+  bootstrap:CrashDebug:
+    bootstrap:
+      dependency: CrashDebug
+      version: 22acef8c6e248db2f04f65eebf4c2b470f4010c2
+    name: crashdebug
+    version: 22acef8c6e248db2f04f65eebf4c2b470f4010c2
+    upstream: https://github.com/prusa3d/CrashDebug
+    upstream_commit: null
+    cpe: null
+    purl: null
+    supplier: 'Organization: see upstream'
+    license: NOASSERTION
+    scope: tool
+    note: Build, debug or emulation tool fetched by utils/bootstrap.py; not part of any shipped image.

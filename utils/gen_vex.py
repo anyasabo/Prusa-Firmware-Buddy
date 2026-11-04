@@ -208,9 +208,64 @@ TRIAGE = {
     ],
 }
 
+# mbedTLS advisories from July 2026. Their CVE IDs are still RESERVED at CVE.org,
+# so no CPE feed has them; utils/sbom_feeds.py mbedtls-advisories finds them.
+TRIAGE["lib/Middlewares/Third_Party/mbedtls"] += [
+    (["CVE-2026-50584"], "not_affected", NP,
+     "ChaCha20; MBEDTLS_CHACHA20_C is off."),
+    (["CVE-2026-50581"], "not_affected", NP,
+     "Extended master secret; MBEDTLS_SSL_EXTENDED_MASTER_SECRET is off."),
+    (["CVE-2026-35336"], "not_affected", NIEP,
+     "mbedtls_ecdh_calc_secret with an undersized buffer; TLS always passes a large enough buffer and Buddy has no direct calls."
+     ),
+    (["CVE-2026-50587"], "not_affected", NIEP,
+     "RSA PKCS#1 v1.5 decryption; E2EE uses RSA-OAEP (PKCS_V21)."),
+    (["CVE-2026-50585", "CVE-2026-50586"], "not_affected", NP,
+     "DTLS session-reset state and TLS 1.2 server NewSessionTicket; no DTLS, no SSL server, no session tickets."
+     ),
+    (["CVE-2026-50580"], "not_affected", NP,
+     "ECDHE-PSK client; no PSK suites are enabled."),
+    (["CVE-2026-49300"], "not_affected", NCA,
+     "CA-bit parsing differential needs user-supplied trust roots validated elsewhere; Buddy embeds one fixed CA."
+     ),
+    (["CVE-2026-54435"], "not_affected", NCA,
+     "ECC fast-reduction side channel needs a local privileged trace (enclave model); not an attacker the MCU has."
+     ),
+    (["CVE-2026-54441"], "affected",
+     "Upgrade mbedTLS (no 2.28 fix exists; 2.28 is end of life).",
+     "Signature-algorithm restrictions are not enforced on the certificate chain; low impact with a single pinned Prusa CA."
+     ),
+]
+TRIAGE["bootstrap:esp8266-rtos-sdk/components/mbedtls/mbedtls"] += [
+    ([
+        "CVE-2026-49300", "CVE-2026-50580", "CVE-2026-50581", "CVE-2026-50584",
+        "CVE-2026-50585", "CVE-2026-50586", "CVE-2026-35336", "CVE-2026-54441"
+    ], "not_affected", NIEP,
+     "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+     ),
+    (["CVE-2026-54435"], "not_affected", NCA,
+     "ECC fast-reduction side channel needs local, privileged trace access to the module."
+     ),
+]
+# ESP32 image: decide per CVE once the link map shows what esp-nic links.
+TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
+    ([
+        "CVE-2023-43615", "CVE-2023-45199", "CVE-2023-52353", "CVE-2024-23170",
+        "CVE-2024-23775", "CVE-2024-28960", "CVE-2024-30166", "CVE-2024-45157",
+        "CVE-2024-45159", "CVE-2025-27809", "CVE-2025-27810", "CVE-2025-47917",
+        "CVE-2025-48965", "CVE-2025-49600", "CVE-2025-49601", "CVE-2025-52496",
+        "CVE-2025-52497", "CVE-2025-54764", "CVE-2025-59438", "CVE-2025-66442",
+        "CVE-2026-25834", "CVE-2026-25835", "CVE-2026-34871", "CVE-2026-34872",
+        "CVE-2026-34876", "CVE-2026-34877", "CVE-2026-35336", "CVE-2026-49300",
+        "CVE-2026-50579", "CVE-2026-50580", "CVE-2026-50581", "CVE-2026-50584",
+        "CVE-2026-50585", "CVE-2026-50586", "CVE-2026-50587", "CVE-2026-50588",
+        "CVE-2026-50640", "CVE-2026-54435", "CVE-2026-54441", "CVE-2026-73064"
+    ], "under_investigation", None,
+     "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+     ),
+]
+
 UNDER_INVESTIGATION_ALL = {
-    "bootstrap:esp-idf/components/mbedtls/mbedtls":
-    "esp-nic does not use TLS, so TLS code should be garbage-collected at link time; confirm with the ESP32 link map.",
     "bootstrap:esp8266-rtos-sdk/components/lwip/lwip":
     "No lwIP strings in the shipped image; it may not be linked. Confirm with the ESP8266 link map.",
     "bootstrap:esp-idf/components/lwip/lwip":

@@ -265,6 +265,47 @@ TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
      ),
 ]
 
+# Found by utils/sbom_feeds.py (GitHub repository advisories, NVD++ keywords), 2026-11-04.
+TRIAGE["lib/Middlewares/Third_Party/FreeRTOS"] += [
+    (["CVE-2026-119086"], "under_investigation", None,
+     "MPU ports with queue sets only (like CVE-2026-77237); main firmware has the MPU off, src/puppy/xbuddy_extension has it on."
+     ),
+    (["CVE-2026-109587", "CVE-2026-109588"], "not_affected", NP,
+     "Arm Cortex-R82 MPU port, V11.3.0-V11.3.1 only."),
+]
+TRIAGE["bootstrap:esp8266-rtos-sdk/components/freertos"] += [
+    (["CVE-2026-119086"], "not_affected", NP,
+     "MPU-port issue; the ESP8266 port has no MPU support."),
+]
+TRIAGE["bootstrap:esp-idf"] += [
+    ([
+        "CVE-2026-113781", "CVE-2026-81508", "CVE-2026-25507",
+        "CVE-2026-25508", "CVE-2022-24893"
+    ], "not_affected", NP,
+     "Bluetooth (BLE Mesh, A2DP, BLE provisioning); the bt component is not fetched."
+     ),
+    (["CVE-2026-113782"], "not_affected", NP,
+     "Thread border router; openthread is not fetched."),
+    (["CVE-2026-113780"], "not_affected", NP,
+     "ESP-TEE exists from 5.5; not in 5.0.3."),
+    (["CVE-2025-65092"], "not_affected", NP,
+     "ESP32-P4 JPEG decoder; not part of an ESP32 build."),
+    (["CVE-2026-25532"], "not_affected", NIEP,
+     "WPS enrollee; esp-nic never enables WPS."),
+    (["CVE-2025-52471"], "not_affected", NIEP,
+     "ESP-NOW; esp-nic does not use it."),
+    (["CVE-2026-113783"], "under_investigation", None,
+     "lwIP DNS cache in ESP-IDF; esp-nic resolves nothing itself, but whether lwIP is active on the module needs the ESP32 link map."
+     ),
+]
+TRIAGE["bootstrap:esp8266-rtos-sdk/components/wpa_supplicant"] = [
+    (["CVE-2026-78807"], "not_affected", NCA,
+     "Needs a local attacker able to configure networks on the device; the Wi-Fi module has no local users (configuration comes from the printer over UART)."
+     ),
+    (["CVE-2026-21094"], "not_affected", NP,
+     "Samsung Android (SMR) wpa_supplicant change; not in Espressif's fork."),
+]
+
 UNDER_INVESTIGATION_ALL = {
     "bootstrap:esp8266-rtos-sdk/components/lwip/lwip":
     "No lwIP strings in the shipped image; it may not be linked. Confirm with the ESP8266 link map.",

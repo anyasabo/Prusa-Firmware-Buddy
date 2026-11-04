@@ -41,8 +41,8 @@ repos:
       files: (^lib/sbom\.yml$|^lib/sbom\.schema\.json$|\.gitrepo$|^utils/bootstrap\.py$|^utils/sbom/check_sbom_manifest\.py$)
       pass_filenames: false
       language: python
-      language_version: python3
-      additional_dependencies: ['pyyaml~=6.0', 'jsonschema~=4.25.1']
+      language_version: python3.12
+      additional_dependencies: ['pyyaml==6.0.3', 'jsonschema==4.25.1']
     - id: gen-vex
       name: gen-vex
       description: lib/vex.json must be regenerated after changing the triage table in utils/sbom/gen_vex.py.
@@ -50,8 +50,8 @@ repos:
       files: ^(utils/sbom/gen_vex\.py|utils/sbom/sbom_manifest\.py|lib/sbom\.yml|lib/vex\.json)$
       pass_filenames: false
       language: python
-      language_version: python3
-      additional_dependencies: ['pyyaml~=6.0']
+      language_version: python3.12
+      additional_dependencies: ['pyyaml==6.0.3']
     - id: ty-sbom
       name: ty (SBOM tooling)
       description: Type-check the SBOM tools; the file list is [tool.ty.src] in pyproject.toml.
@@ -59,8 +59,16 @@ repos:
       files: ^(utils/sbom/.*\.py|tests/sbom/.*\.py|pyproject\.toml)$
       pass_filenames: false
       language: python
-      language_version: python3
-      additional_dependencies: ['ty==0.0.97', 'pyyaml~=6.0', 'types-PyYAML', 'jsonschema~=4.25.1', 'pytest']
+      language_version: python3.12
+      additional_dependencies: ['ty==0.0.97', 'pyyaml==6.0.3', 'types-PyYAML==6.0.12.20260906', 'jsonschema==4.25.1', 'pytest==9.1.1']
+    - id: sbom-pytest
+      name: pytest (SBOM tooling)
+      entry: pytest -q -p no:cacheprovider tests/sbom
+      files: ^(utils/sbom/.*\.py|tests/sbom/.*\.py|lib/sbom\.yml|lib/vex\.json)$
+      pass_filenames: false
+      language: python
+      language_version: python3.12
+      additional_dependencies: ['pyyaml==6.0.3', 'pytest==9.1.1']
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.

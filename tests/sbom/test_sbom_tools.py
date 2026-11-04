@@ -5,6 +5,7 @@ import pytest
 
 import gen_sbom
 import gen_vex
+import vex_gate
 from match_nvdpp import in_range, version_key
 from sbom_feeds import affects
 from sbom_manifest import load_components
@@ -86,3 +87,30 @@ def test_image_selection_defaults_to_main() -> None:
     }
     assert "lib/Middlewares/Third_Party/mbedtls" in main
     assert "bootstrap:esp-idf" in esp and "bootstrap:esp-idf" not in main
+
+
+def match(cve: str, purl: str, related: tuple[str, ...] = ()) -> dict:
+    return {
+        "artifact": {
+            "purl": purl,
+            "name": "x",
+            "version": "1"
+        },
+        "vulnerability": {
+            "id": cve
+        },
+        "relatedVulnerabilities": [{
+            "id": r
+        } for r in related],
+    }
+
+
+def test_vex_gate_counts_only_undecided_findings() -> None:
+    status = {("CVE-1", "pkg:a"): "affected"}
+    lines, new = vex_gate.report("main", [
+        match("CVE-1", "pkg:a"),
+        match("GHSA-x", "pkg:a", related=("CVE-1", )),
+        match("CVE-1", "pkg:b"),
+    ], status)
+    assert new == 1  # decided for pkg:a only
+    assert "- **NEW**: CVE-1 in x 1 (?)" in lines

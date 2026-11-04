@@ -299,6 +299,16 @@ TRIAGE["bootstrap:esp-idf"] += [
      ),
 ]
 TRIAGE["bootstrap:esp8266-rtos-sdk/components/wpa_supplicant"] = [
+    # Dragonblood (hostap 2019-1/2019-5, 2022-1) against Espressif's fork of the
+    # ESP8266 SDK (sae.c is pre-2.8: fixed 40 iterations, but no const_time_select).
+    (["CVE-2019-9494", "CVE-2022-23303"], "not_affected", NCA,
+     "The fork has the vulnerable SAE pattern (conditional copy in sae_derive_pwe_ecc, no const_time helpers), but exploitation needs attacker code co-located on the Wi-Fi module to observe cache access; the module runs only vendor firmware. Only used when the AP offers WPA3-SAE."
+     ),
+    (["CVE-2019-9495", "CVE-2019-9497", "CVE-2019-9498",
+      "CVE-2019-9499"], "not_affected", NP,
+     "EAP-pwd; no EAP method code is linked into the Wi-Fi module image."),
+    (["CVE-2019-9496"], "not_affected", NIEP,
+     "AP-side SAE confirm handling; esp-nic runs in station mode only."),
     (["CVE-2026-78807"], "not_affected", NCA,
      "Needs a local attacker able to configure networks on the device; the Wi-Fi module has no local users (configuration comes from the printer over UART)."
      ),

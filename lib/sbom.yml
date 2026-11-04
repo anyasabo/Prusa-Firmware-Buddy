@@ -23,11 +23,10 @@
 #   supplier         "Organization: <name>" as in SPDX/ESP-IDF
 #   license          SPDX license expression
 #   patches          local modifications relative to upstream_commit
-#   cve-exclude-list CVEs that match by version but do not apply; {cve, reason}
-#                    (the detailed justification lives in the VEX file)
 #   note             anything a reviewer needs to know about the identity above
 #
 # Checked by utils/check_sbom_manifest.py (schema: lib/sbom.schema.json).
+# Triage of CVEs that match an entry lives in utils/gen_vex.py, not here.
 
 components:
   lib/Middlewares/Third_Party/mbedtls:
@@ -690,14 +689,6 @@ components:
       - "mdns.c: mdns_resp_remove_netif() also cancels pending probe/announce timeouts (3cb24025f)"
       - "mdns.c: ip_addr_eq/ip4_addr_net_eq renamed back to ip_addr_cmp/ip_addr_netcmp for lwIP 2.1.2"
       - "all files: '#error dead code' marker comments (BFW-5461)"
-    cve-exclude-list:
-      - cve: CVE-2026-112062
-        reason: >-
-          The vulnerable memcpy in mdns_handle_response() (lib/WUI/mdns/mdns.c:1864,
-          fixed upstream in ab2f69c7) runs only for answers that match a pending
-          search request. Requests are created only by mdns_search_service(),
-          which the firmware never calls (only mdns_resp_init, mdns_resp_add_netif,
-          mdns_resp_add_service_prusalink and mdns_resp_remove_netif are used, in lib/WUI/wui.cpp).
 
   lib/WUI/sntp:
     name: lwip-sntp

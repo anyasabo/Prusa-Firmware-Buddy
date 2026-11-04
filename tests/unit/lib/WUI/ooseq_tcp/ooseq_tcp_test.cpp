@@ -398,3 +398,52 @@ TEST_CASE("ooseq_tcp T6: fix C reclaim frees inbound ooseq first and clears SACK
     }
     CHECK(in.counters.recved_bytes == 5 * 1024);
 }
+
+namespace {
+// Stands in for tcpip_try_callback(): records what pbuf_alloc_rx() would queue.
+std::vector<void (*)(void *)> posted;
+err_t post_result = ERR_OK;
+int8_t fake_post(void (*callback)(void *)) {
+    if (post_result == ERR_OK) {
+        posted.push_back(callback);
+    }
+    return post_result;
+}
+} // namespace
+
+TEST_CASE("ooseq_tcp T7: reclaim requests queue one callback until it runs", "[ooseq]") {
+    Fixture f(FIX_A);
+    Conn &in = f.open(HTTP_PORT);
+    lose_segment_2(f, in);
+    REQUIRE(in.ooseq_segs() == 3);
+
+    posted.clear();
+    post_result = ERR_OK;
+    ooseq_limit::set_reclaim_poster_for_test(fake_post);
+
+    // A burst of RX allocation failures queues the reclaim once.
+    buddy_ooseq_reclaim_request();
+    buddy_ooseq_reclaim_request();
+    buddy_ooseq_reclaim_request();
+    REQUIRE(posted.size() == 1);
+    CHECK(in.ooseq_segs() == 3); // nothing freed until the tcpip thread runs it
+
+    posted[0](nullptr);
+    CHECK(in.pcb->ooseq == nullptr);
+    CHECK_FALSE(in.has_sacks());
+
+    // Once it has run, the next failure queues it again.
+    buddy_ooseq_reclaim_request();
+    CHECK(posted.size() == 2);
+    posted[1](nullptr);
+
+    // If the tcpip mailbox is full, nothing stays pending: the next failure retries.
+    post_result = ERR_MEM;
+    buddy_ooseq_reclaim_request();
+    post_result = ERR_OK;
+    buddy_ooseq_reclaim_request();
+    CHECK(posted.size() == 3);
+    posted[2](nullptr);
+
+    ooseq_limit::set_reclaim_poster_for_test(nullptr);
+}

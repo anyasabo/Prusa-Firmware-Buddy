@@ -74,11 +74,17 @@ inline uint16_t compute_segs_limit(bool is_inbound, uint16_t other_all_segs, uin
 #ifdef OOSEQ_LIMIT_OVERRIDABLE
 /// Host tests only (see ooseq_limit.cpp).
 void set_limits_for_test(const Limits &limits);
+/// Stands in for tcpip_try_callback() (the host test has no tcpip thread).
+/// Setting it also clears the pending flag.
+using ReclaimPoster = int8_t (*)(void (*callback)(void *));
+void set_reclaim_poster_for_test(ReclaimPoster poster);
 /// Number of times lwIP consulted the hooks (bytes + pbufs), for sanity checks.
 uint32_t hook_calls_for_test();
 #endif
 
 } // namespace ooseq_limit
 
-/// Fix C prototype; see ooseq_limit.cpp. tcpip thread only.
+/// Fix C; see ooseq_limit.cpp. tcpip thread only.
 extern "C" uint32_t buddy_ooseq_reclaim(void);
+/// Schedules buddy_ooseq_reclaim() on the tcpip thread. Any task, not ISRs.
+extern "C" void buddy_ooseq_reclaim_request(void);

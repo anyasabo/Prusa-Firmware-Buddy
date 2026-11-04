@@ -1,7 +1,7 @@
 # SBOM tooling checks and a vulnerability scan of the shipped firmware images.
 #
 # check: lint, types and tests of the SBOM tools; lib/sbom.yml matches the tree;
-#        lib/vex.json is regenerated from utils/gen_vex.py.
+#        lib/vex.json is regenerated from utils/sbom/gen_vex.py.
 # scan:  Grype on the CycloneDX SBOM of each image, with lib/vex.json. Fails on
 #        findings the VEX does not decide; known "affected" findings pass.
 name: SBOM
@@ -15,12 +15,7 @@ on:
       - lib/vex.json
       - "**/.gitrepo"
       - utils/bootstrap.py
-      - utils/check_sbom_manifest.py
-      - utils/gen_sbom.py
-      - utils/gen_vex.py
-      - utils/match_nvdpp.py
-      - utils/sbom_feeds.py
-      - utils/sbom_manifest.py
+      - utils/sbom/**
       - tests/sbom/**
       - pyproject.toml
       - .github/workflows/sbom.yml
@@ -36,10 +31,7 @@ permissions:
   contents: read
 
 env:
-  PYTHON_FILES: >-
-    utils/check_sbom_manifest.py utils/gen_sbom.py utils/gen_vex.py
-    utils/match_nvdpp.py utils/sbom_feeds.py utils/sbom_manifest.py
-    tests/sbom/conftest.py tests/sbom/test_sbom_tools.py
+  PYTHON_FILES: utils/sbom/*.py tests/sbom/*.py
 
 jobs:
   check:
@@ -62,12 +54,12 @@ jobs:
       - name: pytest
         run: pytest -q tests/sbom
       - name: Manifest matches the tree
-        run: python utils/check_sbom_manifest.py
+        run: python utils/sbom/check_sbom_manifest.py
       - name: lib/vex.json is up to date
         run: |
-          python utils/gen_vex.py
+          python utils/sbom/gen_vex.py
           git diff --exit-code lib/vex.json || {
-            echo "::error file=lib/vex.json::run python utils/gen_vex.py and commit lib/vex.json"
+            echo "::error file=lib/vex.json::run python utils/sbom/gen_vex.py and commit lib/vex.json"
             exit 1
           }
 
@@ -94,7 +86,7 @@ jobs:
           mkdir -p out
           for image in main esp8266-wifi esp32-wifi; do
             uv run --no-project --python 3.12 --with 'pyyaml~=6.0' \
-              python utils/gen_sbom.py --image "$image" -o "out/$image.cdx.json"
+              python utils/sbom/gen_sbom.py --image "$image" -o "out/$image.cdx.json"
             grype "sbom:out/$image.cdx.json" --vex lib/vex.json -o json \
               > "out/$image.grype.json"
           done

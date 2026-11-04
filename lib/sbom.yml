@@ -25,8 +25,8 @@
 #   patches          local modifications relative to upstream_commit
 #   note             anything a reviewer needs to know about the identity above
 #
-# Checked by utils/check_sbom_manifest.py (schema: lib/sbom.schema.json).
-# Triage of CVEs that match an entry lives in utils/gen_vex.py, not here.
+# Checked by utils/sbom/check_sbom_manifest.py (schema: lib/sbom.schema.json).
+# Triage of CVEs that match an entry lives in utils/sbom/gen_vex.py, not here.
 
 components:
   lib/Middlewares/Third_Party/mbedtls:

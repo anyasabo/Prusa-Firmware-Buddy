@@ -130,7 +130,7 @@ TRIAGE: dict[str, list[Decision]] = {
             "RSA private-key side channels; RSA-OAEP decrypt is used by E2EE (src/common/e2ee/e2ee.cpp). Requires precise timing or memory-access observation."
         ),
         # July 2026 advisories. Their CVE IDs are still RESERVED at CVE.org, so no CPE
-        # feed has them; utils/sbom_feeds.py mbedtls-advisories finds them.
+        # feed has them; utils/sbom/sbom_feeds.py mbedtls-advisories finds them.
         not_affected(["CVE-2026-50584"], NP,
                      "ChaCha20; MBEDTLS_CHACHA20_C is off."),
         not_affected(
@@ -504,7 +504,7 @@ def main() -> int:
     doc = {
         "@context": "https://openvex.dev/ns/v0.2.0",
         "@id": f"urn:uuid:{doc_id}",
-        "author": "Buddy SBOM triage (utils/gen_vex.py)",
+        "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
         "timestamp": f"{REVIEWED}T00:00:00Z",
         "version": 1,
         "statements": body,

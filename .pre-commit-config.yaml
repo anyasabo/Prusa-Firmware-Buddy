@@ -37,17 +37,17 @@ repos:
     - id: check-sbom-manifest
       name: check-sbom-manifest
       description: lib/sbom.yml must describe every vendored library (.gitrepo) and everything utils/bootstrap.py fetches, at the pinned versions.
-      entry: python utils/check_sbom_manifest.py
-      files: (^lib/sbom\.yml$|^lib/sbom\.schema\.json$|\.gitrepo$|^utils/bootstrap\.py$|^utils/check_sbom_manifest\.py$)
+      entry: python utils/sbom/check_sbom_manifest.py
+      files: (^lib/sbom\.yml$|^lib/sbom\.schema\.json$|\.gitrepo$|^utils/bootstrap\.py$|^utils/sbom/check_sbom_manifest\.py$)
       pass_filenames: false
       language: python
       language_version: python3
       additional_dependencies: ['pyyaml~=6.0', 'jsonschema~=4.25.1']
     - id: gen-vex
       name: gen-vex
-      description: lib/vex.json must be regenerated after changing the triage table in utils/gen_vex.py.
-      entry: python utils/gen_vex.py
-      files: ^(utils/gen_vex\.py|utils/sbom_manifest\.py|lib/sbom\.yml|lib/vex\.json)$
+      description: lib/vex.json must be regenerated after changing the triage table in utils/sbom/gen_vex.py.
+      entry: python utils/sbom/gen_vex.py
+      files: ^(utils/sbom/gen_vex\.py|utils/sbom/sbom_manifest\.py|lib/sbom\.yml|lib/vex\.json)$
       pass_filenames: false
       language: python
       language_version: python3
@@ -56,7 +56,7 @@ repos:
       name: ty (SBOM tooling)
       description: Type-check the SBOM tools; the file list is [tool.ty.src] in pyproject.toml.
       entry: ty check
-      files: ^(utils/(check_sbom_manifest|gen_sbom|gen_vex|match_nvdpp|sbom_feeds|sbom_manifest)\.py|tests/sbom/.*\.py|pyproject\.toml)$
+      files: ^(utils/sbom/.*\.py|tests/sbom/.*\.py|pyproject\.toml)$
       pass_filenames: false
       language: python
       language_version: python3
@@ -72,7 +72,7 @@ repos:
   hooks:
     # Lint only (yapf formats). Limited to the SBOM tooling for now.
     - id: ruff-check
-      files: ^(utils/(check_sbom_manifest|gen_sbom|gen_vex|match_nvdpp|sbom_feeds|sbom_manifest)\.py|tests/sbom/.*\.py)$
+      files: ^(utils/sbom/.*\.py|tests/sbom/.*\.py)$
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: 'v2.4.0'
   hooks:

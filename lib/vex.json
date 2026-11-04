@@ -1,7 +1,7 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
  "@id": "urn:uuid:e3ab1fc6-791d-5307-82e9-008b226f6bd3",
- "author": "Buddy SBOM triage (utils/gen_vex.py)",
+ "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
  "timestamp": "2026-11-04T00:00:00Z",
  "version": 1,
  "statements": [

@@ -81,7 +81,9 @@ add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 add_compile_options(-frandom-seed=BuddyFW)
 
 # Do not allow non-ascii identifiers and bidi shenanigans
-add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
+endif()
 
 add_compile_options(
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-register> $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>
@@ -331,7 +333,12 @@ endif()
 
 # split and gc sections
 add_compile_options(-ffunction-sections -fdata-sections)
-add_link_options(-Wl,--gc-sections)
+if(NOT APPLE)
+  add_link_options(-Wl,--gc-sections)
+else()
+  # ld64 spells it differently; only reachable for the host unit tests (PR #5411).
+  add_link_options(-Wl,-dead_strip)
+endif()
 
 # support _DEBUG macro (some code uses to recognize debug builds)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

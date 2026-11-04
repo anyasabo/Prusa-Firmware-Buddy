@@ -1,0 +1,1 @@
+{"command": "START_PRINT", "kwargs": {"path": "/usb/t.bgcode", "tool_mapping": {"1": [1, 2], "2": [3]}}}

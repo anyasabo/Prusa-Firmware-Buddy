@@ -1379,8 +1379,8 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "mbedtls_ecdh_calc_secret with an undersized buffer; only wpa_supplicant's ECC wrappers call mbedTLS in this image."
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mbedtls_ecdh_calc_secret; the ESP8266 link map keeps no ecdh code."
   },
   {
    "vulnerability": {
@@ -2095,7 +2095,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "Cipher-layer padding timing; mbedtls_cipher_finish, the only caller of the padding check, is not in the ESP32 esp-nic link map."
+   "impact_statement": "Padding-error timing in PSA's error translation; no psa_crypto code is in the ESP32 esp-nic link map, and the advisory says the legacy cipher API is constant-time."
   },
   {
    "vulnerability": {
@@ -2173,7 +2173,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "RSA private-key/decrypt timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+   "impact_statement": "RSA private-key timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
   },
   {
    "vulnerability": {
@@ -2185,8 +2185,8 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "RSA private-key/decrypt timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Affects psa_asymmetric_decrypt and pk_decrypt with MBEDTLS_USE_PSA_CRYPTO only; no psa_crypto code is in the ESP32 esp-nic link map."
   },
   {
    "vulnerability": {
@@ -2199,7 +2199,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "mbedtls_ecdh_calc_secret's only caller is wpa_supplicant's crypto_ecdh_set_peerkey (OWE/DPP), and esp-nic leaves sta.owe_enabled at 0. That function has a separate, worse length bug; see todo/prusa-firmware/sbom-scanning.md."
+   "impact_statement": "The only linked caller, wpa_supplicant's crypto_ecdh_set_peerkey (OWE), passes pbits/8 = 32 bytes, which is enough because OWE accepts only group 19 (P-256). That function has a separate key-length heap overflow; see finding 7 in the SBOM notes."
   },
   {
    "vulnerability": {
@@ -2264,7 +2264,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "ICMPv6; no ip6/icmp6 object is linked."
+   "impact_statement": "lwIP code is not in the image: the ESP8266 esp-nic link map keeps only lwip_htons from liblwip.a; --gc-sections discards the rest."
   },
   {
    "vulnerability": {
@@ -2277,7 +2277,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "mDNS; no mdns object is linked."
+   "impact_statement": "lwIP code is not in the image: the ESP8266 esp-nic link map keeps only lwip_htons from liblwip.a; --gc-sections discards the rest."
   },
   {
    "vulnerability": {
@@ -2290,7 +2290,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "SNMP agent; no snmp object is linked."
+   "impact_statement": "lwIP code is not in the image: the ESP8266 esp-nic link map keeps only lwip_htons from liblwip.a; --gc-sections discards the rest."
   },
   {
    "vulnerability": {
@@ -2303,7 +2303,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "SNMP agent; no snmp object is linked."
+   "impact_statement": "lwIP code is not in the image: the ESP8266 esp-nic link map keeps only lwip_htons from liblwip.a; --gc-sections discards the rest."
   },
   {
    "vulnerability": {
@@ -2316,7 +2316,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and keeps nothing from it."
   },
   {
    "vulnerability": {
@@ -2329,7 +2329,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and keeps nothing from it."
   },
   {
    "vulnerability": {
@@ -2342,7 +2342,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and keeps nothing from it."
   },
   {
    "vulnerability": {
@@ -2355,7 +2355,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and keeps nothing from it."
   },
   {
    "vulnerability": {

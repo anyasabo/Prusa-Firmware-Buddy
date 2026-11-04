@@ -107,4 +107,31 @@ uint16_t buddy_ooseq_pbufs_limit(const struct tcp_pcb *pcb) {
     return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs, active_limits);
 }
 
+// Fix C prototype: give out-of-order data back when the RX ring runs dry.
+//
+// Must run on the tcpip thread (core lock held). Intended to be scheduled with
+// tcpip_try_callback() from pbuf_alloc_rx() on allocation failure; that wiring
+// is not part of this change. Frees the ooseq queues of inbound pcbs first and
+// only touches outbound (Connect) pcbs if no inbound pcb held anything.
+// tcp_free_ooseq() also clears the pcb's SACK list (lwIP 2.1.2, tcp.c), so the
+// next ACK stops advertising data we no longer hold.
+//
+// Returns the number of payload bytes released.
+uint32_t buddy_ooseq_reclaim(void) {
+    uint32_t freed = 0;
+    for (int pass = 0; pass < 2 && freed == 0; pass++) {
+        const bool want_inbound = pass == 0;
+        for (struct tcp_pcb *pcb = tcp_active_pcbs; pcb != nullptr; pcb = pcb->next) {
+            if (is_inbound(pcb) != want_inbound || pcb->ooseq == nullptr) {
+                continue;
+            }
+            for (const struct tcp_seg *seg = pcb->ooseq; seg != nullptr; seg = seg->next) {
+                freed += seg->p->tot_len;
+            }
+            tcp_free_ooseq(pcb);
+        }
+    }
+    return freed;
+}
+
 } // extern "C"

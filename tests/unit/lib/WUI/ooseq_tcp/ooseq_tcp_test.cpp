@@ -184,6 +184,15 @@ struct Fixture {
         }
         return out;
     }
+
+    /// Force an ACK out of `c` and return it.
+    TxPacket ack_now(Conn &c) {
+        test_tcp_free_tx_packets(&tx);
+        tcp_ack_now(c.pcb);
+        REQUIRE(tcp_output(c.pcb) == ERR_OK);
+        REQUIRE(tx.num_tx_packets == 1);
+        return parse_tx(tx.tx_packets[0]);
+    }
 };
 
 /// Segment 1 in order, segment 2 lost, segments 3..5 out of order. Returns
@@ -359,4 +368,33 @@ TEST_CASE("ooseq_tcp T5: stock limits with 512 B segments keep exactly one (macO
     f.inject(c, 2);
     CHECK(c.counters.recved_bytes == 3 * 512);
     CHECK(c.pcb->rcv_nxt == c.seg_end(3));
+}
+
+TEST_CASE("ooseq_tcp T6: fix C reclaim frees inbound ooseq first and clears SACKs", "[ooseq]") {
+    Fixture f(FIX_A);
+    Conn &in = f.open(HTTP_PORT);
+    Conn &out = f.open(HIGH_PORT);
+    lose_segment_2(f, in);
+    lose_segment_2(f, out);
+    REQUIRE(in.ooseq_segs() == 3);
+    REQUIRE(out.ooseq_segs() == 1);
+    REQUIRE(in.has_sacks());
+
+    CHECK(buddy_ooseq_reclaim() == 3 * 1024);
+    CHECK(in.pcb->ooseq == nullptr);
+    CHECK_FALSE(in.has_sacks());
+    CHECK(out.ooseq_segs() == 1); // outbound untouched while inbound had something
+    CHECK(f.ack_now(in).sacks.empty());
+    CHECK(MEMP_STATS_GET(used, MEMP_TCP_SEG) == 1);
+
+    CHECK(buddy_ooseq_reclaim() == 1024);
+    CHECK(out.pcb->ooseq == nullptr);
+    CHECK_FALSE(out.has_sacks());
+    CHECK(buddy_ooseq_reclaim() == 0);
+
+    // The connection recovers normally afterwards (2..5 resent in order).
+    for (int k = 2; k <= 5; k++) {
+        f.inject(in, k);
+    }
+    CHECK(in.counters.recved_bytes == 5 * 1024);
 }

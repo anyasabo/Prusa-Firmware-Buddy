@@ -6,7 +6,7 @@ has not analysed yet ("Received", "Awaiting Analysis", "Deferred"). VulnCheck's
 free NVD++ export adds `vcConfigurations` for many of those. This script
 matches every CPE of every SBOM component against both.
 
-    python utils/match_nvdpp.py buddy.cdx.json /path/to/nist-nvd2.zip
+    python utils/sbom/match_nvdpp.py buddy.cdx.json /path/to/nist-nvd2.zip
 
 The export comes from the VulnCheck community API (free, needs a token):
     GET https://api.vulncheck.com/v3/backup/nist-nvd2  ->  data[0].url

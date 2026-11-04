@@ -5,7 +5,7 @@ The output lists every vendored component in the manifest, with its upstream
 identity (CPE, purl, upstream commit) and local patches as pedigree. It is
 meant to be fed to a vulnerability scanner, for example
 
-    python utils/gen_sbom.py -o buddy.cdx.json
+    python utils/sbom/gen_sbom.py -o buddy.cdx.json
     grype sbom:buddy.cdx.json --vex lib/vex.json
 
 The output is deterministic for a given source tree: the serial number is

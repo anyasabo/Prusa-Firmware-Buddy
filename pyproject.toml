@@ -11,15 +11,7 @@ asyncio_mode = "auto"
 # yapf formats; ruff only lints.
 [tool.ruff]
 target-version = "py311"
-include = [
-  "utils/check_sbom_manifest.py",
-  "utils/gen_sbom.py",
-  "utils/gen_vex.py",
-  "utils/match_nvdpp.py",
-  "utils/sbom_feeds.py",
-  "utils/sbom_manifest.py",
-  "tests/sbom/*.py",
-]
+include = ["utils/sbom/*.py", "tests/sbom/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "UP", "SIM", "C4", "RET", "PERF", "PLE", "PLW", "RUF", "I"]
@@ -31,15 +23,7 @@ known-first-party = ["gen_sbom", "gen_vex", "match_nvdpp", "sbom_feeds", "sbom_m
 
 [tool.ty.environment]
 python-version = "3.11"
-root = ["utils"]
+root = ["utils/sbom"]
 
 [tool.ty.src]
-include = [
-  "utils/check_sbom_manifest.py",
-  "utils/gen_sbom.py",
-  "utils/gen_vex.py",
-  "utils/match_nvdpp.py",
-  "utils/sbom_feeds.py",
-  "utils/sbom_manifest.py",
-  "tests/sbom",
-]
+include = ["utils/sbom", "tests/sbom"]

@@ -1,0 +1,1 @@
+{"command": "START_ENCRYPTED_DOWNLOAD", "kwargs": {"path": "/usb/x.bgcode", "key": "00000000000000000000000000000000", "iv": "00000000000000000000000000000000", "orig_size": 100}}

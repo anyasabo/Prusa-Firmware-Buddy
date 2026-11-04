@@ -2210,6 +2210,97 @@
   },
   {
    "vulnerability": {
+    "name": "CVE-2019-9494"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "The fork has the vulnerable SAE pattern (conditional copy in sae_derive_pwe_ecc, no const_time helpers), but exploitation needs attacker code co-located on the Wi-Fi module to observe cache access; the module runs only vendor firmware. Only used when the AP offers WPA3-SAE."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-23303"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "The fork has the vulnerable SAE pattern (conditional copy in sae_derive_pwe_ecc, no const_time helpers), but exploitation needs attacker code co-located on the Wi-Fi module to observe cache access; the module runs only vendor firmware. Only used when the AP offers WPA3-SAE."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2019-9495"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "EAP-pwd; no EAP method code is linked into the Wi-Fi module image."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2019-9497"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "EAP-pwd; no EAP method code is linked into the Wi-Fi module image."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2019-9498"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "EAP-pwd; no EAP method code is linked into the Wi-Fi module image."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2019-9499"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "EAP-pwd; no EAP method code is linked into the Wi-Fi module image."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2019-9496"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "AP-side SAE confirm handling; esp-nic runs in station mode only."
+  },
+  {
+   "vulnerability": {
     "name": "CVE-2026-78807"
    },
    "products": [

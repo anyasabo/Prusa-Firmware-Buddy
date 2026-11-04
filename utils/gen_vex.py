@@ -107,8 +107,11 @@ TRIAGE = {
         (["CVE-2026-77235", "CVE-2026-77236"], "not_affected", NP,
          "TrustZone secure-context code; Buddy uses the ARM_CM33_NTZ (non-TrustZone) port."
          ),
-        (["CVE-2026-77234", "CVE-2026-77237"], "under_investigation", None,
-         "MPU ports only. The main firmware has the MPU off; src/puppy/xbuddy_extension sets configENABLE_MPU 1."
+        (["CVE-2026-77234"], "not_affected", NP,
+         "Timer-command handling; configUSE_TIMERS is 0 in every Buddy FreeRTOSConfig (default). The only MPU build, src/puppy/xbuddy_extension, runs unprivileged tasks but no timers."
+         ),
+        (["CVE-2026-77237"], "not_affected", NP,
+         "Queue sets; configUSE_QUEUE_SETS is 0 (default) in every Buddy FreeRTOSConfig."
          ),
     ],
     "lib/Middlewares/Third_Party/LwIP": [
@@ -271,8 +274,8 @@ TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
 
 # Found by utils/sbom_feeds.py (GitHub repository advisories, NVD++ keywords), 2026-11-04.
 TRIAGE["lib/Middlewares/Third_Party/FreeRTOS"] += [
-    (["CVE-2026-119086"], "under_investigation", None,
-     "MPU ports with queue sets only (like CVE-2026-77237); main firmware has the MPU off, src/puppy/xbuddy_extension has it on."
+    (["CVE-2026-119086"], "not_affected", NP,
+     "Queue sets; configUSE_QUEUE_SETS is 0 (default) in every Buddy FreeRTOSConfig."
      ),
     (["CVE-2026-109587", "CVE-2026-109588"], "not_affected", NP,
      "Arm Cortex-R82 MPU port, V11.3.0-V11.3.1 only."),

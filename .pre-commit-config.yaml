@@ -34,6 +34,15 @@ repos:
       always_run: true
       language: python
       language_version: python3
+    - id: check-sbom-manifest
+      name: check-sbom-manifest
+      description: lib/sbom.yml must describe every vendored library (.gitrepo) and everything utils/bootstrap.py fetches, at the pinned versions.
+      entry: python utils/check_sbom_manifest.py
+      files: (^lib/sbom\.yml$|^lib/sbom\.schema\.json$|\.gitrepo$|^utils/bootstrap\.py$|^utils/check_sbom_manifest\.py$)
+      pass_filenames: false
+      language: python
+      language_version: python3
+      additional_dependencies: ['pyyaml~=6.0', 'jsonschema~=4.25.1']
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.

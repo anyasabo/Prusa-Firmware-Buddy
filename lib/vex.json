@@ -588,6 +588,44 @@
   },
   {
    "vulnerability": {
+    "name": "CVE-2026-119086"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "under_investigation",
+   "status_notes": "MPU ports with queue sets only (like CVE-2026-77237); main firmware has the MPU off, src/puppy/xbuddy_extension has it on."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-109587"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Arm Cortex-R82 MPU port, V11.3.0-V11.3.1 only."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-109588"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Arm Cortex-R82 MPU port, V11.3.0-V11.3.1 only."
+  },
+  {
+   "vulnerability": {
     "name": "CVE-2020-22283"
    },
    "products": [
@@ -767,6 +805,19 @@
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
    "impact_statement": "Kernel size overflows reachable only through sizes chosen by the firmware itself (esp-nic), not by network input."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-119086"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "MPU-port issue; the ESP8266 port has no MPU support."
   },
   {
    "vulnerability": {
@@ -1537,6 +1588,148 @@
   },
   {
    "vulnerability": {
+    "name": "CVE-2026-113781"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth (BLE Mesh, A2DP, BLE provisioning); the bt component is not fetched."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-81508"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth (BLE Mesh, A2DP, BLE provisioning); the bt component is not fetched."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-25507"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth (BLE Mesh, A2DP, BLE provisioning); the bt component is not fetched."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-25508"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth (BLE Mesh, A2DP, BLE provisioning); the bt component is not fetched."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-24893"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth (BLE Mesh, A2DP, BLE provisioning); the bt component is not fetched."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-113782"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Thread border router; openthread is not fetched."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-113780"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ESP-TEE exists from 5.5; not in 5.0.3."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-65092"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ESP32-P4 JPEG decoder; not part of an ESP32 build."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-25532"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "WPS enrollee; esp-nic never enables WPS."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52471"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "ESP-NOW; esp-nic does not use it."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-113783"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "under_investigation",
+   "status_notes": "lwIP DNS cache in ESP-IDF; esp-nic resolves nothing itself, but whether lwIP is active on the module needs the ESP32 link map."
+  },
+  {
+   "vulnerability": {
     "name": "CVE-2023-43615"
    },
    "products": [
@@ -2014,6 +2207,32 @@
    ],
    "status": "under_investigation",
    "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-78807"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Needs a local attacker able to configure networks on the device; the Wi-Fi module has no local users (configuration comes from the printer over UART)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-21094"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Samsung Android (SMR) wpa_supplicant change; not in Espressif's fork."
   }
  ]
 }

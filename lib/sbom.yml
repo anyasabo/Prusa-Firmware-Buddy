@@ -8,7 +8,9 @@
 # Field names follow ESP-IDF's sbom.yml where an equivalent exists.
 #   name             component name
 #   version          upstream release the code is based on
-#   upstream         canonical upstream source (git URL or download URL)
+#   repository       upstream git repository
+#   url              download location, for code that comes as an archive or binary
+#                    rather than from a repository (at least one of the two is required)
 #   upstream_commit  upstream commit the code is based on, i.e. BEFORE local
 #                    patches. Not the git-subrepo HEAD when that points at a fork.
 #   subrepo_commit   the `commit` from the directory's .gitrepo, if it has one. The
@@ -31,7 +33,7 @@ components:
   lib/Middlewares/Third_Party/mbedtls:
     name: mbedtls
     version: 2.28.0
-    upstream: https://github.com/Mbed-TLS/mbedtls
+    repository: https://github.com/Mbed-TLS/mbedtls
     upstream_commit: 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0  # tag v2.28.0
     subrepo_commit: 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0
     cpe:
@@ -52,7 +54,7 @@ components:
   lib/Middlewares/Third_Party/LwIP:
     name: lwip
     version: 2.1.2
-    upstream: https://git.savannah.nongnu.org/git/lwip.git
+    repository: https://git.savannah.nongnu.org/git/lwip.git
     upstream_commit: 159e31b689577dbf69cf0683bbaffbd71fa5ee10  # tag STABLE-2_1_2_RELEASE
     subrepo_commit: fa41d53ac544119ccaf985d31e1670e2ddb6c63b
     cpe: cpe:2.3:a:lwip_project:lwip:2.1.2:*:*:*:*:*:*:*
@@ -74,7 +76,7 @@ components:
   lib/Middlewares/Third_Party/FreeRTOS:
     name: freertos-kernel
     version: 10.6.2
-    upstream: https://github.com/FreeRTOS/FreeRTOS-Kernel
+    repository: https://github.com/FreeRTOS/FreeRTOS-Kernel
     upstream_commit: 18ed8886fe3eed9dbe433a82cdc62ce5dc0315eb  # tag V10.6.2
     cpe: cpe:2.3:o:amazon:freertos:10.6.2:*:*:*:*:*:*:*
     purl: pkg:github/freertos/freertos-kernel@V10.6.2
@@ -93,7 +95,7 @@ components:
   lib/Middlewares/Third_Party/FatFs:
     name: fatfs
     version: R0.14b
-    upstream: http://elm-chan.org/fsw/ff/arc/ff14b.zip
+    url: http://elm-chan.org/fsw/ff/arc/ff14b.zip
     upstream_commit: null
     upstream_sha256: d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb
     cpe: cpe:2.3:a:elm-chan:fatfs:r0.14b:*:*:*:*:*:*:*
@@ -114,7 +116,7 @@ components:
   lib/Middlewares/Third_Party/littlefs:
     name: littlefs
     version: 2.8.0
-    upstream: https://github.com/littlefs-project/littlefs
+    repository: https://github.com/littlefs-project/littlefs
     upstream_commit: f77214d1f0a8ccd7ddc7e1204fedd25ee5a41534  # tag v2.8.0
     subrepo_commit: f77214d1f0a8ccd7ddc7e1204fedd25ee5a41534
     cpe: cpe:2.3:a:littlefs-project:littlefs:2.8.0:*:*:*:*:*:*:*
@@ -131,7 +133,7 @@ components:
   lib/CMSIS-DSP:
     name: cmsis-dsp
     version: 1.16.2
-    upstream: https://github.com/ARM-software/CMSIS-DSP
+    repository: https://github.com/ARM-software/CMSIS-DSP
     upstream_commit: d5717e454fec0337bef114a21f1d2d01d74f2701  # tag v1.16.2
     subrepo_commit: d5717e454fec0337bef114a21f1d2d01d74f2701
     cpe: null
@@ -145,7 +147,7 @@ components:
     scope: test
     name: catch2
     version: 3.11.0-10-g31ee3beb
-    upstream: https://github.com/catchorg/Catch2
+    repository: https://github.com/catchorg/Catch2
     upstream_commit: 31ee3beb0a474463e0101674c22f2fef0311d601
     subrepo_commit: 31ee3beb0a474463e0101674c22f2fef0311d601
     cpe: null
@@ -161,7 +163,7 @@ components:
   lib/CrashCatcher:
     name: crashcatcher
     version: 0.0.0-20220611-1c7755c
-    upstream: https://github.com/adamgreen/CrashCatcher
+    repository: https://github.com/adamgreen/CrashCatcher
     upstream_commit: 1c7755c875c0890ba98ab77cd2e23f64f3e1922f
     subrepo_commit: 1c7755c875c0890ba98ab77cd2e23f64f3e1922f
     cpe: null
@@ -176,7 +178,7 @@ components:
   lib/Drivers/CMSIS/Device/ST/STM32G0xx/Include:
     name: cmsis_device_g0
     version: 1.4.1
-    upstream: https://github.com/STMicroelectronics/cmsis_device_g0
+    repository: https://github.com/STMicroelectronics/cmsis_device_g0
     upstream_commit: 051d85f2f5a9b5d67d2fbb4e97861b2e8ec1ef89  # tag v1.4.1
     subrepo_commit: 051d85f2f5a9b5d67d2fbb4e97861b2e8ec1ef89
     cpe: null
@@ -194,7 +196,7 @@ components:
   lib/Drivers/CMSIS/Device/ST/STM32H5xx:
     name: cmsis_device_h5
     version: 1.3.0
-    upstream: https://github.com/STMicroelectronics/cmsis_device_h5
+    repository: https://github.com/STMicroelectronics/cmsis_device_h5
     upstream_commit: 9a778e0f162bd21200647adafb922d50b2c60f81  # tag v1.3.0
     subrepo_commit: 9a778e0f162bd21200647adafb922d50b2c60f81
     cpe: null
@@ -207,7 +209,7 @@ components:
   lib/Drivers/lis2dh12-pid:
     name: lis2dh12-pid
     version: 1.1.0
-    upstream: https://github.com/STMicroelectronics/lis2dh12-pid
+    repository: https://github.com/STMicroelectronics/lis2dh12-pid
     upstream_commit: 32bf6c84e58e6e73cbbb28f288451ee16cb9e61b  # tag v1.1.0
     subrepo_commit: 32bf6c84e58e6e73cbbb28f288451ee16cb9e61b
     cpe: null
@@ -222,7 +224,7 @@ components:
   lib/Drivers/stm32f4xx_hal_driver:
     name: stm32f4xx-hal-driver
     version: 1.8.3
-    upstream: https://github.com/STMicroelectronics/stm32f4xx-hal-driver
+    repository: https://github.com/STMicroelectronics/stm32f4xx-hal-driver
     upstream_commit: c2e1406d7ea4b73aa42b98ddeb75a8670b1a5a16  # tag v1.8.3
     subrepo_commit: c2e1406d7ea4b73aa42b98ddeb75a8670b1a5a16
     cpe: null
@@ -239,7 +241,7 @@ components:
   lib/Drivers/stm32g0xx_hal_driver:
     name: stm32g0xx_hal_driver
     version: 1.4.3
-    upstream: https://github.com/STMicroelectronics/stm32g0xx_hal_driver
+    repository: https://github.com/STMicroelectronics/stm32g0xx_hal_driver
     upstream_commit: 38df07685b03ab758d2374ff56edbbf20ba829c8  # tag v1.4.3
     subrepo_commit: 38df07685b03ab758d2374ff56edbbf20ba829c8
     cpe: null
@@ -255,7 +257,7 @@ components:
   lib/Drivers/stm32h5xx_hal_driver:
     name: stm32h5xx_hal_driver
     version: 1.3.0
-    upstream: https://github.com/STMicroelectronics/stm32h5xx_hal_driver
+    repository: https://github.com/STMicroelectronics/stm32h5xx_hal_driver
     upstream_commit: 0de1dbf8ad03e6e466ed55d1c174656561e3240d  # tag v1.3.0
     subrepo_commit: 0de1dbf8ad03e6e466ed55d1c174656561e3240d
     cpe: null
@@ -268,7 +270,7 @@ components:
   lib/Marlin:
     name: marlin
     version: 0.0.0-20191021-f00b48f9a
-    upstream: https://github.com/MarlinFirmware/Marlin
+    repository: https://github.com/MarlinFirmware/Marlin
     upstream_commit: f00b48f9a8da77d0d603b74c843359b82ee306e3  # bugfix-2.0.x, 2019-10-21
     subrepo_commit: f00b48f9a8da77d0d603b74c843359b82ee306e3
     cpe: "cpe:2.3:o:marlinfw:marlin_firmware:*:*:*:*:*:*:*:*"
@@ -296,7 +298,7 @@ components:
   lib/OpenPrintTag:
     name: openprinttag-specification
     version: 0.0.0-20261006-2f64e19
-    upstream: https://github.com/OpenPrintTag/openprinttag-specification
+    repository: https://github.com/OpenPrintTag/openprinttag-specification
     upstream_commit: 2f64e19166e33bee0845d757cd03bcf06b86b292
     subrepo_commit: 2f64e19166e33bee0845d757cd03bcf06b86b292
     first_party: true
@@ -312,7 +314,7 @@ components:
   lib/Prusa-Error-Codes:
     name: prusa-error-codes
     version: 0.0.0-20261020-9e60938
-    upstream: https://github.com/prusa3d/Prusa-Error-Codes
+    repository: https://github.com/prusa3d/Prusa-Error-Codes
     upstream_commit: 9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
     subrepo_commit: 9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
     first_party: true
@@ -328,7 +330,7 @@ components:
   lib/Prusa-Firmware-MMU:
     name: prusa-firmware-mmu
     version: 3.0.2
-    upstream: https://github.com/prusa3d/Prusa-Firmware-MMU
+    repository: https://github.com/prusa3d/Prusa-Firmware-MMU
     upstream_commit: d510e1e482b66a92e130586b55e7c1ed53dad11c  # tag v3.0.2
     subrepo_commit: d510e1e482b66a92e130586b55e7c1ed53dad11c
     first_party: true
@@ -348,7 +350,7 @@ components:
     scope: test
     name: catch2
     version: 3.1.1
-    upstream: https://github.com/catchorg/Catch2
+    repository: https://github.com/catchorg/Catch2
     upstream_commit: 5df88da16e276f853cc0c45f4b570419be77dd43  # tag v3.1.1
     subrepo_commit: 5df88da16e276f853cc0c45f4b570419be77dd43
     cpe: null
@@ -367,7 +369,7 @@ components:
   lib/Prusa-Firmware-MMU/lib/lufa:
     name: lufa
     version: "210130"
-    upstream: https://github.com/abcminiuser/lufa
+    repository: https://github.com/abcminiuser/lufa
     upstream_commit: fa2cc3e1c3abab7c971506bd86ca4e28ecc7d288  # tag LUFA-210130
     subrepo_commit: fa2cc3e1c3abab7c971506bd86ca4e28ecc7d288
     cpe: null
@@ -385,7 +387,7 @@ components:
   lib/TMCStepper:
     name: tmcstepper
     version: 0.5.1-3-gb5b3658
-    upstream: https://github.com/teemuatlut/TMCStepper
+    repository: https://github.com/teemuatlut/TMCStepper
     upstream_commit: b5b3658d34f93e0cc646dbaa54f90b809267206f
     subrepo_commit: b5b3658d34f93e0cc646dbaa54f90b809267206f
     cpe: null
@@ -408,7 +410,7 @@ components:
   lib/bitsery:
     name: bitsery
     version: 5.2.4
-    upstream: https://github.com/fraillt/bitsery
+    repository: https://github.com/fraillt/bitsery
     upstream_commit: ee992d8b5782e41792e4810c5b00ad4625783427  # tag v5.2.4
     subrepo_commit: ee992d8b5782e41792e4810c5b00ad4625783427
     cpe: null
@@ -425,7 +427,7 @@ components:
   lib/fpm:
     name: fpm
     version: 1.1.0-15-gaca4750
-    upstream: https://github.com/MikeLankamp/fpm
+    repository: https://github.com/MikeLankamp/fpm
     upstream_commit: aca475058b762e81a61495473a74fc8e48915fc6
     subrepo_commit: aca475058b762e81a61495473a74fc8e48915fc6
     cpe: null
@@ -443,7 +445,7 @@ components:
   lib/heatshrink:
     name: heatshrink
     version: 0.4.1-1-g7d419e1
-    upstream: https://github.com/atomicobject/heatshrink
+    repository: https://github.com/atomicobject/heatshrink
     upstream_commit: 7d419e1fa4830d0b919b9b6a91fe2fb786cf3280
     subrepo_commit: 7d419e1fa4830d0b919b9b6a91fe2fb786cf3280
     cpe: null
@@ -459,7 +461,7 @@ components:
   lib/inih:
     name: inih
     version: r46-2-gd0a152d
-    upstream: https://github.com/benhoyt/inih
+    repository: https://github.com/benhoyt/inih
     upstream_commit: d0a152d531664afc23723ad3f1ef9568bcc74695
     subrepo_commit: d0a152d531664afc23723ad3f1ef9568bcc74695
     cpe: null
@@ -477,7 +479,7 @@ components:
   lib/jsmn:
     name: jsmn
     version: 1.1.0-3-g7b6858a
-    upstream: https://github.com/zserge/jsmn
+    repository: https://github.com/zserge/jsmn
     upstream_commit: 7b6858a5855299d173c5ab2b46e611bf9961cbef
     subrepo_commit: 7b6858a5855299d173c5ab2b46e611bf9961cbef
     cpe: null
@@ -494,7 +496,7 @@ components:
   lib/libbgcode:
     name: libbgcode
     version: 0.0.0-20260813-6744dbe
-    upstream: https://github.com/Prusa-Development/libbgcode
+    repository: https://github.com/Prusa-Development/libbgcode
     upstream_commit: 6744dbe827c03cf3a99b7783de43c9d945e38b97
     subrepo_commit: 6744dbe827c03cf3a99b7783de43c9d945e38b97
     first_party: true
@@ -516,7 +518,7 @@ components:
   lib/libcanard:
     name: libcanard
     version: 3.2.0-1-g03fc5fe
-    upstream: https://github.com/OpenCyphal/libcanard
+    repository: https://github.com/OpenCyphal/libcanard
     upstream_commit: 03fc5fecc2c81bd6bfc6e474af8059fca2db4647
     subrepo_commit: 03fc5fecc2c81bd6bfc6e474af8059fca2db4647
     cpe: null
@@ -532,7 +534,7 @@ components:
   lib/liblightmodbus:
     name: liblightmodbus
     version: 3.0-1-4-g3f8ebeb
-    upstream: https://github.com/Jacajack/liblightmodbus
+    repository: https://github.com/Jacajack/liblightmodbus
     upstream_commit: 3f8ebeba2d14767c12f502025844463c6a04ecba
     subrepo_commit: 3f8ebeba2d14767c12f502025844463c6a04ecba
     cpe: null
@@ -551,7 +553,7 @@ components:
   lib/magic_enum:
     name: magic_enum
     version: 0.9.5-22-gf34f967
-    upstream: https://github.com/Neargye/magic_enum
+    repository: https://github.com/Neargye/magic_enum
     upstream_commit: f34f967c4e70ec60d1c561fbd2fcabaeedce5957
     subrepo_commit: f34f967c4e70ec60d1c561fbd2fcabaeedce5957
     cpe: null
@@ -566,7 +568,7 @@ components:
   lib/nanocbor:
     name: nanocbor
     version: 0.0.0-20260910-a9eaf98
-    upstream: https://github.com/bergzand/NanoCBOR
+    repository: https://github.com/bergzand/NanoCBOR
     upstream_commit: a9eaf98fef10a0aefccd07e027d63f00e368054f
     subrepo_commit: a9eaf98fef10a0aefccd07e027d63f00e368054f
     cpe: null
@@ -581,7 +583,7 @@ components:
   lib/o1heap:
     name: o1heap
     version: 2.1.1
-    upstream: https://github.com/pavel-kirienko/o1heap
+    repository: https://github.com/pavel-kirienko/o1heap
     upstream_commit: aa3c253923db36eee7d73a4a5e30884a5fe7a6eb  # tag 2.1.1
     subrepo_commit: aa3c253923db36eee7d73a4a5e30884a5fe7a6eb
     cpe: null
@@ -595,7 +597,7 @@ components:
   lib/printf:
     name: printf
     version: 4.0.0-3-gd3b9846
-    upstream: https://github.com/mpaland/printf
+    repository: https://github.com/mpaland/printf
     upstream_commit: d3b984684bb8a8bdc48cc7a1abecb93ce59bbe3e
     subrepo_commit: d3b984684bb8a8bdc48cc7a1abecb93ce59bbe3e
     cpe: null
@@ -612,7 +614,7 @@ components:
   lib/sfl-library:
     name: sfl-library
     version: 1.9.1
-    upstream: https://github.com/slavenf/sfl-library
+    repository: https://github.com/slavenf/sfl-library
     upstream_commit: ec5d0b27e011c58a8501f31475013c3f586d523c  # tag 1.9.1
     subrepo_commit: ec5d0b27e011c58a8501f31475013c3f586d523c
     cpe: null
@@ -625,7 +627,7 @@ components:
   lib/tinyusb:
     name: tinyusb
     version: 0.20.0-1058-g52035e2fa
-    upstream: https://github.com/hathach/tinyusb
+    repository: https://github.com/hathach/tinyusb
     upstream_commit: 52035e2fa3174e85f9c43afdba05097519ae6ea9
     subrepo_commit: 52035e2fa3174e85f9c43afdba05097519ae6ea9
     cpe: null
@@ -646,7 +648,7 @@ components:
   src/can/data_types/public_regulated_data_types:
     name: public_regulated_data_types
     version: 0.0.0-20240319-f9f6790
-    upstream: https://github.com/OpenCyphal/public_regulated_data_types
+    repository: https://github.com/OpenCyphal/public_regulated_data_types
     upstream_commit: f9f67906cc0ca5d7c1b429924852f6b28f313cbf
     subrepo_commit: f9f67906cc0ca5d7c1b429924852f6b28f313cbf
     cpe: null
@@ -663,7 +665,7 @@ components:
   lib/WUI/mdns:
     name: lwip-mdns
     version: 2.2.0-67-g347054b3
-    upstream: https://git.savannah.nongnu.org/git/lwip.git
+    repository: https://git.savannah.nongnu.org/git/lwip.git
     upstream_commit: 347054b329d141b858cc7180bf2aa23c672dc6d7  # master, STABLE-2_2_0_RELEASE-67
     cpe: cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*
     purl: pkg:generic/lwip@2.2.0?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40347054b329d141b858cc7180bf2aa23c672dc6d7
@@ -700,7 +702,7 @@ components:
   lib/WUI/sntp:
     name: lwip-sntp
     version: 2.1.0-338-g32a72b1a
-    upstream: https://git.savannah.nongnu.org/git/lwip.git
+    repository: https://git.savannah.nongnu.org/git/lwip.git
     upstream_commit: 32a72b1a2069e5715bafe02c9c25353f99efc043  # master, 2020-01-30
     cpe: cpe:2.3:a:lwip_project:lwip:2.1.2:*:*:*:*:*:*:*
     purl: pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4032a72b1a2069e5715bafe02c9c25353f99efc043
@@ -726,7 +728,7 @@ components:
   lib/Middlewares/ST/STM32_USB_Host_Library:
     name: stm32_mw_usb_host
     version: 3.4.0
-    upstream: https://github.com/STMicroelectronics/stm32_mw_usb_host
+    repository: https://github.com/STMicroelectronics/stm32_mw_usb_host
     upstream_commit: 70f090d8ff1714c6eb9a48c3d59f2065cb0a6636  # tag v3.4.0
     cpe: cpe:2.3:a:st:stm32_mw_usb_host:3.4.0:*:*:*:*:*:*:*
     purl: pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.4.0
@@ -756,7 +758,7 @@ components:
   lib/Drivers/stm32c0xx_hal_driver:
     name: stm32c0xx-hal-driver
     version: 1.4.0
-    upstream: https://github.com/STMicroelectronics/stm32c0xx-hal-driver
+    repository: https://github.com/STMicroelectronics/stm32c0xx-hal-driver
     upstream_commit: a8515e2d45fa28201fe769b3b27fe1bbdf237c50  # tag v1.4.0
     cpe: null
     purl: pkg:github/stmicroelectronics/stm32c0xx-hal-driver@v1.4.0
@@ -771,7 +773,7 @@ components:
   lib/Drivers/CMSIS/Device/ST/STM32C0xx:
     name: cmsis_device_c0
     version: 1.3.0
-    upstream: https://github.com/STMicroelectronics/cmsis_device_c0
+    repository: https://github.com/STMicroelectronics/cmsis_device_c0
     upstream_commit: 517611273f835ffe95318947647bc1408f69120d  # tag v1.3.0
     cpe: null
     purl: pkg:github/stmicroelectronics/cmsis_device_c0@v1.3.0
@@ -786,7 +788,7 @@ components:
   lib/Drivers/CMSIS/Device/ST/STM32F4xx:
     name: cmsis_device_f4
     version: 2.6.8
-    upstream: https://github.com/STMicroelectronics/cmsis_device_f4
+    repository: https://github.com/STMicroelectronics/cmsis_device_f4
     upstream_commit: 7ac69098b3e5f9b2d929acd4f087e92a7e59e0e9  # tag v2.6.8
     cpe: null
     purl: pkg:github/stmicroelectronics/cmsis_device_f4@v2.6.8
@@ -802,7 +804,7 @@ components:
   lib/Drivers/CMSIS/Include:
     name: cmsis-core
     version: 5.4.0
-    upstream: https://github.com/ARM-software/CMSIS_5
+    repository: https://github.com/ARM-software/CMSIS_5
     upstream_commit: 0b521765067ac87b142cd96b5f578ffb399090cc  # tag 5.4.0
     cpe: null
     purl: pkg:github/arm-software/cmsis_5@5.4.0
@@ -818,7 +820,7 @@ components:
   lib/esp-serial-flasher:
     name: esp-serial-flasher
     version: 1.3.0
-    upstream: https://github.com/espressif/esp-serial-flasher
+    repository: https://github.com/espressif/esp-serial-flasher
     upstream_commit: 285159162050decb156b9c8d9d55c54f58f92eff  # tag v1.3.0
     cpe: null
     purl: pkg:github/espressif/esp-serial-flasher@v1.3.0
@@ -837,7 +839,7 @@ components:
   lib/Arduino_Core_Buddy:
     name: arduino_core_stm32
     version: 1.5.0-4-g0337a22c
-    upstream: https://github.com/stm32duino/Arduino_Core_STM32
+    repository: https://github.com/stm32duino/Arduino_Core_STM32
     upstream_commit: 0337a22c139bf11de5d82707f3d6d6fa750019b7  # 1.5.0+4, 2019-02-13
     cpe: null
     purl: pkg:github/stm32duino/arduino_core_stm32@0337a22c139bf11de5d82707f3d6d6fa750019b7
@@ -864,7 +866,7 @@ components:
   lib/QR:
     name: qr-code-generator
     version: 1.5.0-40-g6e088f7
-    upstream: https://github.com/nayuki/QR-Code-generator
+    repository: https://github.com/nayuki/QR-Code-generator
     upstream_commit: 6e088f72d39fbf56c5fbdbe9c7401dff40ba42ec  # 2019-09-13
     cpe: null
     purl: pkg:github/nayuki/qr-code-generator@6e088f72d39fbf56c5fbdbe9c7401dff40ba42ec
@@ -884,7 +886,7 @@ components:
   lib/SG14/inplace_function.hpp:
     name: sg14-inplace_function
     version: 0.0.0-20220419-c926143
-    upstream: https://github.com/WG21-SG14/SG14
+    repository: https://github.com/WG21-SG14/SG14
     upstream_commit: c92614381100bd23f3f0de7882aa455797255c03
     cpe: null
     purl: pkg:github/wg21-sg14/sg14@c92614381100bd23f3f0de7882aa455797255c03
@@ -903,7 +905,7 @@ components:
   lib/SG14/inplace_vector.hpp:
     name: sg14-inplace_vector
     version: 0.0.0-20240820-b4485d7
-    upstream: https://github.com/Quuxplusone/SG14
+    repository: https://github.com/Quuxplusone/SG14
     upstream_commit: b4485d7866875b2b4c0bd0dc7a9ad61199f65c02
     cpe: null
     purl: pkg:github/quuxplusone/sg14@b4485d7866875b2b4c0bd0dc7a9ad61199f65c02
@@ -919,7 +921,7 @@ components:
   lib/Segger:
     name: segger-systemview
     version: "3.30"
-    upstream: https://www.segger.com/downloads/systemview/SystemView_Src_V330.zip
+    url: https://www.segger.com/downloads/systemview/SystemView_Src_V330.zip
     upstream_commit: null
     upstream_sha256: 2ff3ae258356253afa04c969af424246479b48b62133ec38f6198d50dae84b9b
     cpe: null
@@ -940,7 +942,7 @@ components:
   lib/libsysbase:
     name: libsysbase
     version: null
-    upstream: https://github.com/devkitPro/newlib
+    repository: https://github.com/devkitPro/newlib
     upstream_commit: null
     cpe: null
     purl: pkg:github/devkitpro/newlib
@@ -962,7 +964,7 @@ components:
     scope: test
     name: freertos-kernel
     version: 10.5.1
-    upstream: https://github.com/FreeRTOS/FreeRTOS-Kernel
+    repository: https://github.com/FreeRTOS/FreeRTOS-Kernel
     upstream_commit: def7d2df2b0506d3d249334974f51e427c17a41c  # tag V10.5.1
     cpe: cpe:2.3:o:amazon:freertos:10.5.1:*:*:*:*:*:*:*
     purl: pkg:github/freertos/freertos-kernel@V10.5.1
@@ -980,7 +982,7 @@ components:
   src/can/nunavut_c_templates:
     name: nunavut-c-templates
     version: 2.3.1
-    upstream: https://github.com/OpenCyphal/nunavut
+    repository: https://github.com/OpenCyphal/nunavut
     upstream_commit: 7ecfd68a38fc652d3bb40e1e97975ce78cc2c9b1  # tag 2.3.1
     cpe: null
     purl: pkg:github/opencyphal/nunavut@2.3.1
@@ -998,7 +1000,7 @@ components:
   src/device/stm32f4/startup:
     name: cmsis_device_f4-startup
     version: 2.6.4
-    upstream: https://github.com/STMicroelectronics/cmsis_device_f4
+    repository: https://github.com/STMicroelectronics/cmsis_device_f4
     upstream_commit: 4cf505380bf123941fd485b1ae01c0747dca3792  # tag v2.6.4
     cpe: null
     purl: pkg:github/stmicroelectronics/cmsis_device_f4@v2.6.4
@@ -1018,7 +1020,7 @@ components:
   src/device/stm32g0/startup:
     name: cmsis_device_g0-startup
     version: 1.4.1
-    upstream: https://github.com/STMicroelectronics/cmsis_device_g0
+    repository: https://github.com/STMicroelectronics/cmsis_device_g0
     upstream_commit: 051d85f2f5a9b5d67d2fbb4e97861b2e8ec1ef89  # tag v1.4.1
     cpe: null
     purl: pkg:github/stmicroelectronics/cmsis_device_g0@v1.4.1
@@ -1037,7 +1039,7 @@ components:
   lib/esp-nic:
     name: esp-nic
     version: null
-    upstream: https://github.com/prusa3d/Prusa-Firmware-Buddy
+    repository: https://github.com/prusa3d/Prusa-Firmware-Buddy
     upstream_commit: null
     first_party: true
     cpe: null
@@ -1055,7 +1057,7 @@ components:
   lib/nanocbor_stub_include:
     name: nanocbor-endian-shim
     version: null
-    upstream: https://github.com/prusa3d/Prusa-Firmware-Buddy
+    repository: https://github.com/prusa3d/Prusa-Firmware-Buddy
     upstream_commit: null
     first_party: true
     cpe: null
@@ -1074,7 +1076,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-coreone
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
     upstream_commit: null
     upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
     shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
@@ -1094,7 +1096,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-coreone_indx
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
     upstream_commit: null
     upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
     shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
@@ -1114,7 +1116,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-coreonel
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
     upstream_commit: null
     upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
     shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
@@ -1134,7 +1136,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-coreonel_indx
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
     upstream_commit: null
     upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
     shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
@@ -1154,7 +1156,7 @@ components:
       version: v303
     name: prusa-bootloader-indx_head
     version: v303
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-indx_head-v303-8B50471A-8B26-4941-8C05-68E364C27DF5.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-indx_head-v303-8B50471A-8B26-4941-8C05-68E364C27DF5.zip
     upstream_commit: null
     upstream_sha256: fe4d8ac90a30b49159a0f8bf45c071f14fefb2f0f1a3aba1c77c64d93d811411
     shipped_sha256: 37cfb2363beece33e9d3f6e7cc74534382a7cd8efc7ab7ce82fd24aea0913060
@@ -1174,7 +1176,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-ix
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-ix-2.6.0-36BB9EB6-4DE5-4007-B635-EDD577CBB3BA.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-ix-2.6.0-36BB9EB6-4DE5-4007-B635-EDD577CBB3BA.zip
     upstream_commit: null
     upstream_sha256: c65bc483bf34dec509044470a1a9396ee993755f13ce74c46b565edfa2ac2b78
     shipped_sha256: ced00239b0e6a66f93bb5b3db93aaf370cfe31755bd55091f66f546f15302c72
@@ -1194,7 +1196,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-mini
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mini-2.6.0-3F576FB7-DF99-4877-AB20-BF3CA45AD1FC.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mini-2.6.0-3F576FB7-DF99-4877-AB20-BF3CA45AD1FC.zip
     upstream_commit: null
     upstream_sha256: cec601e9f3a07e522afe5f8008f1149d0f53138756c0d42188ae2e9b2de1436a
     shipped_sha256: e0ce69d2c10542bda0a4f05f1b273e21d74f280f8ef7108885d22b12a7300a0a
@@ -1214,7 +1216,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-mk3.5
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
     upstream_commit: null
     upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
     shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
@@ -1234,7 +1236,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-mk4
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-mk4-2.6.0-48C7820D-1C5F-44D5-A4D4-B4C0F8CCB2A6.zip
     upstream_commit: null
     upstream_sha256: 53419db890555c7b412bf7e58ca51877208842aef7833f6cf6c6af11eadd990d
     shipped_sha256: 371f126fa98327e327585c8fb1c564bc6d48698b9235e7bf36ba2361c1c30e19
@@ -1254,7 +1256,7 @@ components:
       version: 2.6.0
     name: prusa-bootloader-xl
     version: 2.6.0
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-xl-2.6.0-BBF9BE22-2A89-4B82-AAFA-A463F8AD2ABF.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/bootloader-xl-2.6.0-BBF9BE22-2A89-4B82-AAFA-A463F8AD2ABF.zip
     upstream_commit: null
     upstream_sha256: 7c7c585d6eed36f6fdd68b73c4aa754d72a27b1b887394c22a1d4dcd6248b719
     shipped_sha256: 2618aa93a5c9fa8afc3619da0477066dbacdd723970f3715e37d2c7b1afc92b7
@@ -1274,7 +1276,7 @@ components:
       version: 0.0.8
     name: prusa-coreonel-ac-controller
     version: 0.0.8
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/firmware-coreonel_ac_controller-0.0.8-ECD94653-E201-4B7C-A9D4-1439BF25D7E5.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/firmware-coreonel_ac_controller-0.0.8-ECD94653-E201-4B7C-A9D4-1439BF25D7E5.zip
     upstream_commit: null
     upstream_sha256: f6ccda960a8b6e584301faccd41392c2d2af8454247183c1611271e5d3dcf408
     shipped_sha256: d2656304645504f035cc6d97953c6a8fea20f2707294c802350b17172f15c13f
@@ -1293,7 +1295,7 @@ components:
       version: 0.0.8
     name: prusa-coreonel-ac-controller
     version: 0.0.8
-    upstream: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/firmware-coreonel_ac_controller-0.0.8-ECD94653-E201-4B7C-A9D4-1439BF25D7E5.zip
+    url: https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/firmware-coreonel_ac_controller-0.0.8-ECD94653-E201-4B7C-A9D4-1439BF25D7E5.zip
     upstream_commit: null
     upstream_sha256: f6ccda960a8b6e584301faccd41392c2d2af8454247183c1611271e5d3dcf408
     shipped_sha256: d2656304645504f035cc6d97953c6a8fea20f2707294c802350b17172f15c13f
@@ -1312,7 +1314,7 @@ components:
       version: 3.0.4
     name: prusa-firmware-mmu
     version: 3.0.4
-    upstream: https://github.com/prusa3d/Prusa-Firmware-MMU
+    repository: https://github.com/prusa3d/Prusa-Firmware-MMU
     upstream_commit: 48d4d920be0b5337aa6251489f5073bb5f878f1b
     shipped_sha256: a8ff73678aad2ba51f53a5c038daf8bab4692f50061dd10789181fd79b1ba8c8
     cpe: null
@@ -1331,7 +1333,7 @@ components:
       version: 13.3.1
     name: arm-gnu-toolchain
     version: 13.3.1
-    upstream: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+    url: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
     upstream_commit: null
     cpe: null
     purl: null
@@ -1346,7 +1348,7 @@ components:
       version: 13.3.1
     name: newlib
     version: 4.4.0
-    upstream: https://sourceware.org/git/newlib-cygwin.git
+    repository: https://sourceware.org/git/newlib-cygwin.git
     upstream_commit: null
     cpe: cpe:2.3:a:newlib_project:newlib:4.4.0:*:*:*:*:*:*:*
     purl: pkg:generic/newlib@4.4.0
@@ -1363,7 +1365,7 @@ components:
       version: 13.3.1
     name: gcc-runtime
     version: 13.3.1
-    upstream: https://gcc.gnu.org/git/gcc.git
+    repository: https://gcc.gnu.org/git/gcc.git
     upstream_commit: null
     cpe: cpe:2.3:a:gnu:gcc:13.3.1:*:*:*:*:*:*:*
     purl: pkg:generic/gcc@13.3.1
@@ -1380,7 +1382,7 @@ components:
       version: a192988b7906680440213eefc730d99dec0ce237
     name: esp8266-rtos-sdk
     version: 3.4-63-ga192988b
-    upstream: https://github.com/espressif/ESP8266_RTOS_SDK
+    repository: https://github.com/espressif/ESP8266_RTOS_SDK
     upstream_commit: a192988b7906680440213eefc730d99dec0ce237
     cpe: cpe:2.3:a:espressif:esp8266_rtos_sdk:3.4:*:*:*:*:*:*:*
     purl: pkg:github/espressif/esp8266_rtos_sdk@a192988b7906680440213eefc730d99dec0ce237
@@ -1400,7 +1402,7 @@ components:
       submodule: components/mbedtls/mbedtls
     name: mbedtls-espressif-fork
     version: 2.16.5
-    upstream: https://github.com/espressif/mbedtls
+    repository: https://github.com/espressif/mbedtls
     upstream_commit: 9ef92c551eb8d92677034c3ec8078a8076febf41
     cpe:
     - cpe:2.3:a:arm:mbed_tls:2.16.5:*:*:*:*:*:*:*
@@ -1419,7 +1421,7 @@ components:
       submodule: components/lwip/lwip
     name: esp-lwip
     version: 2.1.3-dev
-    upstream: https://github.com/espressif/esp-lwip
+    repository: https://github.com/espressif/esp-lwip
     upstream_commit: 4fd84abace0cd8a5a709c194fa54afb3cd39b3f7
     cpe: cpe:2.3:a:lwip_project:lwip:2.1.3:*:*:*:*:*:*:*
     purl: pkg:github/espressif/esp-lwip@4fd84abace0cd8a5a709c194fa54afb3cd39b3f7
@@ -1436,7 +1438,7 @@ components:
       version: a192988b7906680440213eefc730d99dec0ce237
     name: wpa_supplicant-espressif
     version: null
-    upstream: https://github.com/espressif/ESP8266_RTOS_SDK/tree/a192988b7906680440213eefc730d99dec0ce237/components/wpa_supplicant
+    repository: https://github.com/espressif/ESP8266_RTOS_SDK
     upstream_commit: a192988b7906680440213eefc730d99dec0ce237
     cpe: null
     purl: pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237
@@ -1454,7 +1456,7 @@ components:
       version: a192988b7906680440213eefc730d99dec0ce237
     name: freertos-kernel-espressif
     version: 10.0.1
-    upstream: https://github.com/espressif/ESP8266_RTOS_SDK/tree/a192988b7906680440213eefc730d99dec0ce237/components/freertos
+    repository: https://github.com/espressif/ESP8266_RTOS_SDK
     upstream_commit: a192988b7906680440213eefc730d99dec0ce237
     cpe: cpe:2.3:o:amazon:freertos:10.0.1:*:*:*:*:*:*:*
     purl: pkg:generic/freertos-kernel-espressif@10.0.1
@@ -1469,7 +1471,7 @@ components:
       version: 5.0.3
     name: esp-idf
     version: 5.0.3
-    upstream: https://github.com/espressif/esp-idf
+    repository: https://github.com/espressif/esp-idf
     upstream_commit: e004907bd53b68e6db2e29ae335d8b38cbb39472
     cpe: cpe:2.3:a:espressif:esp-idf:5.0.3:*:*:*:*:*:*:*
     purl: pkg:github/espressif/esp-idf@v5.0.3
@@ -1486,7 +1488,7 @@ components:
       submodule: components/mbedtls/mbedtls
     name: mbedtls-espressif-fork
     version: 3.4.0
-    upstream: https://github.com/espressif/mbedtls
+    repository: https://github.com/espressif/mbedtls
     upstream_commit: f5fca55508d9d18961b10824d5cf5d8338c087f6
     cpe:
     - cpe:2.3:a:arm:mbed_tls:3.4.0:*:*:*:*:*:*:*
@@ -1504,7 +1506,7 @@ components:
       submodule: components/lwip/lwip
     name: esp-lwip
     version: 2.1.3-dev
-    upstream: https://github.com/espressif/esp-lwip
+    repository: https://github.com/espressif/esp-lwip
     upstream_commit: 57c29648ff40e2a19a51683717928aaf766a0495
     cpe: cpe:2.3:a:lwip_project:lwip:2.1.3:*:*:*:*:*:*:*
     purl: pkg:github/espressif/esp-lwip@57c29648ff40e2a19a51683717928aaf766a0495
@@ -1520,7 +1522,7 @@ components:
       submodule: components/esp_wifi/lib
     name: esp32-wifi-lib
     version: null
-    upstream: https://github.com/espressif/esp32-wifi-lib
+    repository: https://github.com/espressif/esp32-wifi-lib
     upstream_commit: 9a2cbdc71044dd3f96ec828a9e88cea5bfd4efd0
     cpe: null
     purl: pkg:github/espressif/esp32-wifi-lib@9a2cbdc71044dd3f96ec828a9e88cea5bfd4efd0
@@ -1536,7 +1538,7 @@ components:
       submodule: components/esp_phy/lib
     name: esp-phy-lib
     version: null
-    upstream: https://github.com/espressif/esp-phy-lib
+    repository: https://github.com/espressif/esp-phy-lib
     upstream_commit: 3ccfd015eb69dccde8fce39827e90acb318f7b09
     cpe: null
     purl: pkg:github/espressif/esp-phy-lib@3ccfd015eb69dccde8fce39827e90acb318f7b09
@@ -1552,7 +1554,7 @@ components:
       submodule: components/heap/tlsf
     name: tlsf
     version: null
-    upstream: https://github.com/espressif/tlsf
+    repository: https://github.com/espressif/tlsf
     upstream_commit: 8c9cd0517adf99e363812e9a295dfe3898fdd345
     cpe: null
     purl: pkg:github/espressif/tlsf@8c9cd0517adf99e363812e9a295dfe3898fdd345
@@ -1568,7 +1570,7 @@ components:
       submodule: components/bootloader/subproject/components/micro-ecc/micro-ecc
     name: micro-ecc
     version: null
-    upstream: https://github.com/kmackay/micro-ecc
+    repository: https://github.com/kmackay/micro-ecc
     upstream_commit: d037ec89546fad14b5c4d5456c2e23a71e554966
     cpe: null
     purl: pkg:github/kmackay/micro-ecc@d037ec89546fad14b5c4d5456c2e23a71e554966
@@ -1585,7 +1587,7 @@ components:
       version: 16-83817c2f
     name: clang-format
     version: 16-83817c2f
-    upstream: https://github.com/prusa3d/clang-format-binaries
+    repository: https://github.com/prusa3d/clang-format-binaries
     upstream_commit: null
     cpe: null
     purl: null
@@ -1599,7 +1601,7 @@ components:
       version: 3.28.3
     name: cmake
     version: 3.28.3
-    upstream: https://cmake.org
+    url: https://cmake.org
     upstream_commit: null
     cpe: null
     purl: null
@@ -1613,7 +1615,7 @@ components:
       version: 1.10.2
     name: ninja
     version: 1.10.2
-    upstream: https://ninja-build.org
+    url: https://ninja-build.org
     upstream_commit: null
     cpe: null
     purl: null
@@ -1627,7 +1629,7 @@ components:
       version: 0.9.10
     name: mini404
     version: 0.9.10
-    upstream: https://github.com/vintagepc/MINI404
+    repository: https://github.com/vintagepc/MINI404
     upstream_commit: null
     cpe: null
     purl: null
@@ -1641,7 +1643,7 @@ components:
       version: 40327a4d2dff0992682be2872aaa6e096f35d2f4
     name: cmsis-svd
     version: 40327a4d2dff0992682be2872aaa6e096f35d2f4
-    upstream: https://github.com/cmsis-svd/cmsis-svd-data
+    repository: https://github.com/cmsis-svd/cmsis-svd-data
     upstream_commit: null
     cpe: null
     purl: null
@@ -1655,7 +1657,7 @@ components:
       version: c7e833e81e79e3396e1078832d936ae6578a8bc1
     name: cmsis-svd-h5
     version: c7e833e81e79e3396e1078832d936ae6578a8bc1
-    upstream: https://github.com/cmsis-svd/cmsis-svd-data
+    repository: https://github.com/cmsis-svd/cmsis-svd-data
     upstream_commit: null
     cpe: null
     purl: null
@@ -1669,7 +1671,7 @@ components:
       version: ce4b873ae4a471cf28d7a7c9c69ded252d949672
     name: cmsis-svd-c0
     version: ce4b873ae4a471cf28d7a7c9c69ded252d949672
-    upstream: https://github.com/cmsis-svd/cmsis-svd-data
+    repository: https://github.com/cmsis-svd/cmsis-svd-data
     upstream_commit: null
     cpe: null
     purl: null
@@ -1683,7 +1685,7 @@ components:
       version: 22acef8c6e248db2f04f65eebf4c2b470f4010c2
     name: crashdebug
     version: 22acef8c6e248db2f04f65eebf4c2b470f4010c2
-    upstream: https://github.com/prusa3d/CrashDebug
+    repository: https://github.com/prusa3d/CrashDebug
     upstream_commit: null
     cpe: null
     purl: null

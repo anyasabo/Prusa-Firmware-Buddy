@@ -97,10 +97,11 @@ def check_bootstrap(root: Path, components: dict) -> list[str]:
             if url is None:
                 errors.append(f"{MANIFEST}: {key}: {name} has no submodule "
                               f"{sub} in {BOOTSTRAP}")
-            elif entry.get("upstream_commit") and entry[
-                    "upstream_commit"] not in url:
-                errors.append(f"{MANIFEST}: {key}: {BOOTSTRAP} fetches {url}, "
-                              f"not upstream_commit {entry['upstream_commit']}")
+            elif entry.get(
+                    "upstream_commit") and entry["upstream_commit"] not in url:
+                errors.append(
+                    f"{MANIFEST}: {key}: {BOOTSTRAP} fetches {url}, "
+                    f"not upstream_commit {entry['upstream_commit']}")
     for name in sorted(set(deps) - covered):
         errors.append(f"{BOOTSTRAP}: dependency {name} has no "
                       f"`{BOOTSTRAP_PREFIX}{name}` entry in {MANIFEST} (use "
@@ -125,7 +126,8 @@ def check(root: Path) -> list[str]:
 
     components = manifest["components"]
     for path in components:
-        if not path.startswith(BOOTSTRAP_PREFIX) and not (root / path).exists():
+        if not path.startswith(BOOTSTRAP_PREFIX) and not (root /
+                                                          path).exists():
             errors.append(f"{MANIFEST}: {path}: path does not exist")
 
     errors += check_bootstrap(root, components)
@@ -135,7 +137,7 @@ def check(root: Path) -> list[str]:
         if entry is None:
             errors.append(
                 f"{path}/.gitrepo: no entry in {MANIFEST}; add one (name, "
-                f"version, upstream, upstream_commit, subrepo_commit, cpe, "
+                f"version, repository, upstream_commit, subrepo_commit, cpe, "
                 f"purl, supplier, license)")
         elif entry.get("subrepo_commit") != commit:
             errors.append(

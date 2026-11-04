@@ -9,19 +9,36 @@
 /// lwIP includes) so it can be exercised by a host unit test.
 namespace ooseq_limit {
 
-// Ring bytes budget (protects the shared RX pbuf ring, pbuf_rx.cpp). Worst-case
-// pinned ring ~= GLOBAL_BYTES + GLOBAL_SEGS * per-frame overhead; keep it well
-// under the ring size in pbuf_rx.cpp.
-inline constexpr uint32_t GLOBAL_BYTES = 4096;
-inline constexpr uint32_t INBOUND_SHARE_BYTES = 1024;
-inline constexpr uint32_t INBOUND_PCB_BYTES = 512;
-inline constexpr uint32_t OUTBOUND_PCB_BYTES = 4096;
+/// The full set of caps. The defaults are the shipped values; tests (and
+/// experiments) can evaluate other sets through the `limits` parameter of the
+/// compute_* functions below.
+struct Limits {
+    // Ring bytes budget (protects the shared RX pbuf ring, pbuf_rx.cpp). Worst-case
+    // pinned ring ~= global_bytes + global_segs * per-frame overhead; keep it well
+    // under the ring size in pbuf_rx.cpp.
+    uint32_t global_bytes = 4096;
+    uint32_t inbound_share_bytes = 1024;
+    uint32_t inbound_pcb_bytes = 512;
+    uint32_t outbound_pcb_bytes = 4096;
 
-// tcp_seg count budget (protects the shared MEMP_NUM_TCP_SEG pool).
-inline constexpr uint16_t GLOBAL_SEGS = 5;
-inline constexpr uint16_t INBOUND_SHARE_SEGS = 2;
-inline constexpr uint16_t INBOUND_PCB_SEGS = 1;
-inline constexpr uint16_t OUTBOUND_PCB_SEGS = 4;
+    // tcp_seg count budget (protects the shared MEMP_NUM_TCP_SEG pool).
+    uint16_t global_segs = 5;
+    uint16_t inbound_share_segs = 2;
+    uint16_t inbound_pcb_segs = 1;
+    uint16_t outbound_pcb_segs = 4;
+};
+
+inline constexpr Limits DEFAULT_LIMITS {};
+
+inline constexpr uint32_t GLOBAL_BYTES = DEFAULT_LIMITS.global_bytes;
+inline constexpr uint32_t INBOUND_SHARE_BYTES = DEFAULT_LIMITS.inbound_share_bytes;
+inline constexpr uint32_t INBOUND_PCB_BYTES = DEFAULT_LIMITS.inbound_pcb_bytes;
+inline constexpr uint32_t OUTBOUND_PCB_BYTES = DEFAULT_LIMITS.outbound_pcb_bytes;
+
+inline constexpr uint16_t GLOBAL_SEGS = DEFAULT_LIMITS.global_segs;
+inline constexpr uint16_t INBOUND_SHARE_SEGS = DEFAULT_LIMITS.inbound_share_segs;
+inline constexpr uint16_t INBOUND_PCB_SEGS = DEFAULT_LIMITS.inbound_pcb_segs;
+inline constexpr uint16_t OUTBOUND_PCB_SEGS = DEFAULT_LIMITS.outbound_pcb_segs;
 
 namespace detail {
     template <typename T>
@@ -32,26 +49,33 @@ namespace detail {
 
 /// Max ooseq payload bytes a pcb of the given class may keep, given the
 /// ooseq bytes already held by every other pcb.
-inline uint32_t compute_bytes_limit(bool is_inbound, uint32_t other_all_bytes, uint32_t other_inbound_bytes) {
-    const uint32_t global_room = detail::room(GLOBAL_BYTES, other_all_bytes);
+inline uint32_t compute_bytes_limit(bool is_inbound, uint32_t other_all_bytes, uint32_t other_inbound_bytes, const Limits &limits = DEFAULT_LIMITS) {
+    const uint32_t global_room = detail::room(limits.global_bytes, other_all_bytes);
     if (is_inbound) {
-        const uint32_t inbound_room = detail::room(INBOUND_SHARE_BYTES, other_inbound_bytes);
-        return std::min({ INBOUND_PCB_BYTES, inbound_room, global_room });
+        const uint32_t inbound_room = detail::room(limits.inbound_share_bytes, other_inbound_bytes);
+        return std::min({ limits.inbound_pcb_bytes, inbound_room, global_room });
     } else {
-        return std::min(OUTBOUND_PCB_BYTES, global_room);
+        return std::min(limits.outbound_pcb_bytes, global_room);
     }
 }
 
 /// Max ooseq segments a pcb of the given class may keep, given the ooseq
 /// segments already held by every other pcb.
-inline uint16_t compute_segs_limit(bool is_inbound, uint16_t other_all_segs, uint16_t other_inbound_segs) {
-    const uint16_t global_room = detail::room(GLOBAL_SEGS, other_all_segs);
+inline uint16_t compute_segs_limit(bool is_inbound, uint16_t other_all_segs, uint16_t other_inbound_segs, const Limits &limits = DEFAULT_LIMITS) {
+    const uint16_t global_room = detail::room(limits.global_segs, other_all_segs);
     if (is_inbound) {
-        const uint16_t inbound_room = detail::room(INBOUND_SHARE_SEGS, other_inbound_segs);
-        return std::min({ INBOUND_PCB_SEGS, inbound_room, global_room });
+        const uint16_t inbound_room = detail::room(limits.inbound_share_segs, other_inbound_segs);
+        return std::min({ limits.inbound_pcb_segs, inbound_room, global_room });
     } else {
-        return std::min(OUTBOUND_PCB_SEGS, global_room);
+        return std::min(limits.outbound_pcb_segs, global_room);
     }
 }
+
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+/// Host tests only (see ooseq_limit.cpp).
+void set_limits_for_test(const Limits &limits);
+/// Number of times lwIP consulted the hooks (bytes + pbufs), for sanity checks.
+uint32_t hook_calls_for_test();
+#endif
 
 } // namespace ooseq_limit

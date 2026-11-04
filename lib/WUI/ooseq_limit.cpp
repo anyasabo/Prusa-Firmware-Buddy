@@ -70,18 +70,41 @@ OoseqUsage other_pcbs_usage(const struct tcp_pcb *exclude) {
     return usage;
 }
 
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+// Host tests only: lets a test run the real lwIP input path with other caps.
+ooseq_limit::Limits active_limits = ooseq_limit::DEFAULT_LIMITS;
+uint32_t hook_calls = 0;
+    #define COUNT_HOOK_CALL() (++hook_calls)
+#else
+    #define COUNT_HOOK_CALL() ((void)0)
+constexpr const ooseq_limit::Limits &active_limits = ooseq_limit::DEFAULT_LIMITS;
+#endif
+
 } // namespace
+
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+namespace ooseq_limit {
+void set_limits_for_test(const Limits &limits) {
+    active_limits = limits;
+}
+uint32_t hook_calls_for_test() {
+    return hook_calls;
+}
+} // namespace ooseq_limit
+#endif
 
 extern "C" {
 
 uint32_t buddy_ooseq_bytes_limit(const struct tcp_pcb *pcb) {
+    COUNT_HOOK_CALL();
     const OoseqUsage usage = other_pcbs_usage(pcb);
-    return ooseq_limit::compute_bytes_limit(is_inbound(pcb), usage.all_bytes, usage.inbound_bytes);
+    return ooseq_limit::compute_bytes_limit(is_inbound(pcb), usage.all_bytes, usage.inbound_bytes, active_limits);
 }
 
 uint16_t buddy_ooseq_pbufs_limit(const struct tcp_pcb *pcb) {
+    COUNT_HOOK_CALL();
     const OoseqUsage usage = other_pcbs_usage(pcb);
-    return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs);
+    return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs, active_limits);
 }
 
 } // extern "C"

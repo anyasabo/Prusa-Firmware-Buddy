@@ -1,0 +1,1065 @@
+# Software bill of materials for vendored third-party code.
+#
+# One entry per vendored component, keyed by its path relative to the repo root
+# (a directory, or a file when one directory mixes several upstreams).
+# Kept in one central file (not one per library) so that git-subrepo directories
+# stay byte-identical to their upstream.
+#
+# Field names follow ESP-IDF's sbom.yml where an equivalent exists.
+#   name             component name
+#   version          upstream release the code is based on
+#   upstream         canonical upstream source (git URL or download URL)
+#   upstream_commit  upstream commit the code is based on, i.e. BEFORE local
+#                    patches. Not the git-subrepo HEAD when that points at a fork.
+#   subrepo_commit   the `commit` from the directory's .gitrepo, if it has one. The
+#                    hook fails when they differ, so a `git subrepo pull` forces a
+#                    review of this entry.
+#   cpe              CPE 2.3 name(s) as used in the NVD dictionary (Grype matches on
+#                    this). A list when NVD files the product under several vendors.
+#   first_party      true for Prusa's own projects (not scanned against NVD)
+#   purl             package URL (OSV matches on this)
+#   supplier         "Organization: <name>" as in SPDX/ESP-IDF
+#   license          SPDX license expression
+#   patches          local modifications relative to upstream_commit
+#   cve-exclude-list CVEs that match by version but do not apply; {cve, reason}
+#                    (the detailed justification lives in the VEX file)
+#   note             anything a reviewer needs to know about the identity above
+#
+# Checked by utils/check_sbom_manifest.py (schema: lib/sbom.schema.json).
+
+components:
+  lib/Middlewares/Third_Party/mbedtls:
+    name: mbedtls
+    version: 2.28.0
+    upstream: https://github.com/Mbed-TLS/mbedtls
+    upstream_commit: 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0  # tag v2.28.0
+    subrepo_commit: 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0
+    cpe:
+      - cpe:2.3:a:arm:mbed_tls:2.28.0:*:*:*:*:*:*:*
+      - cpe:2.3:a:trustedfirmware:mbed_tls:2.28.0:*:*:*:*:*:*:*
+    purl: pkg:github/mbed-tls/mbedtls@v2.28.0
+    supplier: "Organization: Trusted Firmware (formerly Arm)"
+    license: Apache-2.0 OR GPL-2.0-or-later
+    note: >-
+      NVD files mbed TLS under two CPE vendors, arm:mbed_tls and
+      trustedfirmware:mbed_tls, with disjoint CVE sets; both are listed. The 2.28 LTS branch
+      reached end of life with 2.28.10.
+    patches:
+      - library/platform_util.c: use gmtime_r() instead of gmtime()+memcpy
+      - include/mbedtls/net_sockets.h: make mbedtls_net_context an opaque struct
+      # Visual Studio project files differ only in line endings.
+
+  lib/Middlewares/Third_Party/LwIP:
+    name: lwip
+    version: 2.1.2
+    upstream: https://git.savannah.nongnu.org/git/lwip.git
+    upstream_commit: 159e31b689577dbf69cf0683bbaffbd71fa5ee10  # tag STABLE-2_1_2_RELEASE
+    subrepo_commit: fa41d53ac544119ccaf985d31e1670e2ddb6c63b
+    cpe: cpe:2.3:a:lwip_project:lwip:2.1.2:*:*:*:*:*:*:*
+    purl: pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40159e31b689577dbf69cf0683bbaffbd71fa5ee10
+    supplier: "Organization: lwIP project (Savannah)"
+    license: BSD-3-Clause
+    note: >-
+      The .gitrepo points at prusa3d/LwIP_212@buddy, whose only commit
+      (fa41d53) contains just a README; it says nothing about the code. Only
+      src/ is vendored; src/apps/ (httpd, mdns, mqtt, snmp, ...) is absent.
+    patches:
+      - src/core/ipv4/etharp.c: ignore ARP replies used for DHCP conflict detection when sent by the ESP module
+      - src/core/timeouts.c: use sys_timeout_abs() in sys_timeouts_init() to avoid core-lock assert
+      - src/core/altcp_tcp.c: debug hooks (compiled out)
+      - src/include/lwip/opt.h: include buddy/lwipopts.h; DNS_TABLE_SIZE 2, DNS_MAX_NAME_LENGTH 50
+      - src/include/lwip/priv/memp_std.h: include buddy/lwippools.h
+      - src/include/posix/: added
+
+  lib/Middlewares/Third_Party/FreeRTOS:
+    name: freertos-kernel
+    version: 10.6.2
+    upstream: https://github.com/FreeRTOS/FreeRTOS-Kernel
+    upstream_commit: 18ed8886fe3eed9dbe433a82cdc62ce5dc0315eb  # tag V10.6.2
+    cpe: cpe:2.3:o:amazon:freertos:10.6.2:*:*:*:*:*:*:*
+    purl: pkg:github/freertos/freertos-kernel@V10.6.2
+    supplier: "Organization: Amazon Web Services"
+    license: MIT
+    note: >-
+      Only the kernel plus the GCC ARM_CM0, ARM_CM4F and ARM_CM33_NTZ ports and
+      heap_4 are vendored. FreeRTOS+TCP and FreeRTOS+FAT are not used.
+      Source/CMSIS_RTOS/ is ST's CMSIS-RTOS v1 wrapper, not part of FreeRTOS.
+    patches:
+      - Source/timers.c: timer task name "TmrSvc" (no space)
+      - Source/include/projdefs.h: add pdTICKS_TO_MS backported from FreeRTOS 11
+      - Source/portable/GCC/ARM_CM0/port.c: vPortEndScheduler() no longer asserts (empty body), used on printer kill
+      - Source/portable/GCC/ARM_CM4F/port.c: vPortEndScheduler() no longer asserts (empty body), used on printer kill
+
+  lib/Middlewares/Third_Party/FatFs:
+    name: fatfs
+    version: R0.14b
+    upstream: http://elm-chan.org/fsw/ff/arc/ff14b.zip
+    upstream_commit: null
+    upstream_sha256: d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb
+    cpe: cpe:2.3:a:elm-chan:fatfs:r0.14b:*:*:*:*:*:*:*
+    purl: pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb
+    supplier: "Organization: ChaN (elm-chan.org)"
+    license: LicenseRef-FatFs
+    note: >-
+      Upstream ships zip releases only, so there is no commit; upstream_sha256
+      is the release archive. Version from ff.h (FF_DEFINED 86631).
+      diskio.c and ff_gen_drv.[ch] are STMicroelectronics glue (STM32Cube).
+    patches:
+      - src/ff.c: no code pages (SFN bytes passed through), mtime/ctime selection, yield option in f_expand
+      - src/ffunicode.c: no code-page conversion (SFN bytes passed through)
+      - src/ff.h: include buddy/ffconf.h; f_expand() gains a yield argument
+      - src/ffsystem.c: FreeRTOS mutexes for FF_FS_REENTRANT
+      - src/diskio.c: replaced by STM32Cube driver glue
+
+  lib/Middlewares/Third_Party/littlefs:
+    name: littlefs
+    version: 2.8.0
+    upstream: https://github.com/littlefs-project/littlefs
+    upstream_commit: f77214d1f0a8ccd7ddc7e1204fedd25ee5a41534  # tag v2.8.0
+    subrepo_commit: f77214d1f0a8ccd7ddc7e1204fedd25ee5a41534
+    cpe: cpe:2.3:a:littlefs-project:littlefs:2.8.0:*:*:*:*:*:*:*
+    purl: pkg:github/littlefs-project/littlefs@v2.8.0
+    supplier: "Organization: littlefs project"
+    license: BSD-3-Clause
+    note: >-
+      NVD has no CPE for littlefs (checked 2026-11-03); the cpe above is
+      constructed and matches nothing today.
+    patches:
+      - CMakeLists.txt: added (build integration only)
+
+  # --- git-subrepo libraries (drafted 2026-11-03; upstreams checked by diff) ---
+  lib/CMSIS-DSP:
+    name: cmsis-dsp
+    version: 1.16.2
+    upstream: https://github.com/ARM-software/CMSIS-DSP
+    upstream_commit: d5717e454fec0337bef114a21f1d2d01d74f2701  # tag v1.16.2
+    subrepo_commit: d5717e454fec0337bef114a21f1d2d01d74f2701
+    cpe: null
+    purl: pkg:github/arm-software/cmsis-dsp@v1.16.2
+    supplier: "Organization: Arm Limited"
+    license: Apache-2.0
+    note: No NVD CPE (checked 2026-11-03). NVD has only arm:cmsis-rtos for CMSIS.
+    patches: []  # identical to upstream
+
+  lib/Catch2:
+    name: catch2
+    version: 3.11.0-10-g31ee3beb
+    upstream: https://github.com/catchorg/Catch2
+    upstream_commit: 31ee3beb0a474463e0101674c22f2fef0311d601
+    subrepo_commit: 31ee3beb0a474463e0101674c22f2fef0311d601
+    cpe: null
+    purl: pkg:github/catchorg/catch2@31ee3beb0a474463e0101674c22f2fef0311d601
+    supplier: "Organization: Catch2 project (catchorg)"
+    license: BSL-1.0
+    note: >-
+      Untagged devel commit (2025-10-16): 10 commits after v3.11.0, 12 before
+      v3.12.0. Used only by unit tests, not linked into firmware.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/CrashCatcher:
+    name: crashcatcher
+    version: 0.0.0-20220611-1c7755c
+    upstream: https://github.com/adamgreen/CrashCatcher
+    upstream_commit: 1c7755c875c0890ba98ab77cd2e23f64f3e1922f
+    subrepo_commit: 1c7755c875c0890ba98ab77cd2e23f64f3e1922f
+    cpe: null
+    purl: pkg:github/adamgreen/crashcatcher@1c7755c875c0890ba98ab77cd2e23f64f3e1922f
+    supplier: "Person: Adam Green"
+    license: Apache-2.0
+    note: >-
+      Upstream has no tags; version is a synthetic commit-date version.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical; CppUTest/ (an upstream git submodule) not vendored
+
+  lib/Drivers/CMSIS/Device/ST/STM32G0xx/Include:
+    name: cmsis_device_g0
+    version: 1.4.1
+    upstream: https://github.com/STMicroelectronics/cmsis_device_g0
+    upstream_commit: 051d85f2f5a9b5d67d2fbb4e97861b2e8ec1ef89  # tag v1.4.1
+    subrepo_commit: 051d85f2f5a9b5d67d2fbb4e97861b2e8ec1ef89
+    cpe: null
+    purl: pkg:github/stmicroelectronics/cmsis_device_g0@v1.4.1
+    supplier: "Organization: STMicroelectronics"
+    license: Apache-2.0
+    note: >-
+      Layout differs from upstream: upstream Include/*.h sit directly in this
+      directory (no Include/ subdirectory). All 14 headers are byte-identical
+      to upstream; README, LICENSE, Source/ etc. are also present.
+      No NVD CPE (checked 2026-11-03). Closest is st:stm32cubeg0, but that versions the whole STM32CubeG0 package, not this repo.
+    patches:
+      - "Include/*.h: moved up one level (content unchanged)"
+
+  lib/Drivers/CMSIS/Device/ST/STM32H5xx:
+    name: cmsis_device_h5
+    version: 1.3.0
+    upstream: https://github.com/STMicroelectronics/cmsis_device_h5
+    upstream_commit: 9a778e0f162bd21200647adafb922d50b2c60f81  # tag v1.3.0
+    subrepo_commit: 9a778e0f162bd21200647adafb922d50b2c60f81
+    cpe: null
+    purl: pkg:github/stmicroelectronics/cmsis_device_h5@v1.3.0
+    supplier: "Organization: STMicroelectronics"
+    license: Apache-2.0
+    note: No NVD CPE (checked 2026-11-03). NVD has no st:stm32cubeh5 product.
+    patches: []  # identical to upstream
+
+  lib/Drivers/lis2dh12-pid:
+    name: lis2dh12-pid
+    version: 1.1.0
+    upstream: https://github.com/STMicroelectronics/lis2dh12-pid
+    upstream_commit: 32bf6c84e58e6e73cbbb28f288451ee16cb9e61b  # tag v1.1.0
+    subrepo_commit: 32bf6c84e58e6e73cbbb28f288451ee16cb9e61b
+    cpe: null
+    purl: pkg:github/stmicroelectronics/lis2dh12-pid@v1.1.0
+    supplier: "Organization: STMicroelectronics"
+    license: BSD-3-Clause
+    note: >-
+      .gitrepo branch is master, but the commit is exactly tag v1.1.0.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/Drivers/stm32f4xx_hal_driver:
+    name: stm32f4xx-hal-driver
+    version: 1.8.3
+    upstream: https://github.com/STMicroelectronics/stm32f4xx-hal-driver
+    upstream_commit: c2e1406d7ea4b73aa42b98ddeb75a8670b1a5a16  # tag v1.8.3
+    subrepo_commit: c2e1406d7ea4b73aa42b98ddeb75a8670b1a5a16
+    cpe: null
+    purl: pkg:github/stmicroelectronics/stm32f4xx-hal-driver@v1.8.3
+    supplier: "Organization: STMicroelectronics"
+    license: BSD-3-Clause
+    note: No NVD CPE (checked 2026-11-03). Closest is st:stm32cubef4, which versions the STM32CubeF4 package (different numbering from HAL v1.8.3), so not used.
+    patches:
+      - Inc/stm32f4xx_hal_rcc.h, Src/stm32f4xx_hal_rcc.c, Src/stm32f4xx_hal_rcc_ex.c: HAL_RCC_OscConfig/ClockConfig take const pointers
+      - Src/stm32f4xx_hal_hcd.c: USB host tolerates up to 80 transaction errors (was 2); ACK IRQ handled only when ACK mask enabled
+      - Src/stm32f4xx_ll_usb.c: do not enable ACK interrupt for full-speed devices on the HS core (IRQ storm)
+      # Removed: README.md, Release_Notes.html, _htmresc/, .github/, CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md
+
+  lib/Drivers/stm32g0xx_hal_driver:
+    name: stm32g0xx_hal_driver
+    version: 1.4.3
+    upstream: https://github.com/STMicroelectronics/stm32g0xx_hal_driver
+    upstream_commit: 38df07685b03ab758d2374ff56edbbf20ba829c8  # tag v1.4.3
+    subrepo_commit: 38df07685b03ab758d2374ff56edbbf20ba829c8
+    cpe: null
+    purl: pkg:github/stmicroelectronics/stm32g0xx_hal_driver@v1.4.3
+    supplier: "Organization: STMicroelectronics"
+    license: BSD-3-Clause
+    note: No NVD CPE (checked 2026-11-03). Closest is st:stm32cubeg0, which versions the STM32CubeG0 package (different numbering from HAL v1.4.3), so not used.
+    patches:
+      - CMakeLists.txt: added (empty file)
+      # 3 files differ only in comment character encoding (Latin-1 -> ASCII/UTF-8):
+      # stm32g0xx_hal_timebase_rtc_{alarm,wakeup}_template.c, stm32g0xx_hal_wwdg.c
+
+  lib/Drivers/stm32h5xx_hal_driver:
+    name: stm32h5xx_hal_driver
+    version: 1.3.0
+    upstream: https://github.com/STMicroelectronics/stm32h5xx_hal_driver
+    upstream_commit: 0de1dbf8ad03e6e466ed55d1c174656561e3240d  # tag v1.3.0
+    subrepo_commit: 0de1dbf8ad03e6e466ed55d1c174656561e3240d
+    cpe: null
+    purl: pkg:github/stmicroelectronics/stm32h5xx_hal_driver@v1.3.0
+    supplier: "Organization: STMicroelectronics"
+    license: BSD-3-Clause
+    note: No NVD CPE (checked 2026-11-03). NVD has no st:stm32cubeh5 product.
+    patches: []  # identical to upstream
+
+  lib/Marlin:
+    name: marlin
+    version: 0.0.0-20191021-f00b48f9a
+    upstream: https://github.com/MarlinFirmware/Marlin
+    upstream_commit: f00b48f9a8da77d0d603b74c843359b82ee306e3  # bugfix-2.0.x, 2019-10-21
+    subrepo_commit: f00b48f9a8da77d0d603b74c843359b82ee306e3
+    cpe: "cpe:2.3:o:marlinfw:marlin_firmware:*:*:*:*:*:*:*:*"
+    purl: pkg:github/marlinfirmware/marlin@f00b48f9a8da77d0d603b74c843359b82ee306e3
+    supplier: "Organization: MarlinFirmware"
+    license: GPL-3.0-or-later
+    note: >-
+      .gitrepo remote is the prusa3d/Marlin fork (branch buddy), but the buddy
+      head is the unmodified upstream bugfix-2.0.x commit f00b48f (2019-10-21,
+      277 commits before tag 2.0.0; Version.h says "bugfix-2.0.x"). `git
+      describe` gives 1.1.0-RC4-9111-gf00b48f9a, which is misleading, so a
+      synthetic version is used; scanners should treat this as pre-2.0.0.
+      The vendored tree is a heavily modified hard fork (see patches);
+      upstream security fixes after 2019 are not present unless backported.
+      NVD CPE marlinfw:marlin_firmware exists (dictionary versions only up to
+      1.1.9). The CPE version is deliberately "*" (judgement call, review):
+      there is no release version for this snapshot, so every Marlin CVE
+      should match and be triaged by hand.
+    patches:
+      # HEAVILY MODIFIED: ~45,800 changed diff lines.
+      - 168 upstream files modified; largest: module/planner.cpp, temperature.cpp, stepper.cpp, configuration_store.cpp, motion.cpp, inc/SanityCheck.h, Conditionals_post.h, lcd/ultralcd.cpp, gcode/calibrate/G28.cpp, ubl_G29.cpp, tool_change.cpp, probe.cpp, Marlin.cpp, stepper/trinamic.cpp
+      - 46 files/dirs added: Prusa features (input_shaper, phase_stepping, precise_stepping, pressure_advance, contactless_offset, modular bed, print_area, toolchanger/prusa modules), new G-codes (G6, G80, M86, M142, M400, M958, M73_PE, ...), STM32G0 HAL, pins for BUDDY_2209_02 / XLBUDDY / DWARF, Prusa thermistor tables
+      - 286 upstream files/dirs removed: other boards' pins and HALs, LCD languages and UIs, unused features, thermistor tables, build tooling
+
+  lib/OpenPrintTag:
+    name: openprinttag-specification
+    version: 0.0.0-20261006-2f64e19
+    upstream: https://github.com/OpenPrintTag/openprinttag-specification
+    upstream_commit: 2f64e19166e33bee0845d757cd03bcf06b86b292
+    subrepo_commit: 2f64e19166e33bee0845d757cd03bcf06b86b292
+    first_party: true
+    cpe: null
+    purl: pkg:github/openprinttag/openprinttag-specification@2f64e19166e33bee0845d757cd03bcf06b86b292
+    supplier: "Organization: Prusa Research a.s."
+    license: MIT
+    note: >-
+      First-party (Prusa Research, per LICENSE copyright). Upstream has no
+      tags; synthetic version. No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/Prusa-Error-Codes:
+    name: prusa-error-codes
+    version: 0.0.0-20261020-9e60938
+    upstream: https://github.com/prusa3d/Prusa-Error-Codes
+    upstream_commit: 9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
+    subrepo_commit: 9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
+    first_party: true
+    cpe: null
+    purl: pkg:github/prusa3d/prusa-error-codes@9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
+    supplier: "Organization: Prusa Research a.s."
+    license: GPL-3.0-or-later
+    note: >-
+      First-party. Upstream has no tags; synthetic version. License from
+      setup.py SPDX header (GPL-3.0-or-later). No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/Prusa-Firmware-MMU:
+    name: prusa-firmware-mmu
+    version: 3.0.2
+    upstream: https://github.com/prusa3d/Prusa-Firmware-MMU
+    upstream_commit: d510e1e482b66a92e130586b55e7c1ed53dad11c  # tag v3.0.2
+    subrepo_commit: d510e1e482b66a92e130586b55e7c1ed53dad11c
+    first_party: true
+    cpe: null
+    purl: pkg:github/prusa3d/prusa-firmware-mmu@v3.0.2
+    supplier: "Organization: Prusa Research a.s."
+    license: GPL-3.0-only AND CC-BY-NC-SA-4.0
+    note: >-
+      First-party. LICENSE.md: source code GPL v3.0 (no "or later" statement
+      found, hence -only; unverified), graphics/design CC BY-NC-SA 4.0. Contains
+      its own nested subrepos lib/Catch2 and lib/lufa (separate entries).
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - cmake/Utilities.cmake: pass --printer-subversion "0" to pack_fw.py
+
+  lib/Prusa-Firmware-MMU/lib/Catch2:
+    name: catch2
+    version: 3.1.1
+    upstream: https://github.com/catchorg/Catch2
+    upstream_commit: 5df88da16e276f853cc0c45f4b570419be77dd43  # tag v3.1.1
+    subrepo_commit: 5df88da16e276f853cc0c45f4b570419be77dd43
+    cpe: null
+    purl: pkg:github/catchorg/catch2@v3.1.1
+    supplier: "Organization: Catch2 project (catchorg)"
+    license: BSL-1.0
+    note: >-
+      Nested subrepo of Prusa-Firmware-MMU (its own .gitrepo); identical to
+      the copy in Prusa-Firmware-MMU v3.0.2, so the patches below come from
+      the MMU repo. Test-only, not linked into firmware.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - src/catch2/catch_test_case_info.hpp, internal/catch_string_manip.hpp, internal/catch_xmlwriter.cpp: add #include <cstdint> (newer GCC)
+      # tools/misc/SelfTest.vcxproj.user missing (dropped by .gitignore *.user)
+
+  lib/Prusa-Firmware-MMU/lib/lufa:
+    name: lufa
+    version: "210130"
+    upstream: https://github.com/abcminiuser/lufa
+    upstream_commit: fa2cc3e1c3abab7c971506bd86ca4e28ecc7d288  # tag LUFA-210130
+    subrepo_commit: fa2cc3e1c3abab7c971506bd86ca4e28ecc7d288
+    cpe: null
+    purl: pkg:github/abcminiuser/lufa@LUFA-210130
+    supplier: "Person: Dean Camera"
+    license: LicenseRef-LUFA
+    note: >-
+      Nested subrepo of Prusa-Firmware-MMU (AVR USB stack for the MMU board,
+      not built for Buddy targets). LUFA/License.txt is an HPND-style
+      permissive license; not verified against SPDX HPND matching rules, so
+      kept as LicenseRef.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/TMCStepper:
+    name: tmcstepper
+    version: 0.5.1-3-gb5b3658
+    upstream: https://github.com/teemuatlut/TMCStepper
+    upstream_commit: b5b3658d34f93e0cc646dbaa54f90b809267206f
+    subrepo_commit: b5b3658d34f93e0cc646dbaa54f90b809267206f
+    cpe: null
+    purl: pkg:github/teemuatlut/tmcstepper@b5b3658d34f93e0cc646dbaa54f90b809267206f
+    supplier: "Person: Teemu Mäntykallio (teemuatlut)"
+    license: MIT
+    note: >-
+      .gitrepo remote is prusa3d/TMCStepper (branch buddy); buddy head is the
+      unmodified upstream commit b5b3658 (2019-10-03), 3 after v0.5.1, 5 before
+      v0.5.2 (TMCSTEPPER_VERSION 0x000501). Neither this commit nor the
+      vendored copy has a LICENSE file; upstream added an MIT LICENSE later
+      (commit b42eb33), so MIT is inferred.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - src/TMCStepper.h: serial lock guard + register read/write hooks; Remote connection (Dwarf/toolchanger); read/write made public; float literals; abort_window 5->2
+      - src/source/TMC2130Stepper.cpp: remote (Modbus to Dwarf) register access, communication lock, phase-stepping integration, custom defaults
+      - src/source/TMC2208Stepper.cpp: write verified via IFCNT with retries + error callback; locking; bulk serial write
+      - src/source/TMCStepper.cpp: weak register hooks; rounded current conversions, CS clamped to 31
+
+  lib/bitsery:
+    name: bitsery
+    version: 5.2.4
+    upstream: https://github.com/fraillt/bitsery
+    upstream_commit: ee992d8b5782e41792e4810c5b00ad4625783427  # tag v5.2.4
+    subrepo_commit: ee992d8b5782e41792e4810c5b00ad4625783427
+    cpe: null
+    purl: pkg:github/fraillt/bitsery@v5.2.4
+    supplier: "Person: Mindaugas Vinkelis"
+    license: MIT
+    note: No NVD CPE (checked 2026-11-03).
+    patches:
+      # 48 files differ, all reformatting only (clang-format, cmake-format,
+      # include order); no semantic change after whitespace stripping.
+      # scripts/CTestConfig.cmake missing (dropped by .gitignore).
+      []
+
+  lib/fpm:
+    name: fpm
+    version: 1.1.0-15-gaca4750
+    upstream: https://github.com/MikeLankamp/fpm
+    upstream_commit: aca475058b762e81a61495473a74fc8e48915fc6
+    subrepo_commit: aca475058b762e81a61495473a74fc8e48915fc6
+    cpe: null
+    purl: pkg:github/mikelankamp/fpm@aca475058b762e81a61495473a74fc8e48915fc6
+    supplier: "Person: Mike Lankamp"
+    license: MIT
+    note: >-
+      Untagged master commit (2024-10-09), 15 after v1.1.0; no later tag.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - include/fpm/fixed.hpp: operators/constructors made constexpr
+      - include/fpm/math.hpp: ceil/floor/trunc/round/... and find_highest_bit made constexpr
+      - 3rdparty/googletest/src/gtest.cc: Skipped()/Failed() renamed to skipped()/failed() (test-only)
+
+  lib/heatshrink:
+    name: heatshrink
+    version: 0.4.1-1-g7d419e1
+    upstream: https://github.com/atomicobject/heatshrink
+    upstream_commit: 7d419e1fa4830d0b919b9b6a91fe2fb786cf3280
+    subrepo_commit: 7d419e1fa4830d0b919b9b6a91fe2fb786cf3280
+    cpe: null
+    purl: pkg:github/atomicobject/heatshrink@7d419e1fa4830d0b919b9b6a91fe2fb786cf3280
+    supplier: "Organization: Atomic Object (Scott Vokes)"
+    license: ISC
+    note: >-
+      One commit after v0.4.1 ("Update contact info", docs only), so code is
+      effectively 0.4.1.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/inih:
+    name: inih
+    version: r46-2-gd0a152d
+    upstream: https://github.com/benhoyt/inih
+    upstream_commit: d0a152d531664afc23723ad3f1ef9568bcc74695
+    subrepo_commit: d0a152d531664afc23723ad3f1ef9568bcc74695
+    cpe: null
+    purl: pkg:github/benhoyt/inih@d0a152d531664afc23723ad3f1ef9568bcc74695
+    supplier: "Person: Ben Hoyt"
+    license: BSD-3-Clause
+    note: >-
+      .gitrepo remote is prusa3d/inih (branch buddy); buddy head is the
+      unmodified upstream commit d0a152d (2019-12-11), 2 after r46, 2 before r47.
+      No NVD CPE (checked 2026-11-03). CVE-2025-71450 (inih before r63, ini_parse_stream one-byte under-read; Awaiting Analysis, no CPE configuration) matches this version by description and needs triage.
+    patches:
+      - ini.c: strip single/double quotes around values (unquote())
+      - ini.h: comment prefix "#" only (';' no longer starts a comment)
+
+  lib/jsmn:
+    name: jsmn
+    version: 1.1.0-3-g7b6858a
+    upstream: https://github.com/zserge/jsmn
+    upstream_commit: 7b6858a5855299d173c5ab2b46e611bf9961cbef
+    subrepo_commit: 7b6858a5855299d173c5ab2b46e611bf9961cbef
+    cpe: null
+    purl: pkg:github/zserge/jsmn@7b6858a5855299d173c5ab2b46e611bf9961cbef
+    supplier: "Person: Serge Zaitsev"
+    license: MIT
+    note: >-
+      .gitrepo remote is prusa3d/jsmn (branch buddy); buddy head is the
+      unmodified upstream commit 7b6858a (2020-02-19), 3 after v1.1.0 (latest
+      tag).
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/libbgcode:
+    name: libbgcode
+    version: 0.0.0-20260813-6744dbe
+    upstream: https://github.com/Prusa-Development/libbgcode
+    upstream_commit: 6744dbe827c03cf3a99b7783de43c9d945e38b97
+    subrepo_commit: 6744dbe827c03cf3a99b7783de43c9d945e38b97
+    first_party: true
+    cpe: null
+    purl: pkg:github/prusa3d/libbgcode@6744dbe827c03cf3a99b7783de43c9d945e38b97
+    supplier: "Organization: Prusa Research a.s."
+    license: AGPL-3.0-only
+    note: >-
+      First-party. .gitrepo remote Prusa-Development/libbgcode is private (not
+      cloneable). The same commit exists in the public prusa3d/libbgcode on
+      branch lm_fixes (ahead of main), so the purl points there. No tags;
+      synthetic version. License: AGPL v3 text, no per-file notices, so -only
+      is an assumption. No NVD CPE (checked 2026-11-03).
+    patches:
+      - src/LibBGCode/core/core.hpp: e2ee block types (IdentityBlock, KeyBlock, EncryptedBlock) and their cipher/flag enums
+      - src/LibBGCode/core/core_impl.hpp: block_types_count() covers the new block types
+      - src/LibBGCode/core/core.cpp: metadata-block skipping rewritten with block-type checks and fseek error handling
+
+  lib/libcanard:
+    name: libcanard
+    version: 3.2.0-1-g03fc5fe
+    upstream: https://github.com/OpenCyphal/libcanard
+    upstream_commit: 03fc5fecc2c81bd6bfc6e474af8059fca2db4647
+    subrepo_commit: 03fc5fecc2c81bd6bfc6e474af8059fca2db4647
+    cpe: null
+    purl: pkg:github/opencyphal/libcanard@03fc5fecc2c81bd6bfc6e474af8059fca2db4647
+    supplier: "Organization: OpenCyphal"
+    license: MIT
+    note: >-
+      One commit after v3.2.0 (2024-09-24), 6 before v4.0.0.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - libcanard/canard.h: CANARD_NODE_ID_MAX 127 -> 15 to save RAM (not Cyphal-spec compliant)
+
+  lib/liblightmodbus:
+    name: liblightmodbus
+    version: 3.0-1-4-g3f8ebeb
+    upstream: https://github.com/Jacajack/liblightmodbus
+    upstream_commit: 3f8ebeba2d14767c12f502025844463c6a04ecba
+    subrepo_commit: 3f8ebeba2d14767c12f502025844463c6a04ecba
+    cpe: null
+    purl: pkg:github/jacajack/liblightmodbus@3f8ebeba2d14767c12f502025844463c6a04ecba
+    supplier: "Person: Jacek Wieczorek (Jacajack)"
+    license: GPL-3.0-or-later
+    note: >-
+      4 commits after tag v3.0-1 (2021-10-14); not an ancestor of v3.0-2.
+      doc/doxygen-awesome-css (upstream submodule) not vendored.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - include/lightmodbus/master_func.h, master_func.impl.h, master.impl.h: Read FIFO Queue (function 24) request builder and response parser
+      - include/lightmodbus/base.h, master.h: MODBUS_FIFO_INPUT data type; offset field in master callback args
+      - include/lightmodbus/master.impl.h: exception callback's return value propagated as error; uninitialised locals zeroed
+
+  lib/magic_enum:
+    name: magic_enum
+    version: 0.9.5-22-gf34f967
+    upstream: https://github.com/Neargye/magic_enum
+    upstream_commit: f34f967c4e70ec60d1c561fbd2fcabaeedce5957
+    subrepo_commit: f34f967c4e70ec60d1c561fbd2fcabaeedce5957
+    cpe: null
+    purl: pkg:github/neargye/magic_enum@f34f967c4e70ec60d1c561fbd2fcabaeedce5957
+    supplier: "Person: Daniil Goncharov (Neargye)"
+    license: MIT
+    note: >-
+      Untagged master commit (2024-04-02), 22 after v0.9.5, 14 before v0.9.6.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/nanocbor:
+    name: nanocbor
+    version: 0.0.0-20260910-a9eaf98
+    upstream: https://github.com/bergzand/NanoCBOR
+    upstream_commit: a9eaf98fef10a0aefccd07e027d63f00e368054f
+    subrepo_commit: a9eaf98fef10a0aefccd07e027d63f00e368054f
+    cpe: null
+    purl: pkg:github/bergzand/nanocbor@a9eaf98fef10a0aefccd07e027d63f00e368054f
+    supplier: "Person: Koen Zandberg (bergzand)"
+    license: CC0-1.0
+    note: >-
+      Upstream has no tags; synthetic version.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/o1heap:
+    name: o1heap
+    version: 2.1.1
+    upstream: https://github.com/pavel-kirienko/o1heap
+    upstream_commit: aa3c253923db36eee7d73a4a5e30884a5fe7a6eb  # tag 2.1.1
+    subrepo_commit: aa3c253923db36eee7d73a4a5e30884a5fe7a6eb
+    cpe: null
+    purl: pkg:github/pavel-kirienko/o1heap@2.1.1
+    supplier: "Person: Pavel Kirienko"
+    license: MIT
+    note: No NVD CPE (checked 2026-11-03).
+    patches:
+      - o1heap/o1heap.hpp: added (Prusa C++ wrapper class; upstream sources unchanged)
+
+  lib/printf:
+    name: printf
+    version: 4.0.0-3-gd3b9846
+    upstream: https://github.com/mpaland/printf
+    upstream_commit: d3b984684bb8a8bdc48cc7a1abecb93ce59bbe3e
+    subrepo_commit: d3b984684bb8a8bdc48cc7a1abecb93ce59bbe3e
+    cpe: null
+    purl: pkg:github/mpaland/printf@d3b984684bb8a8bdc48cc7a1abecb93ce59bbe3e
+    supplier: "Person: Marco Paland"
+    license: MIT
+    note: >-
+      3 commits after v4.0.0 (README only, 2020-01-01), 26 before v4.1.0.
+      Makefile missing (dropped by the Buddy repo's .gitignore).
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - printf.c, printf.h: added vfctprintf() (va_list variant of fctprintf)
+
+  lib/sfl-library:
+    name: sfl-library
+    version: 1.9.1
+    upstream: https://github.com/slavenf/sfl-library
+    upstream_commit: ec5d0b27e011c58a8501f31475013c3f586d523c  # tag 1.9.1
+    subrepo_commit: ec5d0b27e011c58a8501f31475013c3f586d523c
+    cpe: null
+    purl: pkg:github/slavenf/sfl-library@1.9.1
+    supplier: "Person: Slaven Falandys"
+    license: Zlib
+    note: No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/tinyusb:
+    name: tinyusb
+    version: 0.20.0-1058-g52035e2fa
+    upstream: https://github.com/hathach/tinyusb
+    upstream_commit: 52035e2fa3174e85f9c43afdba05097519ae6ea9
+    subrepo_commit: 52035e2fa3174e85f9c43afdba05097519ae6ea9
+    cpe: null
+    purl: pkg:github/hathach/tinyusb@52035e2fa3174e85f9c43afdba05097519ae6ea9
+    supplier: "Person: Ha Thach (tinyusb.org)"
+    license: MIT
+    note: >-
+      Untagged master commit (2026-06-17, merge of PR #3643), 1058 after 0.20.0
+      and 24 before 0.21.0. Scanners comparing versions should treat it as
+      just below 0.21.0.
+      No NVD CPE (checked 2026-11-03). (keyword and hathach:tinyusb both empty). CVE-2026-61495 (MTP, through 0.21.0) and CVE-2026-61497 (HID host, before 0.20.1) name TinyUSB but have no CPE configuration (status Received), so CPE scanners will not match them; triage manually.
+    patches:
+      - src/class/cdc/cdc_device.[ch]: TX FIFO overwrite mode tracks host activity; write skips flush while overwritable; cdcd_set_tx_ovr()
+      - src/common/tusb_fifo.[ch]: tu_fifo_is_overwritable()
+      - src/device/usbd.c: tud_disconnect() raises UNPLUGGED; endpoints always closed on configuration reset
+      - src/device/dcd.h, src/portable/synopsys/dwc2/dcd_dwc2.c, dwc2_stm32.h: dcd_connected(); DCD IRQs masked during connect/disconnect
+
+  src/can/data_types/public_regulated_data_types:
+    name: public_regulated_data_types
+    version: 0.0.0-20240319-f9f6790
+    upstream: https://github.com/OpenCyphal/public_regulated_data_types
+    upstream_commit: f9f67906cc0ca5d7c1b429924852f6b28f313cbf
+    subrepo_commit: f9f67906cc0ca5d7c1b429924852f6b28f313cbf
+    cpe: null
+    purl: pkg:github/opencyphal/public_regulated_data_types@f9f67906cc0ca5d7c1b429924852f6b28f313cbf
+    supplier: "Organization: OpenCyphal"
+    license: MIT
+    note: >-
+      DSDL type definitions (data, not code). Upstream has no tags; synthetic
+      version.
+      No NVD CPE (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  # --- vendored without git-subrepo (drafted 2026-11-03; upstreams checked by diff) ---
+  lib/WUI/mdns:
+    name: lwip-mdns
+    version: 2.2.0-67-g347054b3
+    upstream: https://git.savannah.nongnu.org/git/lwip.git
+    upstream_commit: 347054b329d141b858cc7180bf2aa23c672dc6d7  # master, STABLE-2_2_0_RELEASE-67
+    cpe: cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*
+    purl: pkg:generic/lwip@2.2.0?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40347054b329d141b858cc7180bf2aa23c672dc6d7
+    supplier: "Organization: lwIP project (Savannah)"
+    license: BSD-3-Clause
+    note: >-
+      lwIP's mDNS responder app (src/apps/mdns + include/lwip/apps/mdns*.h),
+      imported separately in 7262f1e56 (2024-02-07) because the main lwIP copy
+      (lib/Middlewares/Third_Party/LwIP, 2.1.2) has no src/apps. README names
+      347054b3. Verified: the import commit equals upstream 347054b3 after
+      clang-format with the repo style (0 differing lines in all 8 files); the
+      mdns files are identical in every upstream commit from 5e45328b
+      (2023-10-14) through STABLE-2_2_1_RELEASE, up to ab2f69c7 (2026-05-26). The
+      mirror https://github.com/lwip-tcpip/lwip has the same commits. The cpe uses
+      2.2.0, the last release before 347054b3. NVD has lwip_project:lwip but no
+      2.2.0 dictionary entry (the newest is 2.1.2; checked 2026-11-03).
+      LWIP_MDNS_SEARCH stays at its default of 1, so the search/response code is compiled.
+    patches:
+      - "all files: clang-formatted; includes changed from lwip/apps/... to local and <lwip/...>"
+      - "mdns.c, mdns_out.c, mdns_domain.[ch], mdns_priv.h: hostname comes from netif->hostname (per-host name buffer and txt_fn removed); service records are const and static"
+      - "mdns.c, mdns.h: mdns_resp_add_netif() has no hostname argument; mdns_resp_add_service_prusalink() hard-codes _prusalink._tcp:80; dynamic add/del/rename service API #if 0'd"
+      - "mdns.c: mdns_resp_remove_netif() also cancels pending probe/announce timeouts (3cb24025f)"
+      - "mdns.c: ip_addr_eq/ip4_addr_net_eq renamed back to ip_addr_cmp/ip_addr_netcmp for lwIP 2.1.2"
+      - "all files: '#error dead code' marker comments (BFW-5461)"
+    cve-exclude-list:
+      - cve: CVE-2026-112062
+        reason: >-
+          The vulnerable memcpy in mdns_handle_response() (lib/WUI/mdns/mdns.c:1864,
+          fixed upstream in ab2f69c7) runs only for answers that match a pending
+          search request. Requests are created only by mdns_search_service(),
+          which the firmware never calls (only mdns_resp_init, mdns_resp_add_netif,
+          mdns_resp_add_service_prusalink and mdns_resp_remove_netif are used, in lib/WUI/wui.cpp).
+
+  lib/WUI/sntp:
+    name: lwip-sntp
+    version: 2.1.0-338-g32a72b1a
+    upstream: https://git.savannah.nongnu.org/git/lwip.git
+    upstream_commit: 32a72b1a2069e5715bafe02c9c25353f99efc043  # master, 2020-01-30
+    cpe: cpe:2.3:a:lwip_project:lwip:2.1.2:*:*:*:*:*:*:*
+    purl: pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4032a72b1a2069e5715bafe02c9c25353f99efc043
+    supplier: "Organization: lwIP project (Savannah)"
+    license: BSD-3-Clause
+    note: >-
+      lwIP's SNTP client app (src/apps/sntp/sntp.c and include/lwip/apps/sntp{,_opts}.h),
+      imported in 22eebe342 ("add whole WUI lib", 2020-05-05) without
+      provenance. Pinned by diffing the import against every upstream commit
+      that touches these files. 32a72b1a (master, 2020-01-30) is the closest:
+      6 lines in sntp.c (all the SNTP_CUSTOM_HEADER hook), plus include-path edits.
+      The next upstream change is 264a5a3e (2020-07-07), so the base is any master
+      commit from 32a72b1a up to just before 264a5a3e. It is master between 2.1.0 and 2.2.0,
+      not the STABLE-2_1_x branch. The cpe uses 2.1.2 to match the main lwIP copy;
+      the code is newer than 2.1.2 (2018-11) but not a descendant of that tag.
+      sntp_client.[ch] are first-party Prusa glue (wrapper and periodic step).
+    patches:
+      - "sntp.c, sntp_opts.h: clang-formatted; local include paths"
+      - "sntp.c: include wui_api.h; SNTP_SET_SYSTEM_TIME calls sntp_set_system_time() (sets the RTC)"
+      - "sntp_opts.h: SNTP_SERVER_DNS 1, SNTP_SERVER_ADDRESS \"prusa3d.pool.ntp.org\""
+      - "sntp_client.[ch]: added (first-party)"
+
+  lib/Middlewares/ST/STM32_USB_Host_Library:
+    name: stm32_mw_usb_host
+    version: 3.4.0
+    upstream: https://github.com/STMicroelectronics/stm32_mw_usb_host
+    upstream_commit: 70f090d8ff1714c6eb9a48c3d59f2065cb0a6636  # tag v3.4.0
+    cpe: cpe:2.3:a:st:stm32_mw_usb_host:3.4.0:*:*:*:*:*:*:*
+    purl: pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.4.0
+    supplier: "Organization: STMicroelectronics"
+    license: LicenseRef-ST-SLA0044
+    note: >-
+      Only Core/ and Class/MSC/ are vendored. The sources have no version strings.
+      Pinned by diffing against every upstream tag at each local commit:
+      v3.3.4 until 56a40a0f7 ("Bump to v4.6.1", 2023-04-27), which moved to v3.4.0.
+      Against v3.4.0, 8 of 15 files differ only in blank lines. The
+      license is ST Ultimate Liberty SLA0044 (file headers; upstream switched
+      later releases to BSD-3-Clause). SECURITY: CVE-2021-42553 (endpoint
+      overflow in USBH_ParseCfgDesc, fixed upstream by f4332bd and first tagged in v3.5.2)
+      APPLIES. The local loop in Core/Src/usbh_ctlreq.c:453 checks only
+      pif->bNumEndpoints, not USBH_MAX_NUM_ENDPOINTS (2 in include/usb_host/usbh_conf.h).
+      A malicious USB device with more than 2 endpoints per interface therefore
+      overwrites Ep_Desc[] and the following members of USBH_HandleTypeDef.
+      d5d4e8936 backported only the MSC null-dereference fixes from 3.5.5.
+    patches:
+      - "Class/MSC/Src/usbh_msc.c: asynchronous r/w worker, rw-mutex class locking, 1 s r/w timeout via firmware ms clock, CLASS/URB events disabled, null-deref fixes ported from v3.5.5 (165 lines)"
+      - "Class/MSC/Src/usbh_msc_bot.c: DMA + 512 B burst IN/OUT transfers (48 lines)"
+      - "Core/Src/usbh_core.c: USBH thread in CCMRAM, class_mutex rw-lock around class init/deinit, VBUS delay moved out of timer task (25 lines)"
+      - "Core/Inc/usbh_def.h: rw_mutex.h include + class_mutex; USBH_MAX_ERROR_COUNT 0x50; MSGQUEUE_OBJECTS 0x30"
+      - "Core/Src/usbh_ctlreq.c: treat URB STALL like ERROR during control transfers"
+      - "CMakeLists.txt: added"
+
+  lib/Drivers/stm32c0xx_hal_driver:
+    name: stm32c0xx-hal-driver
+    version: 1.4.0
+    upstream: https://github.com/STMicroelectronics/stm32c0xx-hal-driver
+    upstream_commit: a8515e2d45fa28201fe769b3b27fe1bbdf237c50  # tag v1.4.0
+    cpe: null
+    purl: pkg:github/stmicroelectronics/stm32c0xx-hal-driver@v1.4.0
+    supplier: "Organization: STMicroelectronics"
+    license: BSD-3-Clause
+    note: >-
+      Imported as a plain copy in 41bba5932 ("hack: ... version used is 1.4.0").
+      All 140 files are byte-identical to tag v1.4.0, which has 140 files.
+      No NVD CPE (checked 2026-11-03); NVD has no st:stm32cubec0.
+    patches: []  # identical to upstream
+
+  lib/Drivers/CMSIS/Device/ST/STM32C0xx:
+    name: cmsis_device_c0
+    version: 1.3.0
+    upstream: https://github.com/STMicroelectronics/cmsis_device_c0
+    upstream_commit: 517611273f835ffe95318947647bc1408f69120d  # tag v1.3.0
+    cpe: null
+    purl: pkg:github/stmicroelectronics/cmsis_device_c0@v1.3.0
+    supplier: "Organization: STMicroelectronics"
+    license: Apache-2.0
+    note: >-
+      Imported as a plain copy in 8e89e6a59 (commit message points at main). All 54 files are
+      byte-identical to tag v1.3.0 (__STM32C0_CMSIS_VERSION 1.3.0). No NVD CPE
+      (checked 2026-11-03).
+    patches: []  # identical to upstream
+
+  lib/Drivers/CMSIS/Device/ST/STM32F4xx:
+    name: cmsis_device_f4
+    version: 2.6.8
+    upstream: https://github.com/STMicroelectronics/cmsis_device_f4
+    upstream_commit: 7ac69098b3e5f9b2d929acd4f087e92a7e59e0e9  # tag v2.6.8
+    cpe: null
+    purl: pkg:github/stmicroelectronics/cmsis_device_f4@v2.6.8
+    supplier: "Organization: STMicroelectronics"
+    license: Apache-2.0
+    note: >-
+      Only 4 headers are vendored: Include/stm32f4xx.h, system_stm32f4xx.h,
+      stm32f407xx.h and stm32f427xx.h. All 4 are byte-identical to v2.6.8
+      (__STM32F4xx_CMSIS_VERSION 2.6.8). No NVD CPE (checked 2026-11-03).
+      st:stm32cubef4 versions the whole package, so it is not used.
+    patches: []  # identical to upstream (subset)
+
+  lib/Drivers/CMSIS/Include:
+    name: cmsis-core
+    version: 5.4.0
+    upstream: https://github.com/ARM-software/CMSIS_5
+    upstream_commit: 0b521765067ac87b142cd96b5f578ffb399090cc  # tag 5.4.0
+    cpe: null
+    purl: pkg:github/arm-software/cmsis_5@5.4.0
+    supplier: "Organization: Arm Limited"
+    license: Apache-2.0
+    note: >-
+      CMSIS-Core(M) headers from CMSIS/Core/Include of the CMSIS 5.4.0 pack
+      (cmsis_version.h reports Core(M) 5.1). All 21 files are byte-identical to
+      tag 5.4.0. No NVD CPE (checked 2026-11-03); the only CMSIS product in NVD is
+      arm:cmsis-rtos, which is not vendored here.
+    patches: []  # identical to upstream (subset)
+
+  lib/esp-serial-flasher:
+    name: esp-serial-flasher
+    version: 1.3.0
+    upstream: https://github.com/espressif/esp-serial-flasher
+    upstream_commit: 285159162050decb156b9c8d9d55c54f58f92eff  # tag v1.3.0
+    cpe: null
+    purl: pkg:github/espressif/esp-serial-flasher@v1.3.0
+    supplier: "Organization: Espressif Systems"
+    license: Apache-2.0
+    note: >-
+      Import commit c3fa3ec89 cites master 4ad452dd7 (v1.3.0-2). The 14
+      vendored files are byte-identical in v1.3.0 and 4ad452dd7, so the tag is
+      used. Only include/, private_include/ and src/ are vendored (no port/,
+      examples or CMake). No NVD CPE (checked 2026-11-03).
+    patches:
+      - "include/esp_loader.h, src/esp_loader.c: esp_loader_flash_write() takes const payload; new esp_loader_md5_region() (b34fd9f55)"
+      - "src/esp_loader.c: MD5 command no longer rejected on ESP8266; float literal 1e6 -> integer 1000000"
+      - "src/protocol_common.c: change-baudrate command sends old_baudrate 115200 (was 0)"
+
+  lib/Arduino_Core_Buddy:
+    name: arduino_core_stm32
+    version: 1.5.0-4-g0337a22c
+    upstream: https://github.com/stm32duino/Arduino_Core_STM32
+    upstream_commit: 0337a22c139bf11de5d82707f3d6d6fa750019b7  # 1.5.0+4, 2019-02-13
+    cpe: null
+    purl: pkg:github/stm32duino/arduino_core_stm32@0337a22c139bf11de5d82707f3d6d6fa750019b7
+    supplier: "Organization: STMicroelectronics (stm32duino)"
+    license: LGPL-2.1-or-later AND BSD-3-Clause
+    note: >-
+      HEAVILY MODIFIED subset of stm32duino's core: 34 files survive out of
+      hundreds. The base was pinned at the initial import (b57b2abc3, then lib/Arduino_Core_A3ides).
+      With formatting normalised, the 15 generic core files differ from 0337a22c
+      by 5 lines; they are unchanged until 2ddfe71d (2019-06). Arduino API files
+      (Print, Stream, WString, WMath, ...) are LGPL-2.1+, from Arduino via
+      stm32duino. stm32/* and variant files are ST BSD-3-Clause. Today 10 files
+      are unchanged, about 14 have minor edits (10 lines or fewer), and about 10 are largely
+      rewritten. SPI, Wire and USBSerial are Prusa reimplementations on Buddy HAL
+      and tinyusb that keep only the Arduino interface. No NVD CPE (checked 2026-11-03).
+    patches:
+      - "unchanged (modulo formatting): Print.cpp, Stream.h, WMath.h, WSerial.h, WString.h, binary.h, itoa.h, stm32/PinNamesTypes.h, wiring_constants.h, variants/.../PinNamesVar.h"
+      - "cores/arduino/SPI.[ch], Wire.[ch]: moved from libraries/{SPI,Wire}/src and rewritten as thin wrappers (72/100 and 15/54 lines changed)"
+      - "cores/arduino/USBSerial.[ch]: rewritten on tinyusb CDC (114/165 lines)"
+      - "cores/arduino/{Arduino.h,HardwareSerial.h,wiring*.h,wiring_time.c,stm32/stm32_def.h}: trimmed to Buddy needs; wiring_* map to Buddy hwio"
+      - "variants/BUDDY_F407VET6_2209/: board variant derived from DISCO_F407VG (PeripheralPins.c, variant.h, ldscript.ld)"
+      - "removed: the rest of the core (HAL wrappers, main, HardwareSerial.cpp, wiring_analog/digital.c, other variants)"
+
+  lib/QR:
+    name: qr-code-generator
+    version: 1.5.0-40-g6e088f7
+    upstream: https://github.com/nayuki/QR-Code-generator
+    upstream_commit: 6e088f72d39fbf56c5fbdbe9c7401dff40ba42ec  # 2019-09-13
+    cpe: null
+    purl: pkg:github/nayuki/qr-code-generator@6e088f72d39fbf56c5fbdbe9c7401dff40ba42ec
+    supplier: "Person: Project Nayuki"
+    license: MIT
+    note: >-
+      C version (c/qrcodegen.[ch]), imported in c20848667 (2020-02-25). Pinned by
+      comparing against every upstream commit touching c/ after re-formatting
+      with the repo clang-format style and ignoring braces. 6e088f72 matches
+      except for include order. 13a2558 (2020-01-29, the next C change) and the
+      tags v1.5.0/v1.6.0 differ more. No NVD CPE (checked 2026-11-03).
+      qrcodegen_utils.h is first-party (constexpr copies of upstream tables).
+    patches:
+      - "qrcodegen.c, qrcodegen.h: clang-formatted (braces inserted); qrcodegen.h include moved first"
+      - "qrcodegen_utils.h, CMakeLists.txt: added (first-party)"
+
+  lib/SG14/inplace_function.hpp:
+    name: sg14-inplace_function
+    version: 0.0.0-20220419-c926143
+    upstream: https://github.com/WG21-SG14/SG14
+    upstream_commit: c92614381100bd23f3f0de7882aa455797255c03
+    cpe: null
+    purl: pkg:github/wg21-sg14/sg14@c92614381100bd23f3f0de7882aa455797255c03
+    supplier: "Organization: WG21 SG14"
+    license: BSL-1.0
+    note: >-
+      Single header SG14/inplace_function.h at the commit named in
+      lib/SG14/README. That file last changed upstream in 3aeb806 (2019-05-24).
+      Upstream has no tags; synthetic version. No NVD CPE (checked 2026-11-03).
+      move_only_inplace_function.hpp in the same directory is a Prusa
+      derivative of this file (d4ce694dd), also BSL-1.0.
+    patches:
+      - "inplace_function.hpp: SG14_INPLACE_FUNCTION_THROW calls bsod() instead of throw; InplaceFunctionDefaultCapacity = 2 pointers (was 32)"
+      - "move_only_inplace_function.hpp: added (Prusa derivative, move-only captures)"
+
+  lib/SG14/inplace_vector.hpp:
+    name: sg14-inplace_vector
+    version: 0.0.0-20240820-b4485d7
+    upstream: https://github.com/Quuxplusone/SG14
+    upstream_commit: b4485d7866875b2b4c0bd0dc7a9ad61199f65c02
+    cpe: null
+    purl: pkg:github/quuxplusone/sg14@b4485d7866875b2b4c0bd0dc7a9ad61199f65c02
+    supplier: "Person: Arthur O'Dwyer"
+    license: BSL-1.0
+    note: >-
+      Single header include/sg14/inplace_vector.h at the commit named in
+      lib/SG14/README. That is still the latest upstream change to the file.
+      Upstream has no tags; synthetic version. No NVD CPE (checked 2026-11-03).
+    patches:
+      - "inplace_vector.hpp: clang-formatted; namespace sg14 -> stdext; throw replaced by bsod(); extended constexpr support; trivial-type fix (c0e08cda0); no <stdexcept>"
+
+  lib/Segger:
+    name: segger-systemview
+    version: "3.30"
+    upstream: https://www.segger.com/downloads/systemview/SystemView_Src_V330.zip
+    upstream_commit: null
+    upstream_sha256: 2ff3ae258356253afa04c969af424246479b48b62133ec38f6198d50dae84b9b
+    cpe: null
+    purl: pkg:generic/segger-systemview@3.30?download_url=https://www.segger.com/downloads/systemview/SystemView_Src_V330.zip&checksum=sha256:2ff3ae258356253afa04c969af424246479b48b62133ec38f6198d50dae84b9b
+    supplier: "Organization: SEGGER Microcontroller GmbH"
+    license: BSD-1-Clause
+    note: >-
+      SEGGER RTT + SystemView target sources. Upstream is a zip download with no git,
+      so there is no commit. upstream_sha256 is the archive as downloaded on
+      2026-11-03. All 13 files are byte-identical to the archive's SEGGER/
+      directory. The configuration and OS-integration templates from the same
+      archive (Config/*.h and Sample/FreeRTOSV10/*) live in include/segger/ and
+      src/segger/ and are adapted (reformatted, Prusa config). They are covered
+      by this entry and not listed separately. No NVD CPE for SystemView or RTT
+      (checked 2026-11-03); NVD has only segger:embos/ip_ftp_server.
+    patches: []  # lib/Segger identical to upstream
+
+  lib/libsysbase:
+    name: libsysbase
+    version: null
+    upstream: https://github.com/devkitPro/newlib
+    upstream_commit: null
+    cpe: null
+    purl: pkg:github/devkitpro/newlib
+    supplier: "Organization: devkitPro"
+    license: NOASSERTION
+    note: >-
+      libgloss/libsysbase from devkitPro's newlib fork, imported in 08064ebcd
+      (2021-05-21) from the devkitARM branch. That branch no longer exists
+      upstream, and the history has since been rebased (libsysbase was re-added
+      in 3c008390f, dated 2023). Neither a version nor a commit can be pinned:
+      only 16 of 52 imported files are byte-identical to any commit reachable today.
+      The files carry no licence headers, and devkitPro publishes no licence for
+      libsysbase (newlib's COPYING.LIBGLOSS does not cover it), so the license is
+      NOASSERTION. No NVD CPE (checked 2026-11-03).
+    patches:
+      - "14 local commits: /DEVICE/path path format, device list fixes, MAX_HANDLES 16, no _reent->deviceData, truncate leak fix, LFN in struct dirent, RemoveDeviceByIndex(), CMakeLists.txt and config.h added"
+
+  tests/stubs/FreeRTOS:
+    name: freertos-kernel
+    version: 10.5.1
+    upstream: https://github.com/FreeRTOS/FreeRTOS-Kernel
+    upstream_commit: def7d2df2b0506d3d249334974f51e427c17a41c  # tag V10.5.1
+    cpe: cpe:2.3:o:amazon:freertos:10.5.1:*:*:*:*:*:*:*
+    purl: pkg:github/freertos/freertos-kernel@V10.5.1
+    supplier: "Organization: Amazon Web Services"
+    license: MIT
+    note: >-
+      Host-side unit tests only (not in the firmware image). Kernel plus the GCC
+      POSIX port. After clang-format normalisation all 34 sources match V10.5.1
+      except two lines in the POSIX port. FreeRTOSConfig.h, freertos.c and
+      CMakeLists.txt are local.
+    patches:
+      - "Source/**: clang-formatted"
+      - "Source/portable/ThirdParty/GCC/Posix/port.c: stack-size warning prints PTHREAD_STACK_MIN and strerror(errno)"
+
+  src/can/nunavut_c_templates:
+    name: nunavut-c-templates
+    version: 2.3.1
+    upstream: https://github.com/OpenCyphal/nunavut
+    upstream_commit: 7ecfd68a38fc652d3bb40e1e97975ce78cc2c9b1  # tag 2.3.1
+    cpe: null
+    purl: pkg:github/opencyphal/nunavut@2.3.1
+    supplier: "Organization: OpenCyphal"
+    license: MIT
+    note: >-
+      Jinja templates copied from src/nunavut/lang/c/templates in 44260e300
+      (BFW-7042). These are build-time code generators; the C they generate
+      goes into the firmware. The 9 imported files are identical in tags 2.3.0,
+      2.3.1 and 2.3.2.dev0. requirements.txt pins nunavut~=2.3, so 2.3.1 is
+      recorded. No NVD CPE (checked 2026-11-03).
+    patches:
+      - "base.j2, definitions.j2, ServiceType.j2: functions made non-static, type traits added, full name/version in traits, unrepeatable output removed (53 lines)"
+
+  src/device/stm32f4/startup:
+    name: cmsis_device_f4-startup
+    version: 2.6.4
+    upstream: https://github.com/STMicroelectronics/cmsis_device_f4
+    upstream_commit: 4cf505380bf123941fd485b1ae01c0747dca3792  # tag v2.6.4
+    cpe: null
+    purl: pkg:github/stmicroelectronics/cmsis_device_f4@v2.6.4
+    supplier: "Organization: STMicroelectronics"
+    license: BSD-3-Clause
+    note: >-
+      GCC startup templates from Source/Templates/gcc. stm32f407xx{,_boot}.s
+      come from startup_stm32f407xx.s v2.6.4 (identical in v2.6.3).
+      stm32f427zitx{,_boot}.s come from startup_stm32f427xx.s v2.6.6
+      (3d7a3c1bae597f1ff36431145a2e34ae82fdeecb). Both carry the BSD-3-Clause text of those
+      releases. The src/device/stm32g0 startup is a separate entry.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - "all: SystemInit and __libc_init_array calls removed from Reset_Handler (done in C)"
+      - "*_boot.s: does not reload sp from _estack"
+
+  src/device/stm32g0/startup:
+    name: cmsis_device_g0-startup
+    version: 1.4.1
+    upstream: https://github.com/STMicroelectronics/cmsis_device_g0
+    upstream_commit: 051d85f2f5a9b5d67d2fbb4e97861b2e8ec1ef89  # tag v1.4.1
+    cpe: null
+    purl: pkg:github/stmicroelectronics/cmsis_device_g0@v1.4.1
+    supplier: "Organization: STMicroelectronics"
+    license: Apache-2.0
+    note: >-
+      stm32g070xx.s is startup_stm32g070xx.s from Source/Templates/gcc,
+      compared against the vendored subrepo lib/Drivers/CMSIS/Device/ST/STM32G0xx/Include (v1.4.1).
+      The src/puppy/*/startup.s files are ST templates of the same kind, from the
+      C0 (v1.3.0, exact for tool_offset_sensor and anfc), G0B1 and H503 CMSIS
+      packages, with few or no edits. They are not listed separately.
+      No NVD CPE (checked 2026-11-03).
+    patches:
+      - "stm32g070xx.s: SystemInit and __libc_init_array calls removed; Default_Handler branches to HardFault_Handler (logged) instead of looping"
+
+  lib/esp-nic:
+    name: esp-nic
+    version: null
+    upstream: https://github.com/prusa3d/Prusa-Firmware-Buddy
+    upstream_commit: null
+    first_party: true
+    cpe: null
+    purl: null
+    supplier: "Organization: Prusa Research a.s."
+    license: GPL-3.0-or-later
+    note: >-
+      First-party ESP32/ESP8266 UART-NIC firmware (all sources are Prusa,
+      GPL-3.0-or-later), developed in this tree. It is built separately with
+      ESP-IDF or the ESP8266 RTOS SDK from $IDF_PATH. Those SDKs are linked into the ESP image but
+      are NOT vendored here, so they need their own SBOM entries wherever that
+      build is described. No NVD CPE.
+    patches: []
+
+  lib/nanocbor_stub_include:
+    name: nanocbor-endian-shim
+    version: null
+    upstream: https://github.com/prusa3d/Prusa-Firmware-Buddy
+    upstream_commit: null
+    first_party: true
+    cpe: null
+    purl: null
+    supplier: "Organization: Prusa Research a.s."
+    license: GPL-3.0-or-later
+    note: >-
+      First-party, 8-line endian.h shim (be/htobe 16/32/64 via __builtin_bswap)
+      added in 26fa24a27 so lib/nanocbor builds with newlib. Contains no third-party code.
+    patches: []

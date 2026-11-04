@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/prusa3d/Prusa-Firmware-Buddy/lib/sbom.schema.json",
+  "title": "Buddy vendored component manifest (lib/sbom.yml)",
+  "type": "object",
+  "required": ["components"],
+  "additionalProperties": false,
+  "properties": {
+    "components": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z0-9_./+-]+[^/]$" },
+      "additionalProperties": { "$ref": "#/$defs/component" }
+    }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "cpe": { "type": "string", "pattern": "^cpe:2\\.3:[aho](:[^:]+){10}$" },
+    "component": {
+      "type": "object",
+      "required": ["name", "version", "upstream", "upstream_commit", "cpe", "purl", "supplier", "license"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": ["string", "null"] },
+        "upstream": { "type": "string", "pattern": "^(https?|git)://" },
+        "upstream_commit": { "oneOf": [{ "$ref": "#/$defs/sha1" }, { "type": "null" }] },
+        "upstream_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "subrepo_commit": { "$ref": "#/$defs/sha1" },
+        "cpe": {
+          "oneOf": [
+            { "$ref": "#/$defs/cpe" },
+            { "type": "array", "items": { "$ref": "#/$defs/cpe" }, "minItems": 1, "uniqueItems": true },
+            { "type": "null" }
+          ]
+        },
+        "purl": { "type": ["string", "null"], "pattern": "^pkg:[a-z]+/" },
+        "supplier": { "type": "string", "pattern": "^(Organization|Person): " },
+        "license": { "type": "string", "minLength": 1 },
+        "first_party": { "type": "boolean" },
+        "note": { "type": "string" },
+        "patches": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "object", "minProperties": 1, "maxProperties": 1, "additionalProperties": { "type": "string" } }
+            ]
+          }
+        },
+        "cve-exclude-list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["cve", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "cve": { "type": "string", "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$" },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "upstream_commit": { "type": "null" } } },
+          "then": { "required": ["note"] }
+        },
+        {
+          "if": { "properties": { "version": { "type": "null" } } },
+          "then": { "required": ["note"] }
+        }
+      ]
+    }
+  }
+}

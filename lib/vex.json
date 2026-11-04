@@ -572,8 +572,9 @@
      "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "MPU ports only. The main firmware has the MPU off; src/puppy/xbuddy_extension sets configENABLE_MPU 1."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Timer-command handling; configUSE_TIMERS is 0 in every Buddy FreeRTOSConfig (default). The only MPU build, src/puppy/xbuddy_extension, runs unprivileged tasks but no timers."
   },
   {
    "vulnerability": {
@@ -584,8 +585,9 @@
      "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "MPU ports only. The main firmware has the MPU off; src/puppy/xbuddy_extension sets configENABLE_MPU 1."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Queue sets; configUSE_QUEUE_SETS is 0 (default) in every Buddy FreeRTOSConfig."
   },
   {
    "vulnerability": {
@@ -596,8 +598,9 @@
      "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "MPU ports with queue sets only (like CVE-2026-77237); main firmware has the MPU off, src/puppy/xbuddy_extension has it on."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Queue sets; configUSE_QUEUE_SETS is 0 (default) in every Buddy FreeRTOSConfig."
   },
   {
    "vulnerability": {

@@ -19,7 +19,7 @@ select = ["E", "F", "W", "B", "UP", "SIM", "C4", "RET", "PERF", "PLE", "PLW", "R
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["gen_sbom", "gen_vex", "match_nvdpp", "sbom_feeds", "sbom_manifest"]
+known-first-party = ["gen_sbom", "gen_vex", "match_nvdpp", "sbom_feeds", "sbom_manifest", "vex_gate"]
 
 [tool.ty.environment]
 python-version = "3.11"

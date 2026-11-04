@@ -8,12 +8,16 @@ Fails when:
   library was pulled or pushed without reviewing its version, upstream_commit,
   cpe and purl,
 - an entry points at a path (directory, or file for single-file
-  libraries) that does not exist.
+  libraries) that does not exist,
+- a dependency that utils/bootstrap.py downloads (toolchain, SDKs, prebuilt
+  bootloaders and firmware) has no `bootstrap:<name>` entry, or the entry's
+  version differs from the one bootstrap.py pins.
 
 Run from anywhere inside the repository. Needs pyyaml and jsonschema.
 """
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -25,6 +29,8 @@ import yaml
 
 MANIFEST = Path("lib/sbom.yml")
 SCHEMA = Path("lib/sbom.schema.json")
+BOOTSTRAP = Path("utils/bootstrap.py")
+BOOTSTRAP_PREFIX = "bootstrap:"
 
 
 def repo_root() -> Path:
@@ -51,6 +57,57 @@ def subrepo_commits(root: Path) -> dict[str, str]:
     return result
 
 
+def bootstrap_dependencies(root: Path) -> dict:
+    """The `dependencies` dict literal from utils/bootstrap.py, without running it."""
+    tree = ast.parse((root / BOOTSTRAP).read_text())
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and getattr(node.targets[0], "id", None) == "dependencies"):
+            return ast.literal_eval(node.value)
+    raise RuntimeError(f"{BOOTSTRAP}: no `dependencies = {{...}}` literal")
+
+
+def check_bootstrap(root: Path, components: dict) -> list[str]:
+    """Every bootstrap.py dependency is described, at the version it pins."""
+    errors = []
+    deps = bootstrap_dependencies(root)
+    covered = set()
+    for key, entry in components.items():
+        info = entry.get("bootstrap")
+        if key.startswith(BOOTSTRAP_PREFIX) != (info is not None):
+            errors.append(f"{MANIFEST}: {key}: `bootstrap:` keys and the "
+                          f"`bootstrap` field go together")
+            continue
+        if info is None:
+            continue
+        name = info["dependency"]
+        dep = deps.get(name)
+        if dep is None:
+            errors.append(f"{MANIFEST}: {key}: {name} is not in {BOOTSTRAP}")
+            continue
+        covered.add(name)
+        if info["version"] != dep.get("version"):
+            errors.append(
+                f"{MANIFEST}: {key}: {BOOTSTRAP} pins {name} "
+                f"{dep.get('version')}, entry says {info['version']}; review "
+                f"the entry (version, upstream_commit, cpe) and update it")
+        sub = info.get("submodule")
+        if sub is not None:
+            url = dep.get("submodules", {}).get(sub)
+            if url is None:
+                errors.append(f"{MANIFEST}: {key}: {name} has no submodule "
+                              f"{sub} in {BOOTSTRAP}")
+            elif entry.get("upstream_commit") and entry[
+                    "upstream_commit"] not in url:
+                errors.append(f"{MANIFEST}: {key}: {BOOTSTRAP} fetches {url}, "
+                              f"not upstream_commit {entry['upstream_commit']}")
+    for name in sorted(set(deps) - covered):
+        errors.append(f"{BOOTSTRAP}: dependency {name} has no "
+                      f"`{BOOTSTRAP_PREFIX}{name}` entry in {MANIFEST} (use "
+                      f"scope: tool if it is not shipped)")
+    return errors
+
+
 def check(root: Path) -> list[str]:
     errors = []
     try:
@@ -68,8 +125,10 @@ def check(root: Path) -> list[str]:
 
     components = manifest["components"]
     for path in components:
-        if not (root / path).exists():
+        if not path.startswith(BOOTSTRAP_PREFIX) and not (root / path).exists():
             errors.append(f"{MANIFEST}: {path}: path does not exist")
+
+    errors += check_bootstrap(root, components)
 
     for path, commit in sorted(subrepo_commits(root).items()):
         entry = components.get(path)

@@ -2325,6 +2325,19 @@
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
    "impact_statement": "Samsung Android (SMR) wpa_supplicant change; not in Espressif's fork."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-71450"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/benhoyt/inih@d0a152d531664afc23723ad3f1ef9568bcc74695"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "The abyss[] overlong-line discard loop (fixed in r63) does not exist in Buddy's r46-based ini.c."
   }
  ]
 }

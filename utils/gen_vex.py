@@ -320,6 +320,12 @@ TRIAGE["bootstrap:esp8266-rtos-sdk/components/wpa_supplicant"] = [
      "Samsung Android (SMR) wpa_supplicant change; not in Espressif's fork."),
 ]
 
+TRIAGE["lib/inih"] = [
+    (["CVE-2025-71450"], "not_affected", NP,
+     "The abyss[] overlong-line discard loop (fixed in r63) does not exist in Buddy's r46-based ini.c."
+     ),
+]
+
 UNDER_INVESTIGATION_ALL = {
     "bootstrap:esp8266-rtos-sdk/components/lwip/lwip":
     "No lwIP strings in the shipped image; it may not be linked. Confirm with the ESP8266 link map.",

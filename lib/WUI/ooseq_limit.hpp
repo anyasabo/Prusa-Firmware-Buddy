@@ -79,3 +79,6 @@ uint32_t hook_calls_for_test();
 #endif
 
 } // namespace ooseq_limit
+
+/// Fix C prototype; see ooseq_limit.cpp. tcpip thread only.
+extern "C" uint32_t buddy_ooseq_reclaim(void);

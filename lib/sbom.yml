@@ -1439,7 +1439,7 @@ components:
     upstream: https://github.com/espressif/ESP8266_RTOS_SDK/tree/a192988b7906680440213eefc730d99dec0ce237/components/wpa_supplicant
     upstream_commit: a192988b7906680440213eefc730d99dec0ce237
     cpe: null
-    purl: null
+    purl: pkg:generic/wpa_supplicant-espressif@a192988b7906680440213eefc730d99dec0ce237
     supplier: 'Organization: Espressif Systems'
     license: BSD-3-Clause
     images:
@@ -1457,7 +1457,7 @@ components:
     upstream: https://github.com/espressif/ESP8266_RTOS_SDK/tree/a192988b7906680440213eefc730d99dec0ce237/components/freertos
     upstream_commit: a192988b7906680440213eefc730d99dec0ce237
     cpe: cpe:2.3:o:amazon:freertos:10.0.1:*:*:*:*:*:*:*
-    purl: null
+    purl: pkg:generic/freertos-kernel-espressif@10.0.1
     supplier: 'Organization: Espressif Systems'
     license: MIT
     images:

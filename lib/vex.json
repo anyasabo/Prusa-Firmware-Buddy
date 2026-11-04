@@ -1,0 +1,1292 @@
+{
+ "@context": "https://openvex.dev/ns/v0.2.0",
+ "@id": "https://github.com/anyasabo/Prusa-Firmware-Buddy/blob/sbom-scanning/lib/vex.json",
+ "author": "Buddy SBOM triage (see lib/sbom.yml and utils/gen_vex.py)",
+ "timestamp": "2026-11-04T00:00:00Z",
+ "version": 1,
+ "statements": [
+  {
+   "vulnerability": {
+    "name": "CVE-2022-35409"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "DTLS only; DTLS and the SSL server are disabled (include/mbedtls/cipher_config_ece.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-46393"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "DTLS only; DTLS and the SSL server are disabled (include/mbedtls/cipher_config_ece.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2023-43615"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Only NULL/RC4 suites are affected; the only suite enabled is ECDHE-ECDSA-AES128-GCM-SHA256."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23775"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509 writing/string-to-names code; MBEDTLS_X509_CRT_WRITE_C and MBEDTLS_X509_CREATE_C are off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-47917"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509 writing/string-to-names code; MBEDTLS_X509_CRT_WRITE_C and MBEDTLS_X509_CREATE_C are off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-48965"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509 writing/string-to-names code; MBEDTLS_X509_CRT_WRITE_C and MBEDTLS_X509_CREATE_C are off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-28960"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-45157"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-25835"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52496"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "AESNI (x86) support; MBEDTLS_AESNI_C is off and the target is Cortex-M."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52497"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "PEM parsing; MBEDTLS_PEM_PARSE_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-66442"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Only occurs with LLVM select-optimize; Buddy builds with GCC."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34871"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Linux /dev/urandom fallback; MBEDTLS_NO_PLATFORM_ENTROPY with a hardware entropy source."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34872"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "FFDH; MBEDTLS_DHM_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34877"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Context serialization; MBEDTLS_SSL_CONTEXT_SERIALIZATION is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-59438"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Padding error timing in the cipher layer; no cipher padding mode is enabled and E2EE calls mbedtls_aes_crypt_cbc directly."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-54764"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Microarchitectural (SSBleed/M-Step) attack on RSA keygen needs a co-located privileged attacker; not applicable to a Cortex-M MCU."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-27809"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "inline_mitigations_already_exist",
+   "impact_statement": "src/connect/tls/tls.cpp calls mbedtls_ssl_set_hostname()."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-36647"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "NVD version range is wrong for this release: fixed in 2.27.0/2.16.11, before 2.28.0."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-43666"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "NVD version range is wrong for this release: the pkcs12 empty-password fix is in 2.28.0 (Fixes #5136)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-45451"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "NVD version range is wrong for this release: psa_aead_generate_nonce does not exist in 2.28."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2023-52353"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "3.x TLS version negotiation; not present in the 2.28 branch (no advisory, not in its ChangeLog)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-27810"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "affected",
+   "action_statement": "Upgrade mbedTLS (2.28 is end of life; fixed in 2.28.10) or move to 3.6 LTS.",
+   "status_notes": "Finished-message check can be skipped after an allocation or hardware failure; Buddy allocates with calloc_fallible on a small heap."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-46392"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "affected",
+   "action_statement": "Upgrade mbedTLS; affects only presets with HAS_E2EE_SUPPORT() (RSA enabled).",
+   "status_notes": "RSA private-key side channels; RSA-OAEP decrypt is used by E2EE (src/common/e2ee/e2ee.cpp). Requires precise timing or memory-access observation."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23170"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+    }
+   ],
+   "status": "affected",
+   "action_statement": "Upgrade mbedTLS; affects only presets with HAS_E2EE_SUPPORT() (RSA enabled).",
+   "status_notes": "RSA private-key side channels; RSA-OAEP decrypt is used by E2EE (src/common/e2ee/e2ee.cpp). Requires precise timing or memory-access observation."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-6683"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-6687"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-6684"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "GPT scanning with FF_LBA64; FF_LBA64 0."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-6682"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+    }
+   ],
+   "status": "affected",
+   "action_statement": "Backport the mount_volume() fasize overflow check or update FatFs.",
+   "status_notes": "FAT32 mount_volume() fasize overflow; reachable with a crafted USB drive."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-6686"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+    }
+   ],
+   "status": "under_investigation",
+   "status_notes": "6686: f_lseek extension exposes old cluster data. 6688: callers copying fno.fname (up to 255 chars); Buddy's f_readdir callers need an audit."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-6688"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+    }
+   ],
+   "status": "under_investigation",
+   "status_notes": "6686: f_lseek extension exposes old cluster data. 6688: callers copying fno.fname (up to 255 chars); Buddy's f_readdir callers need an audit."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-77235"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TrustZone secure-context code; Buddy uses the ARM_CM33_NTZ (non-TrustZone) port."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-77236"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TrustZone secure-context code; Buddy uses the ARM_CM33_NTZ (non-TrustZone) port."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-77234"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "under_investigation",
+   "status_notes": "MPU ports only. The main firmware has the MPU off; src/puppy/xbuddy_extension sets configENABLE_MPU 1."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-77237"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/freertos/freertos-kernel@V10.6.2"
+    }
+   ],
+   "status": "under_investigation",
+   "status_notes": "MPU ports only. The main firmware has the MPU off; src/puppy/xbuddy_extension sets configENABLE_MPU 1."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22283"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40159e31b689577dbf69cf0683bbaffbd71fa5ee10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ICMPv6; LWIP_IPV6 is off (include/buddy/lwipopts.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22284"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40159e31b689577dbf69cf0683bbaffbd71fa5ee10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "6LoWPAN/ZEP netif; not compiled."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22283"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.2.0?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40347054b329d141b858cc7180bf2aa23c672dc6d7"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ICMPv6 is not part of the mDNS responder; LWIP_IPV6 is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22283"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4032a72b1a2069e5715bafe02c9c25353f99efc043"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ICMPv6; LWIP_IPV6 is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22284"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4032a72b1a2069e5715bafe02c9c25353f99efc043"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "6LoWPAN/ZEP netif; not part of the SNTP client."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2018-1000537"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/marlinfirmware/marlin@f00b48f9a8da77d0d603b74c843359b82ee306e3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Marlin's sd/cardreader.cpp is not compiled (lib/AddMarlin.cmake); Buddy uses FatFs and its own media code."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-42553"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.4.0"
+    }
+   ],
+   "status": "affected",
+   "action_statement": "Add `ep_ix < USBH_MAX_NUM_ENDPOINTS` to the endpoint loop in USBH_ParseCfgDesc (as ST v3.5.1/v3.5.3), or update to v3.5.5.",
+   "status_notes": "Endpoint-count overflow of Itf_Desc[].Ep_Desc[2] into USBH_HandleTypeDef (usbh_ctlreq.c:453); triggered by plugging in a crafted USB device."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2023-4039"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/gcc@13.3.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "AArch64 -fstack-protector issue; Buddy targets 32-bit Cortex-M (Thumb)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-28115"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "MPU-port issues; the ESP8266 port has no MPU support."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-77234"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "MPU-port issues; the ESP8266 port has no MPU support."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-77237"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "MPU-port issues; the ESP8266 port has no MPU support."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-31571"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Kernel size overflows reachable only through sizes chosen by the firmware itself (esp-nic), not by network input."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-31572"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Kernel size overflows reachable only through sizes chosen by the firmware itself (esp-nic), not by network input."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-32020"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/freertos-kernel-espressif@10.0.1"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Kernel size overflows reachable only through sizes chosen by the firmware itself (esp-nic), not by network input."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-16150"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36423"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36425"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36426"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36476"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36477"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36478"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-44732"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-35409"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-46393"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2023-43615"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2023-52353"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23775"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-27809"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-27810"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-47917"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-48965"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52497"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "TLS/DTLS/X.509/PEM code. In the Wi-Fi module image mbedTLS is only called from wpa_supplicant's crypto_mbedtls-bignum.c and -ec.c; esp-nic uses no TLS. (Confirm with the ESP link map.)"
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36421"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA/static-DH/PEM side channels; the supplicant does not use RSA or PEM (SAE uses ECC/FFC bignum)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36424"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA/static-DH/PEM side channels; the supplicant does not use RSA or PEM (SAE uses ECC/FFC bignum)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-46392"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA/static-DH/PEM side channels; the supplicant does not use RSA or PEM (SAE uses ECC/FFC bignum)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23170"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA/static-DH/PEM side channels; the supplicant does not use RSA or PEM (SAE uses ECC/FFC bignum)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-24119"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA/static-DH/PEM side channels; the supplicant does not use RSA or PEM (SAE uses ECC/FFC bignum)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-54764"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA/static-DH/PEM side channels; the supplicant does not use RSA or PEM (SAE uses ECC/FFC bignum)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-10932"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "ECC/bignum side channels needing local, cache- or enclave-grade observation of the module; not available to a radio-range attacker."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36422"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "ECC/bignum side channels needing local, cache- or enclave-grade observation of the module; not available to a radio-range attacker."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-36475"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "ECC/bignum side channels needing local, cache- or enclave-grade observation of the module; not available to a radio-range attacker."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52496"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "AESNI (x86) support; the ESP8266 is Xtensa."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-66442"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "LLVM select-optimize only; the ESP8266 SDK builds with GCC."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34871"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Linux /dev/urandom fallback; not Linux."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34872"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Reported for 3.5.x and later; not this 2.16 fork."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-36647"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "NVD version range is wrong for this release (fixed earlier, or the API does not exist in 2.16)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-43666"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "NVD version range is wrong for this release (fixed earlier, or the API does not exist in 2.16)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2021-45451"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "NVD version range is wrong for this release (fixed earlier, or the API does not exist in 2.16)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-59438"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "Cipher-layer padding timing; the supplicant uses its own AES/CCMP code."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-66409"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-68473"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-68474"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-55297"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-64342"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-81507"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-46532"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Bluetooth/BluFi; the bt component is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-45542"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "protocomm is not fetched (bootstrap.py `missing`)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-55687"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "JPEG driver for ESP32-P4; not part of an ESP32 build."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-45328"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ESP-TEE exists from 5.5; not in 5.0.3."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-45329"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ESP-TEE exists from 5.5; not in 5.0.3."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-45541"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "esp_http_server and ESPTouch are not used by esp-nic."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-53845"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "esp_http_server and ESPTouch are not used by esp-nic."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-45160"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "DHCP server option parser; esp-nic runs WIFI_MODE_STA only (uart_nic_esp32.cpp:147), so dhcps never starts."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-28183"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-idf@v5.0.3"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Secure-boot anti-rollback TOCTOU; secure boot is not enabled in esp32.sdkconfig."
+  }
+ ]
+}

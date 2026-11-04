@@ -252,9 +252,8 @@ TRIAGE["bootstrap:esp8266-rtos-sdk/components/mbedtls/mbedtls"] += [
      ),
     (["CVE-2026-50584"], "not_affected", NP,
      "ChaCha20; the ESP8266 link map has no chacha20 object."),
-    (["CVE-2026-35336"], "not_affected", NIEP,
-     "mbedtls_ecdh_calc_secret with an undersized buffer; only wpa_supplicant's ECC wrappers call mbedTLS in this image."
-     ),
+    (["CVE-2026-35336"], "not_affected", NP,
+     "mbedtls_ecdh_calc_secret; the ESP8266 link map keeps no ecdh code."),
     (["CVE-2026-54435"], "not_affected", NCA,
      "ECC fast-reduction side channel needs local, privileged trace access to the module."
      ),
@@ -288,7 +287,7 @@ TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
     (["CVE-2026-34876"], "not_affected", NP,
      f"mbedtls_ccm_finish is not in {ESP32_MAP} (only ccm_crypt/update)."),
     (["CVE-2025-59438"], "not_affected", NP,
-     f"Cipher-layer padding timing; mbedtls_cipher_finish, the only caller of the padding check, is not in {ESP32_MAP}."
+     f"Padding-error timing in PSA's error translation; no psa_crypto code is in {ESP32_MAP}, and the advisory says the legacy cipher API is constant-time."
      ),
     (["CVE-2026-50584"], "not_affected", NP,
      f"ChaCha20; no chacha20 object in {ESP32_MAP}."),
@@ -301,11 +300,14 @@ TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
     (["CVE-2024-45157"], "not_affected", NP,
      "Only when MBEDTLS_PSA_HMAC_DRBG_MD_TYPE is set; ESP-IDF 5.0.3 does not set it."
      ),
-    (["CVE-2024-23170", "CVE-2026-50587"], "not_affected", NIEP,
-     "RSA private-key/decrypt timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+    (["CVE-2024-23170"], "not_affected", NIEP,
+     "RSA private-key timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+     ),
+    (["CVE-2026-50587"], "not_affected", NP,
+     f"Affects psa_asymmetric_decrypt and pk_decrypt with MBEDTLS_USE_PSA_CRYPTO only; no psa_crypto code is in {ESP32_MAP}."
      ),
     (["CVE-2026-35336"], "not_affected", NIEP,
-     "mbedtls_ecdh_calc_secret's only caller is wpa_supplicant's crypto_ecdh_set_peerkey (OWE/DPP), and esp-nic leaves sta.owe_enabled at 0. That function has a separate, worse length bug; see todo/prusa-firmware/sbom-scanning.md."
+     "The only linked caller, wpa_supplicant's crypto_ecdh_set_peerkey (OWE), passes pbits/8 = 32 bytes, which is enough because OWE accepts only group 19 (P-256). That function has a separate key-length heap overflow; see finding 7 in the SBOM notes."
      ),
     (["CVE-2024-28960"], "not_affected", NCA,
      "PSA buffers shared across an isolation boundary; the module runs one image with no such boundary."
@@ -316,21 +318,17 @@ TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
     (["CVE-2025-54764", "CVE-2026-54435"], "not_affected", NCA,
      "Timing/trace side channels need a local attacker on the module."),
 ]
-LWIP_NP = [
-    (["CVE-2020-22283"], "not_affected", NP,
-     "ICMPv6; no ip6/icmp6 object is linked."),
-    (["CVE-2026-112062"], "not_affected", NP,
-     "mDNS; no mdns object is linked."),
-    (["CVE-2026-119053", "CVE-2026-8836"], "not_affected", NP,
-     "SNMP agent; no snmp object is linked."),
+# lwIP CVEs: ICMPv6 (CVE-2020-22283), mDNS (CVE-2026-112062), SNMP (CVE-2026-119053, -8836).
+LWIP_CVES = [
+    "CVE-2020-22283", "CVE-2026-112062", "CVE-2026-119053", "CVE-2026-8836"
 ]
-TRIAGE["bootstrap:esp8266-rtos-sdk/components/lwip/lwip"] = TRIAGE.get(
-    "bootstrap:esp8266-rtos-sdk/components/lwip/lwip", []) + LWIP_NP
-TRIAGE["bootstrap:esp-idf/components/lwip/lwip"] = TRIAGE.get(
-    "bootstrap:esp-idf/components/lwip/lwip", []
-) + [(
-    [c for row in LWIP_NP for c in row[0]], "not_affected", NP,
-    f"lwIP is not in the image: {ESP32_MAP} only LOADs liblwip.a and pulls no object from it."
+TRIAGE["bootstrap:esp8266-rtos-sdk/components/lwip/lwip"] = [(
+    LWIP_CVES, "not_affected", NP,
+    "lwIP code is not in the image: the ESP8266 esp-nic link map keeps only lwip_htons from liblwip.a; --gc-sections discards the rest."
+)]
+TRIAGE["bootstrap:esp-idf/components/lwip/lwip"] = [(
+    LWIP_CVES, "not_affected", NP,
+    f"lwIP is not in the image: {ESP32_MAP} only LOADs liblwip.a and keeps nothing from it."
 )]
 
 # Found by utils/sbom_feeds.py (GitHub repository advisories, NVD++ keywords), 2026-11-04.
@@ -390,8 +388,6 @@ TRIAGE["lib/inih"] = [
      ),
 ]
 
-UNDER_INVESTIGATION_ALL: dict[str, str] = {}
-
 
 def main() -> int:
     components = yaml.safe_load(MANIFEST.read_text())["components"]
@@ -434,9 +430,6 @@ def main() -> int:
     }
     OUTPUT.write_text(json.dumps(doc, indent=1) + "\n")
     print(f"{len(statements)} statements -> {OUTPUT.relative_to(ROOT)}")
-    for key, why in UNDER_INVESTIGATION_ALL.items():
-        purl(key)  # validate
-        print(f"  open (all CVEs): {key}: {why}")
     return 0
 
 

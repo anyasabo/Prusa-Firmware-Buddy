@@ -245,32 +245,93 @@ TRIAGE["lib/Middlewares/Third_Party/mbedtls"] += [
 ]
 TRIAGE["bootstrap:esp8266-rtos-sdk/components/mbedtls/mbedtls"] += [
     ([
-        "CVE-2026-49300", "CVE-2026-50580", "CVE-2026-50581", "CVE-2026-50584",
-        "CVE-2026-50585", "CVE-2026-50586", "CVE-2026-35336", "CVE-2026-54441"
-    ], "not_affected", NIEP,
-     "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+        "CVE-2026-49300", "CVE-2026-50580", "CVE-2026-50581", "CVE-2026-50585",
+        "CVE-2026-50586", "CVE-2026-54441"
+    ], "not_affected", NP,
+     "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
+     ),
+    (["CVE-2026-50584"], "not_affected", NP,
+     "ChaCha20; the ESP8266 link map has no chacha20 object."),
+    (["CVE-2026-35336"], "not_affected", NIEP,
+     "mbedtls_ecdh_calc_secret with an undersized buffer; only wpa_supplicant's ECC wrappers call mbedTLS in this image."
      ),
     (["CVE-2026-54435"], "not_affected", NCA,
      "ECC fast-reduction side channel needs local, privileged trace access to the module."
      ),
 ]
-# ESP32 image: decide per CVE once the link map shows what esp-nic links.
+# ESP32 image, decided from the esp-nic link map (lib/esp-nic/build.py esp32, 2026-11-04).
+# Only libmbedcrypto.a and libwpa_supplicant.a call into mbedTLS; libmbedtls.a,
+# libmbedx509.a and liblwip.a contribute no objects.
+ESP32_MAP = "the ESP32 esp-nic link map"
 TRIAGE["bootstrap:esp-idf/components/mbedtls/mbedtls"] = [
     ([
-        "CVE-2023-43615", "CVE-2023-45199", "CVE-2023-52353", "CVE-2024-23170",
-        "CVE-2024-23775", "CVE-2024-28960", "CVE-2024-30166", "CVE-2024-45157",
-        "CVE-2024-45159", "CVE-2025-27809", "CVE-2025-27810", "CVE-2025-47917",
-        "CVE-2025-48965", "CVE-2025-49600", "CVE-2025-49601", "CVE-2025-52496",
-        "CVE-2025-52497", "CVE-2025-54764", "CVE-2025-59438", "CVE-2025-66442",
-        "CVE-2026-25834", "CVE-2026-25835", "CVE-2026-34871", "CVE-2026-34872",
-        "CVE-2026-34876", "CVE-2026-34877", "CVE-2026-35336", "CVE-2026-49300",
-        "CVE-2026-50579", "CVE-2026-50580", "CVE-2026-50581", "CVE-2026-50584",
-        "CVE-2026-50585", "CVE-2026-50586", "CVE-2026-50587", "CVE-2026-50588",
-        "CVE-2026-50640", "CVE-2026-54435", "CVE-2026-54441", "CVE-2026-73064"
-    ], "under_investigation", None,
-     "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+        "CVE-2023-43615", "CVE-2023-45199", "CVE-2023-52353", "CVE-2024-30166",
+        "CVE-2024-45159", "CVE-2025-27809", "CVE-2025-27810", "CVE-2026-25834",
+        "CVE-2026-34877", "CVE-2026-50580", "CVE-2026-50581", "CVE-2026-50585",
+        "CVE-2026-50586", "CVE-2026-50588", "CVE-2026-50640", "CVE-2026-73064"
+    ], "not_affected", NP,
+     f"TLS code; {ESP32_MAP} pulls no object from libmbedtls.a."),
+    ([
+        "CVE-2024-23775", "CVE-2025-47917", "CVE-2026-49300", "CVE-2026-50579",
+        "CVE-2026-54441"
+    ], "not_affected", NP,
+     f"X.509/PKCS7 code; {ESP32_MAP} pulls no object from libmbedx509.a."),
+    (["CVE-2025-48965"], "not_affected", NP,
+     f"mbedtls_asn1_store_named_data is not in {ESP32_MAP}."),
+    (["CVE-2025-49600", "CVE-2025-49601"], "not_affected", NP,
+     f"LMS; no lms object in {ESP32_MAP}."),
+    (["CVE-2025-52497"], "not_affected", NP,
+     f"mbedtls_pem_read_buffer and mbedtls_pk_parse_* are not in {ESP32_MAP}."
      ),
+    (["CVE-2026-34872"], "not_affected", NP,
+     "FFDH; MBEDTLS_DHM_C is off and no PSA FFDH code is linked."),
+    (["CVE-2026-34876"], "not_affected", NP,
+     f"mbedtls_ccm_finish is not in {ESP32_MAP} (only ccm_crypt/update)."),
+    (["CVE-2025-59438"], "not_affected", NP,
+     f"Cipher-layer padding timing; mbedtls_cipher_finish, the only caller of the padding check, is not in {ESP32_MAP}."
+     ),
+    (["CVE-2026-50584"], "not_affected", NP,
+     f"ChaCha20; no chacha20 object in {ESP32_MAP}."),
+    (["CVE-2025-52496"], "not_affected", NP,
+     "AESNI detection race; x86 only (Xtensa target)."),
+    (["CVE-2025-66442"], "not_affected", NP,
+     "Only with LLVM's select-optimize; ESP-IDF builds with Xtensa GCC."),
+    (["CVE-2026-34871"], "not_affected", NP,
+     "Linux /dev/urandom fallback; not Linux."),
+    (["CVE-2024-45157"], "not_affected", NP,
+     "Only when MBEDTLS_PSA_HMAC_DRBG_MD_TYPE is set; ESP-IDF 5.0.3 does not set it."
+     ),
+    (["CVE-2024-23170", "CVE-2026-50587"], "not_affected", NIEP,
+     "RSA private-key/decrypt timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+     ),
+    (["CVE-2026-35336"], "not_affected", NIEP,
+     "mbedtls_ecdh_calc_secret's only caller is wpa_supplicant's crypto_ecdh_set_peerkey (OWE/DPP), and esp-nic leaves sta.owe_enabled at 0. That function has a separate, worse length bug; see todo/prusa-firmware/sbom-scanning.md."
+     ),
+    (["CVE-2024-28960"], "not_affected", NCA,
+     "PSA buffers shared across an isolation boundary; the module runs one image with no such boundary."
+     ),
+    (["CVE-2026-25835"], "not_affected", NCA,
+     "RNG state cloning (fork, VM snapshot, hibernation); none happen on the module."
+     ),
+    (["CVE-2025-54764", "CVE-2026-54435"], "not_affected", NCA,
+     "Timing/trace side channels need a local attacker on the module."),
 ]
+LWIP_NP = [
+    (["CVE-2020-22283"], "not_affected", NP,
+     "ICMPv6; no ip6/icmp6 object is linked."),
+    (["CVE-2026-112062"], "not_affected", NP,
+     "mDNS; no mdns object is linked."),
+    (["CVE-2026-119053", "CVE-2026-8836"], "not_affected", NP,
+     "SNMP agent; no snmp object is linked."),
+]
+TRIAGE["bootstrap:esp8266-rtos-sdk/components/lwip/lwip"] = TRIAGE.get(
+    "bootstrap:esp8266-rtos-sdk/components/lwip/lwip", []) + LWIP_NP
+TRIAGE["bootstrap:esp-idf/components/lwip/lwip"] = TRIAGE.get(
+    "bootstrap:esp-idf/components/lwip/lwip", []
+) + [(
+    [c for row in LWIP_NP for c in row[0]], "not_affected", NP,
+    f"lwIP is not in the image: {ESP32_MAP} only LOADs liblwip.a and pulls no object from it."
+)]
 
 # Found by utils/sbom_feeds.py (GitHub repository advisories, NVD++ keywords), 2026-11-04.
 TRIAGE["lib/Middlewares/Third_Party/FreeRTOS"] += [
@@ -301,8 +362,8 @@ TRIAGE["bootstrap:esp-idf"] += [
      "WPS enrollee; esp-nic never enables WPS."),
     (["CVE-2025-52471"], "not_affected", NIEP,
      "ESP-NOW; esp-nic does not use it."),
-    (["CVE-2026-113783"], "under_investigation", None,
-     "lwIP DNS cache in ESP-IDF; esp-nic resolves nothing itself, but whether lwIP is active on the module needs the ESP32 link map."
+    (["CVE-2026-113783"], "not_affected", NP,
+     "lwIP DNS cache in ESP-IDF; the ESP32 esp-nic link map pulls no object from liblwip.a."
      ),
 ]
 TRIAGE["bootstrap:esp8266-rtos-sdk/components/wpa_supplicant"] = [
@@ -329,12 +390,7 @@ TRIAGE["lib/inih"] = [
      ),
 ]
 
-UNDER_INVESTIGATION_ALL = {
-    "bootstrap:esp8266-rtos-sdk/components/lwip/lwip":
-    "No lwIP strings in the shipped image; it may not be linked. Confirm with the ESP8266 link map.",
-    "bootstrap:esp-idf/components/lwip/lwip":
-    "esp-nic forwards frames; confirm with the ESP32 link map which lwIP parts are linked.",
-}
+UNDER_INVESTIGATION_ALL: dict[str, str] = {}
 
 
 def main() -> int:

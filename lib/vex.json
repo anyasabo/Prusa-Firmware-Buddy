@@ -1288,8 +1288,8 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
   },
   {
    "vulnerability": {
@@ -1301,8 +1301,8 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
   },
   {
    "vulnerability": {
@@ -1314,21 +1314,8 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-50584"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
   },
   {
    "vulnerability": {
@@ -1340,8 +1327,8 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
   },
   {
    "vulnerability": {
@@ -1353,8 +1340,34 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-54441"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS/X.509 code; the ESP8266 link map (lib/esp-nic build, 2026-11-04) pulls no object from libmbedtls.a or libmbedx509.a, only libmbedcrypto.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-50584"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ChaCha20; the ESP8266 link map has no chacha20 object."
   },
   {
    "vulnerability": {
@@ -1367,20 +1380,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-54441"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@9ef92c551eb8d92677034c3ec8078a8076febf41"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "TLS/X.509/ECDH-API code; in the Wi-Fi module image mbedTLS is only called from wpa_supplicant's bignum/ECC wrappers. (Confirm with the ESP link map.)"
+   "impact_statement": "mbedtls_ecdh_calc_secret with an undersized buffer; only wpa_supplicant's ECC wrappers call mbedTLS in this image."
   },
   {
    "vulnerability": {
@@ -1729,8 +1729,9 @@
      "@id": "pkg:github/espressif/esp-idf@v5.0.3"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "lwIP DNS cache in ESP-IDF; esp-nic resolves nothing itself, but whether lwIP is active on the module needs the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "lwIP DNS cache in ESP-IDF; the ESP32 esp-nic link map pulls no object from liblwip.a."
   },
   {
    "vulnerability": {
@@ -1741,8 +1742,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1753,8 +1755,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1765,44 +1768,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2024-23170"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2024-23775"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2024-28960"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1813,20 +1781,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2024-45157"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1837,8 +1794,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1849,8 +1807,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1861,116 +1820,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-47917"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-48965"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-49600"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-49601"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-52496"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-52497"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-54764"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-59438"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2025-66442"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -1981,56 +1833,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-25835"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-34871"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-34872"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-34876"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2041,44 +1846,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-35336"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-49300"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-50579"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2089,8 +1859,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2101,20 +1872,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-50584"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2125,8 +1885,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2137,20 +1898,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-50587"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2161,8 +1911,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2173,32 +1924,9 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-54435"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2026-54441"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
-    }
-   ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
   },
   {
    "vulnerability": {
@@ -2209,8 +1937,425 @@
      "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "esp-nic uses no TLS, so most of mbedTLS should be garbage-collected at link time; decide per CVE from the ESP32 link map."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS code; the ESP32 esp-nic link map pulls no object from libmbedtls.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23775"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509/PKCS7 code; the ESP32 esp-nic link map pulls no object from libmbedx509.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-47917"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509/PKCS7 code; the ESP32 esp-nic link map pulls no object from libmbedx509.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-49300"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509/PKCS7 code; the ESP32 esp-nic link map pulls no object from libmbedx509.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-50579"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509/PKCS7 code; the ESP32 esp-nic link map pulls no object from libmbedx509.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-54441"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "X.509/PKCS7 code; the ESP32 esp-nic link map pulls no object from libmbedx509.a."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-48965"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mbedtls_asn1_store_named_data is not in the ESP32 esp-nic link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-49600"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "LMS; no lms object in the ESP32 esp-nic link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-49601"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "LMS; no lms object in the ESP32 esp-nic link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52497"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mbedtls_pem_read_buffer and mbedtls_pk_parse_* are not in the ESP32 esp-nic link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34872"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "FFDH; MBEDTLS_DHM_C is off and no PSA FFDH code is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34876"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mbedtls_ccm_finish is not in the ESP32 esp-nic link map (only ccm_crypt/update)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-59438"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Cipher-layer padding timing; mbedtls_cipher_finish, the only caller of the padding check, is not in the ESP32 esp-nic link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-50584"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ChaCha20; no chacha20 object in the ESP32 esp-nic link map."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-52496"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "AESNI detection race; x86 only (Xtensa target)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-66442"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Only with LLVM's select-optimize; ESP-IDF builds with Xtensa GCC."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-34871"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Linux /dev/urandom fallback; not Linux."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-45157"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Only when MBEDTLS_PSA_HMAC_DRBG_MD_TYPE is set; ESP-IDF 5.0.3 does not set it."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23170"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA private-key/decrypt timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-50587"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "RSA private-key/decrypt timing; RSA is linked only through pk_wrap tables, the station loads no RSA key, and no EAP/enterprise code is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-35336"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "mbedtls_ecdh_calc_secret's only caller is wpa_supplicant's crypto_ecdh_set_peerkey (OWE/DPP), and esp-nic leaves sta.owe_enabled at 0. That function has a separate, worse length bug; see todo/prusa-firmware/sbom-scanning.md."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-28960"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "PSA buffers shared across an isolation boundary; the module runs one image with no such boundary."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-25835"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "RNG state cloning (fork, VM snapshot, hibernation); none happen on the module."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-54764"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Timing/trace side channels need a local attacker on the module."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-54435"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/mbedtls@f5fca55508d9d18961b10824d5cf5d8338c087f6"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Timing/trace side channels need a local attacker on the module."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22283"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@4fd84abace0cd8a5a709c194fa54afb3cd39b3f7"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "ICMPv6; no ip6/icmp6 object is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-112062"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@4fd84abace0cd8a5a709c194fa54afb3cd39b3f7"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mDNS; no mdns object is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-119053"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@4fd84abace0cd8a5a709c194fa54afb3cd39b3f7"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "SNMP agent; no snmp object is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-8836"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@4fd84abace0cd8a5a709c194fa54afb3cd39b3f7"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "SNMP agent; no snmp object is linked."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2020-22283"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@57c29648ff40e2a19a51683717928aaf766a0495"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-112062"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@57c29648ff40e2a19a51683717928aaf766a0495"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-119053"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@57c29648ff40e2a19a51683717928aaf766a0495"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-8836"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/espressif/esp-lwip@57c29648ff40e2a19a51683717928aaf766a0495"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "lwIP is not in the image: the ESP32 esp-nic link map only LOADs liblwip.a and pulls no object from it."
   },
   {
    "vulnerability": {

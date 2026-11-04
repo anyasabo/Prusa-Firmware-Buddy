@@ -2,6 +2,11 @@
 
 #include <lwip/tcp.h>
 #include <lwip/priv/tcp_priv.h>
+#ifndef OOSEQ_LIMIT_OVERRIDABLE
+    #include <lwip/tcpip.h>
+#endif
+
+#include <atomic>
 
 // Intention behind the limits.
 //
@@ -80,10 +85,34 @@ uint32_t hook_calls = 0;
 constexpr const ooseq_limit::Limits &active_limits = ooseq_limit::DEFAULT_LIMITS;
 #endif
 
+// Set while a reclaim is queued on the tcpip thread, so a burst of allocation
+// failures queues it once.
+std::atomic<bool> reclaim_pending = false;
+
+void reclaim_callback(void *) {
+    reclaim_pending = false;
+    buddy_ooseq_reclaim();
+}
+
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+ooseq_limit::ReclaimPoster reclaim_poster = nullptr;
+err_t post_reclaim() {
+    return reclaim_poster ? reclaim_poster(reclaim_callback) : ERR_IF;
+}
+#else
+err_t post_reclaim() {
+    return tcpip_try_callback(reclaim_callback, nullptr);
+}
+#endif
+
 } // namespace
 
 #ifdef OOSEQ_LIMIT_OVERRIDABLE
 namespace ooseq_limit {
+void set_reclaim_poster_for_test(ReclaimPoster poster) {
+    reclaim_poster = poster;
+    reclaim_pending = false;
+}
 void set_limits_for_test(const Limits &limits) {
     active_limits = limits;
 }
@@ -107,11 +136,10 @@ uint16_t buddy_ooseq_pbufs_limit(const struct tcp_pcb *pcb) {
     return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs, active_limits);
 }
 
-// Fix C prototype: give out-of-order data back when the RX ring runs dry.
+// Fix C: give out-of-order data back when the RX ring runs dry.
 //
-// Must run on the tcpip thread (core lock held). Intended to be scheduled with
-// tcpip_try_callback() from pbuf_alloc_rx() on allocation failure; that wiring
-// is not part of this change. Frees the ooseq queues of inbound pcbs first and
+// Must run on the tcpip thread (core lock held); buddy_ooseq_reclaim_request()
+// schedules it there. Frees the ooseq queues of inbound pcbs first and
 // only touches outbound (Connect) pcbs if no inbound pcb held anything.
 // tcp_free_ooseq() also clears the pcb's SACK list (lwIP 2.1.2, tcp.c), so the
 // next ACK stops advertising data we no longer hold.
@@ -132,6 +160,18 @@ uint32_t buddy_ooseq_reclaim(void) {
         }
     }
     return freed;
+}
+
+// Called by pbuf_alloc_rx() when the RX ring is full, from the network or ESP
+// task (not from an ISR). Queues buddy_ooseq_reclaim() on the tcpip thread,
+// once until it has run; if the tcpip mailbox is full, the next failure retries.
+void buddy_ooseq_reclaim_request(void) {
+    if (reclaim_pending.exchange(true)) {
+        return;
+    }
+    if (post_reclaim() != ERR_OK) {
+        reclaim_pending = false;
+    }
 }
 
 } // extern "C"

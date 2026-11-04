@@ -1,4 +1,5 @@
 #include "pbuf_rx.h"
+#include "ooseq_limit.hpp"
 
 #include <ring_allocator.hpp>
 #include <freertos/mutex.hpp>
@@ -30,11 +31,15 @@ struct pbuf *pbuf_alloc_rx(u16_t length) {
     std::unique_lock<freertos::Mutex> lock(allocator_mutex);
     size_t req_size = pbuf_head + length;
     struct pbuf_custom *p = static_cast<pbuf_custom *>(rx_allocator.allocate(req_size));
-    if (p) {
-        p->custom_free_function = rx_free;
-        void *payload_mem = ((uint8_t *)p) + pbuf_head;
-        return pbuf_alloced_custom(PBUF_RAW, length, PBUF_POOL, p, payload_mem, length);
-    } else {
+    if (!p) {
+        lock.unlock();
+        // The ring is full. Out-of-order TCP data may be what holds it; ask the
+        // tcpip thread to free that, so in-order frames get through again. The
+        // frame that failed here is still dropped.
+        buddy_ooseq_reclaim_request();
         return nullptr;
     }
+    p->custom_free_function = rx_free;
+    void *payload_mem = ((uint8_t *)p) + pbuf_head;
+    return pbuf_alloced_custom(PBUF_RAW, length, PBUF_POOL, p, payload_mem, length);
 }

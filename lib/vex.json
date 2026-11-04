@@ -1,6 +1,6 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:e3ab1fc6-791d-5307-82e9-008b226f6bd3",
+ "@id": "urn:uuid:e4929592-85ab-562c-b4d8-b00808720418",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
  "timestamp": "2026-11-04T00:00:00Z",
  "version": 1,
@@ -313,9 +313,9 @@
      "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
     }
    ],
-   "status": "affected",
-   "action_statement": "Upgrade mbedTLS; affects only presets with HAS_E2EE_SUPPORT() (RSA enabled).",
-   "status_notes": "RSA private-key side channels; RSA-OAEP decrypt is used by E2EE (src/common/e2ee/e2ee.cpp). Requires precise timing or memory-access observation."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "RSA private-key side channels. MBEDTLS_RSA_C is defined only when HAS_E2EE_SUPPORT() (include/mbedtls/cipher_config_ece.h), which ProjectOptions.cmake enables only with DEVELOPMENT_ITEMS_ENABLED; release builds turn that off (utils/holly/build-pr.jenkins builds RELEASE-* branches with -DDEVELOPMENT_ITEMS_ENABLED=no). Development builds (the CMake default) do include RSA-OAEP decrypt for E2EE (src/common/e2ee/e2ee.cpp) and are affected; there it needs precise timing or memory-access observation."
   },
   {
    "vulnerability": {
@@ -326,9 +326,9 @@
      "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
     }
    ],
-   "status": "affected",
-   "action_statement": "Upgrade mbedTLS; affects only presets with HAS_E2EE_SUPPORT() (RSA enabled).",
-   "status_notes": "RSA private-key side channels; RSA-OAEP decrypt is used by E2EE (src/common/e2ee/e2ee.cpp). Requires precise timing or memory-access observation."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "RSA private-key side channels. MBEDTLS_RSA_C is defined only when HAS_E2EE_SUPPORT() (include/mbedtls/cipher_config_ece.h), which ProjectOptions.cmake enables only with DEVELOPMENT_ITEMS_ENABLED; release builds turn that off (utils/holly/build-pr.jenkins builds RELEASE-* branches with -DDEVELOPMENT_ITEMS_ENABLED=no). Development builds (the CMake default) do include RSA-OAEP decrypt for E2EE (src/common/e2ee/e2ee.cpp) and are affected; there it needs precise timing or memory-access observation."
   },
   {
    "vulnerability": {
@@ -456,9 +456,9 @@
      "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
     }
    ],
-   "status": "affected",
-   "action_statement": "Upgrade mbedTLS (no 2.28 fix exists; 2.28 is end of life).",
-   "status_notes": "Signature-algorithm restrictions are not enforced on the certificate chain; low impact with a single pinned Prusa CA."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
   },
   {
    "vulnerability": {

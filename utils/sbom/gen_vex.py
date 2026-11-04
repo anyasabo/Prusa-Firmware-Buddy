@@ -124,10 +124,9 @@ TRIAGE: dict[str, list[Decision]] = {
             "Upgrade mbedTLS (2.28 is end of life; fixed in 2.28.10) or move to 3.6 LTS.",
             "Finished-message check can be skipped after an allocation or hardware failure; Buddy allocates with calloc_fallible on a small heap."
         ),
-        affected(
-            ["CVE-2022-46392", "CVE-2024-23170"],
-            "Upgrade mbedTLS; affects only presets with HAS_E2EE_SUPPORT() (RSA enabled).",
-            "RSA private-key side channels; RSA-OAEP decrypt is used by E2EE (src/common/e2ee/e2ee.cpp). Requires precise timing or memory-access observation."
+        not_affected(
+            ["CVE-2022-46392", "CVE-2024-23170"], NP,
+            f"RSA private-key side channels. MBEDTLS_RSA_C is defined only when HAS_E2EE_SUPPORT() ({MBEDTLS_CFG}), which ProjectOptions.cmake enables only with DEVELOPMENT_ITEMS_ENABLED; release builds turn that off (utils/holly/build-pr.jenkins builds RELEASE-* branches with -DDEVELOPMENT_ITEMS_ENABLED=no). Development builds (the CMake default) do include RSA-OAEP decrypt for E2EE (src/common/e2ee/e2ee.cpp) and are affected; there it needs precise timing or memory-access observation."
         ),
         # July 2026 advisories. Their CVE IDs are still RESERVED at CVE.org, so no CPE
         # feed has them; utils/sbom/sbom_feeds.py mbedtls-advisories finds them.
@@ -158,10 +157,9 @@ TRIAGE: dict[str, list[Decision]] = {
             ["CVE-2026-54435"], NCA,
             "ECC fast-reduction side channel needs a local privileged trace (enclave model); not an attacker the MCU has."
         ),
-        affected(
-            ["CVE-2026-54441"],
-            "Upgrade mbedTLS (no 2.28 fix exists; 2.28 is end of life).",
-            "Signature-algorithm restrictions are not enforced on the certificate chain; low impact with a single pinned Prusa CA."
+        not_affected(
+            ["CVE-2026-54441"], NIEP,
+            "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
         ),
     ],
     "lib/Middlewares/Third_Party/FatFs": [

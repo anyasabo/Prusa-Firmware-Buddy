@@ -79,20 +79,20 @@ tcp_create_segment_wnd(ip_addr_t *src_ip, ip_addr_t *dst_ip,
     iphdr->src.addr = ip_2_ip4(src_ip)->addr;
     IPH_VHL_SET(iphdr, 4, IP_HLEN / 4);
     IPH_TOS_SET(iphdr, 0);
-    IPH_LEN_SET(iphdr, htons(p->tot_len));
+    IPH_LEN_SET(iphdr, lwip_htons(p->tot_len));
     IPH_CHKSUM_SET(iphdr, inet_chksum(iphdr, IP_HLEN));
 
     /* let p point to TCP header */
     pbuf_header(p, -(s16_t)sizeof(struct ip_hdr));
 
     tcphdr = (struct tcp_hdr *)p->payload;
-    tcphdr->src = htons(src_port);
-    tcphdr->dest = htons(dst_port);
-    tcphdr->seqno = htonl(seqno);
-    tcphdr->ackno = htonl(ackno);
+    tcphdr->src = lwip_htons(src_port);
+    tcphdr->dest = lwip_htons(dst_port);
+    tcphdr->seqno = lwip_htonl(seqno);
+    tcphdr->ackno = lwip_htonl(ackno);
     TCPH_HDRLEN_SET(tcphdr, sizeof(struct tcp_hdr) / 4);
     TCPH_FLAGS_SET(tcphdr, headerflags);
-    tcphdr->wnd = htons(wnd);
+    tcphdr->wnd = lwip_htons(wnd);
 
     if (data_len > 0) {
         /* let p point to TCP data */

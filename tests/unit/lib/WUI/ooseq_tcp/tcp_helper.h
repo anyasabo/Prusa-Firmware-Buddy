@@ -6,6 +6,9 @@
 //   array (upstream pbuf_cat()s them into one chain, which loses boundaries).
 // - tcp_remove_all() reports leaks through helper_check() instead of failing.
 // - Unused tcp_create_rx_segment{,_wnd}() and TEST_{LOCAL,REMOTE}_PORT dropped.
+// - htons()/htonl() spelled lwip_htons()/lwip_htonl(): arch/cc.h sets
+//   LWIP_DONT_PROVIDE_BYTEORDER_FUNCTIONS (macOS defines htons as a macro), and
+//   glibc only declares them in <arpa/inet.h>, which clashes with lwip/inet.h.
 #pragma once
 
 #include "lwip/arch.h"

@@ -597,11 +597,13 @@ static const BYTE Dc950[] = TBL_DC950;
 
 #elif FF_CODE_PAGE < 900	/* Static code page configuration (SBCS) */
 #define CODEPAGE FF_CODE_PAGE
-static const BYTE ExCvt[] = MKCVTBL(TBL_CT, FF_CODE_PAGE);
+// PRUSA: Don't use codepages at all, consider SFN filenames as raw bytes
+// static const BYTE ExCvt[] = MKCVTBL(TBL_CT, FF_CODE_PAGE);
 
 #else					/* Static code page configuration (DBCS) */
 #define CODEPAGE FF_CODE_PAGE
-static const BYTE DbcTbl[] = MKCVTBL(TBL_DC, FF_CODE_PAGE);
+// PRUSA: Don't use codepages at all, consider SFN filenames as raw bytes
+// static const BYTE DbcTbl[] = MKCVTBL(TBL_DC, FF_CODE_PAGE);
 
 #endif
 
@@ -2787,8 +2789,13 @@ static void get_fileinfo (
 
 	fno->fattrib = dp->dir[DIR_Attr] & AM_MASK;		/* Attribute */
 	fno->fsize = ld_32(dp->dir + DIR_FileSize);		/* Size */
-	fno->ftime = ld_16(dp->dir + DIR_ModTime + 0);	/* Last modified time */
-	fno->fdate = ld_16(dp->dir + DIR_ModTime + 2);	/* Last Modified date */
+	{	/* PRUSA: report the newer of the modified and the created time (GUI file sort) */
+		DWORD modified = ld_32(dp->dir + DIR_ModTime);	/* Modified date and time */
+		DWORD created = ld_32(dp->dir + DIR_CrtTime);	/* Created date and time */
+		UINT offset = (modified > created) ? DIR_ModTime : DIR_CrtTime;
+		fno->ftime = ld_16(dp->dir + offset + 0);	/* Time */
+		fno->fdate = ld_16(dp->dir + offset + 2);	/* Date */
+	}
 #if FF_FS_CRTIME
 	fno->crtime = ld_16(dp->dir + DIR_CrtTime + 0);	/* Created time */
 	fno->crdate = ld_16(dp->dir + DIR_CrtTime + 2);	/* Created date */
@@ -2982,8 +2989,9 @@ static FRESULT create_name (	/* FR_OK: successful, FR_INVALID_NAME: could not cr
 				wc = ff_uni2oem(ff_wtoupper(wc), CODEPAGE);	/* Unicode ==> Up-convert ==> ANSI/OEM code */
 			}
 #elif FF_CODE_PAGE < 900	/* In SBCS cfg */
+			// PRUSA: do not use codepages at all, encode all SFN chars verbatim into utf-8
 			wc = ff_uni2oem(wc, CODEPAGE);			/* Unicode ==> ANSI/OEM code */
-			if (wc & 0x80) wc = ExCvt[wc & 0x7F];	/* Convert extended character to upper (SBCS) */
+			//if (wc & 0x80) wc = ExCvt[wc & 0x7F];	/* Convert extended character to upper (SBCS) */
 #else						/* In DBCS cfg */
 			wc = ff_uni2oem(ff_wtoupper(wc), CODEPAGE);	/* Unicode ==> Up-convert ==> ANSI/OEM code */
 #endif
@@ -5731,13 +5739,20 @@ FRESULT f_setlabel (
 FRESULT f_expand (
 	FIL* fp,		/* Pointer to the file object */
 	FSIZE_t fsz,	/* File size to be expanded to */
-	BYTE opt		/* Operation mode 0:Find and prepare or 1:Find and allocate */
+	BYTE opt,		/* Operation mode 0:Find and prepare or 1:Find and allocate */
+	BYTE yield		/* PRUSA: 1: Yield periodically so other operations on the fs can be executed or 0: do not yield */
 )
 {
 	FRESULT res;
 	FATFS *fs;
 	DWORD n, clst, stcl, scl, ncl, tcl, lclst;
 
+#if FF_FS_EXFAT
+	#error FF_USE_EXPAND is not supported for exFAT (yield parameter)
+#endif
+#if !FF_FS_REENTRANT
+	(void)yield;
+#endif
 
 	res = validate(&fp->obj, &fs);		/* Check validity of the file object */
 	if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);
@@ -5780,6 +5795,14 @@ FRESULT f_expand (
 				if (++ncl == tcl) break;	/* Break if a contiguous cluster block is found */
 			} else {
 				scl = clst; ncl = 0;		/* Not a free cluster */
+#if FF_FS_REENTRANT
+				if (yield) {	/* PRUSA */
+					unlock_volume(fs, FR_OK);	/* release disk lock so others can use the fs */
+					res = validate(&fp->obj, &fs);	/* acquire the lock again and re-check the file */
+					if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);
+					if (fp->obj.objsize != 0 || !(fp->flag & FA_WRITE)) LEAVE_FF(fs, FR_DENIED);
+				}
+#endif
 			}
 			if (clst == stcl) {		/* No contiguous cluster? */
 				res = FR_DENIED; break;

@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <algorithm>
 #include "app_metrics.h"
 #include "metric.h"
 #include <bsod/bsod.h>
@@ -82,8 +83,41 @@ void RecordRuntimeStats() {
     if (should_record_stack_runtime.check(ticks_ms())) {
         static TaskStatus_t task_statuses[18] = {};
 
-        int count = uxTaskGetSystemState(task_statuses, std::size(task_statuses), NULL);
+        uint32_t total_run_time = 0;
+        int count = uxTaskGetSystemState(task_statuses, std::size(task_statuses), &total_run_time);
         release_assert(count); // increase task_statuses size if this fails
+
+        // EXPERIMENT (upload-experiments): CPU time of each task since the last record, in
+        // permille of the run-time counter (FreeRTOSConfig.h, the 32-bit DWT cycle counter;
+        // unsigned differences are correct while the interval is shorter than the ~25.6 s wrap),
+        // and the task's current priority. A task that is new since the last record gets no value.
+        METRIC_DEF(task_cpu, "task_cpu", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+        static TaskHandle_t prev_handle[std::size(task_statuses)] = {};
+        static uint32_t prev_counter[std::size(task_statuses)] = {};
+        static uint32_t prev_total = 0;
+        const uint32_t total_delta = total_run_time - prev_total;
+        const bool have_prev_total = prev_total != 0;
+        prev_total = total_run_time;
+        TaskHandle_t new_handle[std::size(task_statuses)] = {};
+        uint32_t new_counter[std::size(task_statuses)] = {};
+        for (int idx = 0; idx < count; idx++) {
+            const TaskStatus_t &ts = task_statuses[idx];
+            new_handle[idx] = ts.xHandle;
+            new_counter[idx] = ts.ulRunTimeCounter;
+            if (!have_prev_total || total_delta == 0) {
+                continue;
+            }
+            for (size_t j = 0; j < std::size(prev_handle); j++) {
+                if (prev_handle[j] == ts.xHandle && ts.xHandle != nullptr) {
+                    const uint32_t permille = static_cast<uint32_t>(static_cast<uint64_t>(ts.ulRunTimeCounter - prev_counter[j]) * 1000 / total_delta);
+                    metric_record_custom(&task_cpu, ",n=%.7s c=%ui,p=%ui", ts.pcTaskName, static_cast<unsigned>(permille), static_cast<unsigned>(ts.uxCurrentPriority));
+                    break;
+                }
+            }
+        }
+        std::copy(std::begin(new_handle), std::end(new_handle), std::begin(prev_handle));
+        std::copy(std::begin(new_counter), std::end(new_counter), std::begin(prev_counter));
+
         for (int idx = 0; idx < count; idx++) {
             const char *task_name = task_statuses[idx].pcTaskName;
 

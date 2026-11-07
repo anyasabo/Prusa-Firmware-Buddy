@@ -12,10 +12,10 @@ namespace {
 constexpr size_t mtu_size = 1024;
 constexpr size_t alloc_record = 4;
 constexpr size_t pbuf_head = LWIP_MEM_ALIGN_SIZE(sizeof(struct pbuf_custom));
-// EXPERIMENT (upload-experiments): 18 (was 10), room for a 16 KB TCP window
-// (switch x). upload_experiment::rx_ring_cap (switch o) can hold usage to the
-// old size to test advertising more window than the ring backs.
-constexpr size_t mtu_cnt = 18;
+// EXPERIMENT (upload-experiments): the stock 10 again. 18 gave room for a 16 KB
+// TCP window (switch x), but x16 did not help (2026-11-07) and cost 8.4 KB of
+// heap. Now x12 and x16 advertise more window than the ring backs.
+constexpr size_t mtu_cnt = 10;
 // Each allocation carries its size in front (for the usage accounting).
 constexpr size_t size_prefix = buddy::RingAllocator::alignment;
 static_assert(size_prefix >= sizeof(uint32_t));

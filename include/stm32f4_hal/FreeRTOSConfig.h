@@ -114,7 +114,21 @@
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
     #include <stdint.h>
 extern uint32_t SystemCoreClock;
+    #ifdef __cplusplus
+extern "C"
+    #endif
+    uint32_t
+    buddy_run_time_counter(void);
 #endif
+
+// EXPERIMENT (upload-experiments): CPU time for each task (metric task_cpu). The counter is the
+// DWT cycle counter (168 MHz, 32 bits, wraps every ~25.6 s). main.cpp turns it on before the
+// scheduler starts. Readers use differences over intervals shorter than the wrap.
+#define configGENERATE_RUN_TIME_STATS 1
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() \
+    do {                                         \
+    } while (0)
+#define portGET_RUN_TIME_COUNTER_VALUE() buddy_run_time_counter()
 
 #define configUSE_PREEMPTION             1
 #define configSUPPORT_STATIC_ALLOCATION  1

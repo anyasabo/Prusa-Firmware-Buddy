@@ -96,6 +96,12 @@ extern "C" uint32_t heap_malloc_free() {
     return mallinfo().fordblks;
 }
 
+extern "C" void heap_malloc_chunks(uint32_t *free_chunks, uint32_t *top_chunk) {
+    const struct mallinfo mi = mallinfo();
+    *free_chunks = mi.ordblks;
+    *top_chunk = mi.keepcost;
+}
+
 extern "C" uint32_t heap_bytes_remaining() {
     return heap_total_size() - (current_heap_end() - heap_start);
 }

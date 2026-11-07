@@ -44,14 +44,14 @@
 //   xN  TCP receive window advertised in NEW connections, KB: 8 (stock), 12, 16.
 //       For all TCP connections; each keeps the window it started with, so
 //       like m it applies from the next connection (set it with one upload,
-//       measure with the next). The RX ring is built for 16 (+8.4 KB RAM)
-//   oN  cap on the RX ring's usage, KB (0 = no cap, the full ~19.4 KB; minimum
-//       4); o11 is about the stock ring: x8-o11 is the stock baseline, x16-o11
-//       tests advertising more window than the ring backs
+//       measure with the next). The RX ring has the stock size again (10
+//       MTUs, ~11 KB): x12 and x16 advertise more window than the ring backs
+//       (x16 on an 18-MTU ring gave nothing, 2026-11-07)
+//   oN  cap on the RX ring's usage, KB (0 = no cap, the full ring; minimum 4)
 //   yN  y1 = network task and tcpip thread at Normal priority (stock:
 //       BelowNormal, under the GUI, USB host, logging, metrics); y0 = stock.
-//       Don't test y1 while printing: it can delay media prefetch (its job
-//       starts at BelowNormal) and starve Connect
+//       While printing, y1 can delay the media prefetch (its job starts at
+//       BelowNormal) and starve Connect. Watch the stp_stall metric
 //
 // Unknown letters stop the parsing. Defaults at boot: everything on, u8, m1024,
 // except the ones that change behaviour beyond uploads: k500, v1, h0, x8, o0,
@@ -211,8 +211,10 @@ void report_usb_io();
 
 /// Every ~5 s from the same place: "heap_x" s = bytes never handed to malloc
 /// yet (sbrk headroom; only ever goes down, so it is the low-water mark),
-/// f = free inside malloc's pool; "rx_ring" p = peak RX ring usage (bytes)
-/// since the last report.
+/// f = free inside malloc's pool, o = number of free chunks in the pool,
+/// k = size of the top chunk; "rx_ring" p = peak RX ring usage (bytes)
+/// since the last report. Also, every 3 s from app_metrics.cpp, "task_cpu"
+/// n = task, c = CPU time since the last record in permille, p = priority.
 void report_memory();
 
 /// Per second from the same place, when there was traffic: "net_lat"

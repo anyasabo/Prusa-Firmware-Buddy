@@ -1,4 +1,5 @@
 #include <buddy/rx_stats.h>
+#include <buddy/upload_experiment.hpp>
 #include "server.h"
 #include "splice.h"
 
@@ -900,13 +901,14 @@ bool Server::TransferSlot::take_pbuf(pbuf *data) {
         }
     }
 
-    if (pbuf_queue_size >= PbufQueueMax) {
+    const size_t queue_cap = std::min(PbufQueueMax, upload_experiment::queue_cap); // EXPERIMENT
+    if (pbuf_queue_size >= queue_cap) {
         // Try to make room for the incoming pbuf in the queue.
         // (Further attempts will be done in the step just after this, to submit this pbuf)
         forward_progress();
     }
 
-    if (pbuf_queue_size >= PbufQueueMax) {
+    if (pbuf_queue_size >= queue_cap) {
         // Not enough room in the queue (unlikely, but possible with tiny
         // packets). Refuse the pbuf now and let lwip call us later again with it.
         buddy_rx_stats.refused++;

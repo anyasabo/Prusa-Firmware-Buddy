@@ -1,3 +1,4 @@
+#include <buddy/upload_experiment.hpp>
 #include "gcode_upload.h"
 #include "handler.h"
 #include "splice.h"
@@ -136,6 +137,7 @@ GcodeUpload::UploadResult GcodeUpload::start(const RequestParser &parser, Upload
     }
 
     const char *path = uploadParams.filepath.data();
+    upload_experiment::apply_from_path(path); // EXPERIMENT
     auto slot = Monitor::instance.allocate(Monitor::Type::Link, path, *parser.content_length, parser.print_after_upload);
     if (!slot.has_value()) {
         // FIXME: Is this the right status to return? Change would need to be

@@ -1,4 +1,8 @@
 #include <buddy/rx_stats.h>
+#include <buddy/upload_experiment.hpp>
+#include "metric.h"
+#include <cstring>
+#include <cstdlib>
 #include "ooseq_limit.hpp"
 
 #include <lwip/tcp.h>
@@ -83,7 +87,8 @@ uint32_t hook_calls = 0;
     #define COUNT_HOOK_CALL() (++hook_calls)
 #else
     #define COUNT_HOOK_CALL() ((void)0)
-constexpr const ooseq_limit::Limits &active_limits = ooseq_limit::DEFAULT_LIMITS;
+// EXPERIMENT: mutable so upload_experiment::apply_from_path can switch fix A.
+ooseq_limit::Limits active_limits = ooseq_limit::DEFAULT_LIMITS;
 #endif
 
 // Set while a reclaim is queued on the tcpip thread, so a burst of allocation
@@ -179,3 +184,34 @@ void buddy_ooseq_reclaim_request(void) {
 }
 
 } // extern "C"
+
+// EXPERIMENT: see upload_experiment.hpp.
+void upload_experiment::apply_from_path(const char *path) {
+    const char *p = path ? strstr(path, "upx-") : nullptr;
+    if (!p) {
+        return;
+    }
+    p += 4;
+    while (*p == 'q' || *p == 'a') {
+        const char key = *p++;
+        const long v = strtol(p, const_cast<char **>(&p), 10);
+        if (key == 'q') {
+            queue_cap = v < 1 ? 1 : (v > 17 ? 17 : static_cast<size_t>(v));
+        } else {
+            ooseq_fix_a = v ? 1 : 0;
+        }
+        if (*p == '-') {
+            p++;
+        }
+    }
+    ooseq_limit::Limits l = ooseq_limit::DEFAULT_LIMITS; // fix A values on this branch
+    if (!ooseq_fix_a) {
+        l.inbound_share_bytes = 1024;
+        l.inbound_pcb_bytes = 512;
+        l.inbound_share_segs = 2;
+        l.inbound_pcb_segs = 1;
+    }
+    active_limits = l;
+    METRIC_DEF(metric_upx, "upx", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    metric_record_custom(&metric_upx, " q=%ui,a=%ui", static_cast<unsigned>(queue_cap), static_cast<unsigned>(ooseq_fix_a));
+}

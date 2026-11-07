@@ -24,6 +24,17 @@ struct buddy_rx_stats {
 // ethernetif.c) shares one instance without a dedicated source file.
 __attribute__((weak)) struct buddy_rx_stats buddy_rx_stats;
 
+/// EXPERIMENT: how long the tcpip thread was busy with one thing (ms).
+/// kind: enum tcpip_msg_type for messages, 100 = timers, 101 = waiting to
+/// re-take the core lock (another task held it). fn: the callback function
+/// for callback messages (map with addr2line on the ELF), else 0.
+/// Reported per second as the "tcpip_blk" metric (upload_experiment.cpp).
+void buddy_tcpip_busy_record(uint32_t ms, uint8_t kind, uint32_t fn);
+
+/// EXPERIMENT: the TCP MSS advertised in new connections (tcp_out.c has a weak
+/// TCP_MSS default; upload_experiment.cpp the runtime switch).
+uint16_t buddy_advertised_mss(void);
+
 #ifdef __cplusplus
 }
 #endif

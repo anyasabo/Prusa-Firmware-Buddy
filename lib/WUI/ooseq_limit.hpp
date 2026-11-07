@@ -17,18 +17,31 @@ struct Limits {
     // pinned ring ~= global_bytes + global_segs * per-frame overhead; keep it well
     // under the ring size in pbuf_rx.cpp.
     uint32_t global_bytes = 4096;
-    uint32_t inbound_share_bytes = 3072;
-    uint32_t inbound_pcb_bytes = 3072;
+    uint32_t inbound_share_bytes = 1024;
+    uint32_t inbound_pcb_bytes = 512;
     uint32_t outbound_pcb_bytes = 4096;
 
     // tcp_seg count budget (protects the shared MEMP_NUM_TCP_SEG pool).
     uint16_t global_segs = 5;
-    uint16_t inbound_share_segs = 3;
-    uint16_t inbound_pcb_segs = 3;
+    uint16_t inbound_share_segs = 2;
+    uint16_t inbound_pcb_segs = 1;
     uint16_t outbound_pcb_segs = 4;
 };
 
 inline constexpr Limits DEFAULT_LIMITS {};
+
+/// EXPERIMENT (upload-experiments branch): "fix A", let one inbound pcb (eg. a
+/// PrusaLink upload) keep 3 out-of-order segments, so it can SACK and recover
+/// from a loss without a timeout. Global caps unchanged, so the worst-case ring
+/// pinning (the PFB-012 / BFW-9380 concern) stays as shipped.
+inline constexpr Limits FIX_A_LIMITS = [] {
+    Limits l;
+    l.inbound_share_bytes = 3072;
+    l.inbound_pcb_bytes = 3072;
+    l.inbound_share_segs = 3;
+    l.inbound_pcb_segs = 3;
+    return l;
+}();
 
 inline constexpr uint32_t GLOBAL_BYTES = DEFAULT_LIMITS.global_bytes;
 inline constexpr uint32_t INBOUND_SHARE_BYTES = DEFAULT_LIMITS.inbound_share_bytes;

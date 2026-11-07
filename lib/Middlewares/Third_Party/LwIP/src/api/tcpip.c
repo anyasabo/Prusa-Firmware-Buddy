@@ -48,6 +48,7 @@
 #include "lwip/ip.h"
 #include "lwip/pbuf.h"
 #include "lwip/etharp.h"
+#include <buddy/rx_stats.h>
 #include "netif/ethernet.h"
 
 #define TCPIP_MSG_VAR_REF(name)     API_VAR_REF(name)
@@ -92,21 +93,33 @@ again:
   if (sleeptime == SYS_TIMEOUTS_SLEEPTIME_INFINITE) {
     UNLOCK_TCPIP_CORE();
     sys_arch_mbox_fetch(mbox, msg, 0);
-    LOCK_TCPIP_CORE();
+    {
+      u32_t start = sys_now(); /* EXPERIMENT: time others held the core lock */
+      LOCK_TCPIP_CORE();
+      buddy_tcpip_busy_record(sys_now() - start, 101, 0);
+    }
     return;
   } else if (sleeptime == 0) {
+    u32_t start = sys_now(); /* EXPERIMENT: buddy_tcpip_busy_record */
     sys_check_timeouts();
+    buddy_tcpip_busy_record(sys_now() - start, 100, 0);
     /* We try again to fetch a message from the mbox. */
     goto again;
   }
 
   UNLOCK_TCPIP_CORE();
   res = sys_arch_mbox_fetch(mbox, msg, sleeptime);
-  LOCK_TCPIP_CORE();
+  {
+    u32_t start = sys_now(); /* EXPERIMENT: time others held the core lock */
+    LOCK_TCPIP_CORE();
+    buddy_tcpip_busy_record(sys_now() - start, 101, 0);
+  }
   if (res == SYS_ARCH_TIMEOUT) {
     /* If a SYS_ARCH_TIMEOUT value is returned, a timeout occurred
        before a message could be fetched. */
+    u32_t start = sys_now(); /* EXPERIMENT */
     sys_check_timeouts();
+    buddy_tcpip_busy_record(sys_now() - start, 100, 0);
     /* We try again to fetch a message from the mbox. */
     goto again;
   }
@@ -145,7 +158,15 @@ tcpip_thread(void *arg)
       LWIP_ASSERT("tcpip_thread: invalid message", 0);
       continue;
     }
-    tcpip_thread_handle_msg(msg);
+    {
+      /* EXPERIMENT: buddy_tcpip_busy_record. Read before handling, the
+         message may be freed by it. */
+      const u8_t kind = (u8_t)msg->type;
+      const u32_t fn = (msg->type == TCPIP_MSG_CALLBACK || msg->type == TCPIP_MSG_CALLBACK_STATIC) ? (u32_t)(uintptr_t)msg->msg.cb.function : 0;
+      const u32_t start = sys_now();
+      tcpip_thread_handle_msg(msg);
+      buddy_tcpip_busy_record(sys_now() - start, kind, fn);
+    }
   }
 }
 

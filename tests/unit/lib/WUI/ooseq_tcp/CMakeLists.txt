@@ -29,6 +29,9 @@ target_include_directories(
   ooseq_tcp_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${LWIP_DIR}/include
                           ${CMAKE_SOURCE_DIR}/lib/WUI
   )
+# For buddy/rx_stats.h and buddy/upload_experiment.hpp (EXPERIMENT), after the test's own buddy/
+# dir.
+target_include_directories(ooseq_tcp_tests AFTER PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(ooseq_tcp_tests PRIVATE OOSEQ_LIMIT_OVERRIDABLE)
 # Third-party C; keep the output readable.
 set_source_files_properties(

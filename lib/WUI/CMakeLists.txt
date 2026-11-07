@@ -33,10 +33,12 @@ target_sources(
             nhttp/status_page.cpp
             nhttp/status_renderer.cpp
             nhttp/transfer_renderer.cpp
+            nhttp/upload_prepare.cpp
             ooseq_limit.cpp
             pbuf_rx.cpp
             sntp/sntp.c
             sntp/sntp_client.c
+            upload_experiment.cpp
             wui.cpp
             wui_api.cpp
   )

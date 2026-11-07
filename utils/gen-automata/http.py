@@ -335,6 +335,15 @@ def overwrite_file_header():
     })
 
 
+def expect_header():
+    """
+    Expect: 100-continue (RFC 9110, section 10.1.1).
+    """
+    return keyworded_header({
+        '100-continue': 'Expect100Continue',
+    })
+
+
 def create_folder_header():
     return keyworded_header({
         '?1': 'CreateFolder',

@@ -72,6 +72,15 @@
 #include "lwip/netif.h"
 #include "lwip/inet_chksum.h"
 #include "lwip/stats.h"
+
+/* EXPERIMENT (Buddy upload-experiments): the MSS we advertise in SYN/SYN-ACK,
+   ie. the segment size peers send us. Overridden by the firmware's runtime
+   switch (upload_experiment.cpp); everything else keeps using TCP_MSS. */
+u16_t buddy_advertised_mss(void);
+__attribute__((weak)) u16_t buddy_advertised_mss(void)
+{
+  return TCP_MSS;
+}
 #include "lwip/ip6.h"
 #include "lwip/ip6_addr.h"
 #if LWIP_TCP_TIMESTAMPS
@@ -1497,9 +1506,9 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb, struct netif *netif
   if (seg->flags & TF_SEG_OPTS_MSS) {
     u16_t mss;
 #if TCP_CALCULATE_EFF_SEND_MSS
-    mss = tcp_eff_send_mss_netif(TCP_MSS, netif, &pcb->remote_ip);
+    mss = tcp_eff_send_mss_netif(buddy_advertised_mss(), netif, &pcb->remote_ip);
 #else /* TCP_CALCULATE_EFF_SEND_MSS */
-    mss = TCP_MSS;
+    mss = buddy_advertised_mss();
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
     *opts = TCP_BUILD_MSS_OPTION(mss);
     opts += 1;

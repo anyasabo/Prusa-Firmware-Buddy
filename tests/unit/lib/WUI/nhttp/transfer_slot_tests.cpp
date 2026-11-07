@@ -101,9 +101,35 @@ public:
     mutable FakeFile f;
     // The result as seen by done() (release() resets it afterwards).
     std::optional<splice::Result> done_result;
+    // What poll_ready() reports (the file being prepared asynchronously).
+    Readiness readiness = Readiness::Ready;
+    bool aborted = false;
+
+    Readiness poll_ready() override {
+        return readiness;
+    }
+
+    // Finishing off the tcpip thread (start_finish/poll_finished).
+    bool finish_async = false;
+    bool finish_started = false;
+    Readiness finished = Readiness::Ready;
+
+    bool start_finish() override {
+        finish_started = finish_async;
+        return finish_async;
+    }
+
+    Readiness poll_finished() override {
+        return finished;
+    }
+
+    void abort_prepare() override {
+        aborted = true;
+    }
 
     transfers::PartialFile *file() const override {
-        return &f;
+        // Like the real upload: no file until it's prepared.
+        return readiness == Readiness::Ready ? &f : nullptr;
     }
 
     std::tuple<size_t, size_t> write(const uint8_t *in, size_t in_size, uint8_t *out, size_t out_size) override {
@@ -114,6 +140,9 @@ public:
 
     std::optional<std::tuple<http::Status, const char *>> done() override {
         done_result = result;
+        if (readiness == Readiness::Failed) {
+            return std::make_tuple(http::Status::Conflict, "File already exists");
+        }
         return std::nullopt;
     }
 
@@ -150,9 +179,10 @@ struct Upload {
     FakeTransfer transfer;
     std::unique_ptr<Server> server = std::make_unique<Server>(defs);
 
-    Upload(size_t expected_data, size_t file_budget) {
+    Upload(size_t expected_data, size_t file_budget, splice::Transfer::Readiness readiness = splice::Transfer::Readiness::Ready) {
         pbufs_freed = 0;
         transfer.f.budget = file_budget;
+        transfer.readiness = readiness;
         server->inject_transfer(&conn, nullptr, 0, &transfer, expected_data);
     }
 
@@ -226,4 +256,82 @@ TEST_CASE("Upload takes a full window of small segments") {
         REQUIRE(upload.transfer.done_result == splice::Result::ClosedByClient);
         REQUIRE(upload.conn.closed);
     }
+}
+
+TEST_CASE("Upload waits for the file to be prepared") {
+    // The file can be created asynchronously (off the tcpip thread). Until it's
+    // ready, the data must wait in the queue: nothing refused (lwip would drop
+    // the following segments), nothing acknowledged to the window (so the
+    // client sees a closing window, not loss).
+    constexpr size_t segment_size = TCP_WND / 16;
+    using Readiness = splice::Transfer::Readiness;
+
+    SECTION("Ready later") {
+        Upload upload(TCP_WND, 0, Readiness::Waiting);
+        upload.transfer.f.budget = std::numeric_limits<size_t>::max();
+        upload.fill_window(segment_size);
+        REQUIRE(upload.segments.size() == 16);
+        REQUIRE(upload.conn.recved == 0);
+        REQUIRE(upload.transfer.f.written.empty());
+
+        upload.transfer.readiness = Readiness::Ready;
+        upload.server->kick_transfer();
+
+        // All the expected data arrived, so the transfer finishes right away.
+        REQUIRE(upload.transfer.f.written == upload.sent);
+        REQUIRE(upload.conn.recved == TCP_WND);
+        REQUIRE(upload.transfer.done_result == splice::Result::Ok);
+        REQUIRE(upload.conn.closed);
+        REQUIRE(pbufs_freed == upload.segments.size());
+    }
+
+    SECTION("Preparation fails") {
+        Upload upload(TCP_WND, 0, Readiness::Waiting);
+        upload.fill_window(segment_size);
+
+        upload.transfer.readiness = Readiness::Failed;
+        upload.server->kick_transfer();
+
+        // Nothing written, done() got to report the failure, and the queued
+        // data went back to the window (so closing doesn't turn into a RST
+        // while the client still sends).
+        REQUIRE(upload.transfer.f.written.empty());
+        REQUIRE(upload.transfer.done_result.has_value());
+        REQUIRE(upload.conn.recved == upload.sent.size());
+    }
+
+    SECTION("Given up while waiting") {
+        Upload upload(TCP_WND, 0, Readiness::Waiting);
+        upload.fill_window(segment_size);
+        // The connection breaks (lwip calls the error callback, the pcb is
+        // already gone).
+        REQUIRE(upload.conn.err != nullptr);
+        upload.conn.err(upload.conn.arg, ERR_RST);
+        REQUIRE(upload.transfer.aborted);
+        REQUIRE(pbufs_freed == 16);
+    }
+}
+
+TEST_CASE("Upload waits for the file to be finished") {
+    // The end of the upload (sync, close, rename) can run off the tcpip thread;
+    // the response (done()) must wait for it.
+    constexpr size_t segment_size = TCP_WND / 16;
+    Upload upload(TCP_WND, std::numeric_limits<size_t>::max());
+    upload.transfer.finish_async = true;
+    upload.transfer.finished = splice::Transfer::Readiness::Waiting;
+    // Exactly the expected data (fill_window would go on: the window stays
+    // open once the transfer has all it wants).
+    for (size_t i = 0; i < 16; i++) {
+        REQUIRE(upload.send(segment_size) == ERR_OK);
+    }
+
+    REQUIRE(upload.transfer.f.written == upload.sent);
+    REQUIRE(upload.transfer.finish_started);
+    REQUIRE_FALSE(upload.transfer.done_result.has_value());
+    REQUIRE_FALSE(upload.conn.closed);
+
+    upload.transfer.finished = splice::Transfer::Readiness::Ready;
+    upload.server->kick_transfer();
+    REQUIRE(upload.transfer.done_result == splice::Result::Ok);
+    REQUIRE(upload.conn.closed);
 }

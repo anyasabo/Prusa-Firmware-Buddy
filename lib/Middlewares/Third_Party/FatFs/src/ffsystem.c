@@ -5,6 +5,7 @@
 
 
 #include "ff.h"
+#include <buddy/usb_io_stats.h> /* EXPERIMENT: lock wait stats */
 
 
 #if FF_USE_LFN == 3	/* Dynamic memory allocation */
@@ -90,7 +91,15 @@ int ff_req_grant (	/* 1:Got a grant to access the volume, 0:Could not get a gran
 )
 {
 	/* FreeRTOS */
-	return (int)(xSemaphoreTake(sobj, FF_FS_TIMEOUT) == pdTRUE);
+	/* EXPERIMENT: count and time waits for a lock another task holds */
+	if (xSemaphoreTake(sobj, 0) == pdTRUE) {
+		return 1;
+	}
+	const TickType_t wait_start = xTaskGetTickCount();
+	const int got = (int)(xSemaphoreTake(sobj, FF_FS_TIMEOUT) == pdTRUE);
+	buddy_usb_stats.lock_waits++;
+	buddy_usb_stats.lock_wait_ms += (uint32_t)(xTaskGetTickCount() - wait_start) * portTICK_PERIOD_MS;
+	return got;
 }
 
 

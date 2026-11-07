@@ -17,7 +17,7 @@ void apply_from_path(const char *path) {
         return;
     }
     p += 4;
-    while (*p && strchr("qawfsedumnpk", *p)) {
+    while (*p && strchr("qawfsedumnpkvrh", *p)) {
         const char key = *p++;
         char *end = nullptr;
         const long v = strtol(p, &end, 10);
@@ -64,6 +64,15 @@ void apply_from_path(const char *path) {
         case 'k':
             buddy_usbh_msc_wait_ms = static_cast<uint32_t>(v < 1 ? 1 : (v > 500 ? 500 : v));
             break;
+        case 'v':
+            preview_after_upload = v != 0;
+            break;
+        case 'r':
+            rename_without_stat = v != 0;
+            break;
+        case 'h':
+            buddy_fatfs_numname_hash_after = v != 0 ? 0 : 5;
+            break;
         }
         if (*p == '-') {
             p++;
@@ -72,10 +81,11 @@ void apply_from_path(const char *path) {
     ooseq_limit::set_inbound_fix_a(ooseq_fix_a);
     METRIC_DEF(metric_upx, "upx", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     // b: the boolean switches as bits, a=1 w=2 f=4 s=8 e=16 d=32 n=64 p=128
-    // (47 char limit).
+    // v=256 r=512 h=1024 (47 char limit).
     const unsigned bits = (ooseq_fix_a ? 1 : 0) | (async_prepare ? 2 : 0) | (name_check_in_memory ? 4 : 0)
         | (lockfree_drive_check ? 8 : 0) | (answer_expect_continue ? 16 : 0) | (finish_async ? 32 : 0)
-        | (sfn_on_worker ? 64 : 0) | (preview_no_wait ? 128 : 0);
+        | (sfn_on_worker ? 64 : 0) | (preview_no_wait ? 128 : 0) | (preview_after_upload ? 256 : 0)
+        | (rename_without_stat ? 512 : 0) | (buddy_fatfs_numname_hash_after == 0 ? 1024 : 0);
     metric_record_custom(&metric_upx, " q=%ui,b=%ui,u=%ui,m=%ui,k=%ui",
         static_cast<unsigned>(queue_cap), bits, static_cast<unsigned>(usb_sectors_per_write), static_cast<unsigned>(advertised_mss),
         static_cast<unsigned>(buddy_usbh_msc_wait_ms));
@@ -83,9 +93,12 @@ void apply_from_path(const char *path) {
 
 UsbSnapshot UsbSnapshot::now() {
     UsbSnapshot s;
-    s.requests = buddy_usb_stats.reads + buddy_usb_stats.writes;
+    s.reads = buddy_usb_stats.reads;
+    s.writes = buddy_usb_stats.writes;
+    s.requests = s.reads + s.writes;
     s.busy_ms = buddy_usb_stats.busy_ms;
     s.wait_timeouts = buddy_usb_stats.wait_timeouts;
+    s.lock_wait_ms = buddy_usb_stats.lock_wait_ms;
     return s;
 }
 
@@ -94,6 +107,8 @@ void record_timing() {
     METRIC_DEF(metric_upx_f, "upx_f", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_upx_u, "upx_u", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_upx_n, "upx_n", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_upx_v, "upx_v", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_upx_g, "upx_g", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     // Caps keep every value within the 47 character limit of custom metrics:
     // 5 fields of " x=99999i" are 45 characters.
     const auto cap = [](uint32_t v) { return static_cast<unsigned>(v > 99999 ? 99999 : v); };
@@ -105,17 +120,29 @@ void record_timing() {
     metric_record_custom(&metric_upx_u, " p=%ui,o=%ui,f=%ui,x=%ui,w=%ui",
         cap(timing.prep_usb_ms), cap(timing.prep_usb_req), cap(timing.fin_usb_ms), cap(timing.fin_usb_req), cap(timeouts));
     metric_record_custom(&metric_upx_n, " s=%ui,n=%ui,l=%ui",
-        cap(timing.sfn_tcpip_ms), cap(timing.notify_ms), timing.notify_no_wait ? 1u : 0u);
+        cap(timing.sfn_tcpip_ms), cap(timing.notify_ms), static_cast<unsigned>(timing.notify_mode));
+    metric_record_custom(&metric_upx_v, " c=%ui,a=%ui,b=%ui,p=%ui,f=%ui",
+        cap(timing.check_usb_req), cap(timing.fin_reads), cap(timing.fin_writes), cap(timing.prep_lock_ms), cap(timing.fin_lock_ms));
+    metric_record_custom(&metric_upx_g, " m=%ui,y=%ui,c=%ui,r=%ui,s=%ui",
+        cap(timing.mkdir_req), cap(timing.sync_req), cap(timing.close_req), cap(timing.rename_req), cap(timing.sfn_req));
 }
 
 void report_usb_io() {
     static uint32_t last_ms = 0;
+    static bool started = false;
     static struct buddy_usb_stats last {};
     const uint32_t now = ticks_ms();
-    if (now - last_ms < 1000) {
+    if (started && now - last_ms < 1000) {
         return;
     }
     last_ms = now;
+    if (!started) {
+        // The first call only takes the baseline (not everything since boot).
+        started = true;
+        last = buddy_usb_stats;
+        buddy_usb_stats.max_ms = 0;
+        return;
+    }
     // Plain reads of counters another task increments: each value is a single
     // aligned word, a report may be off by the request in flight.
     const struct buddy_usb_stats cur = buddy_usb_stats;
@@ -125,14 +152,27 @@ void report_usb_io() {
     const uint32_t writes = cur.writes - last.writes;
     const uint32_t busy = cur.busy_ms - last.busy_ms;
     const uint32_t timeouts = cur.wait_timeouts - last.wait_timeouts;
+    const uint32_t lock_waits = cur.lock_waits - last.lock_waits;
+    const struct buddy_usb_stats prev = last;
     last = cur;
-    if (reads == 0 && writes == 0 && timeouts == 0) {
+    if (reads == 0 && writes == 0 && timeouts == 0 && lock_waits == 0) {
         return;
     }
     METRIC_DEF(metric_usb_io, "usb_io", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_usb_io2, "usb_io2", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_usb_io3, "usb_io3", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     const auto cap = [](uint32_t v) { return static_cast<unsigned>(v > 99999 ? 99999 : v); };
     metric_record_custom(&metric_usb_io, " r=%ui,w=%ui,t=%ui,m=%ui,o=%ui",
         cap(reads), cap(writes), cap(busy), cap(max_ms), cap(timeouts));
+    // s sectors, g single-sector requests, l requests >= 20 ms, e URB events,
+    // n of those URB_NOTREADY.
+    metric_record_custom(&metric_usb_io2, " s=%ui,g=%ui,l=%ui,e=%ui,n=%ui",
+        cap(cur.sectors - prev.sectors), cap(cur.single_sector - prev.single_sector), cap(cur.slow - prev.slow),
+        cap(cur.urb_events - prev.urb_events), cap(cur.urb_notready - prev.urb_notready));
+    // u unaligned (split) requests, x errors, c FatFs lock waits, d ms waited.
+    metric_record_custom(&metric_usb_io3, " u=%ui,x=%ui,c=%ui,d=%ui",
+        cap(cur.unaligned - prev.unaligned), cap(cur.errors - prev.errors), cap(lock_waits),
+        cap(cur.lock_wait_ms - prev.lock_wait_ms));
 }
 
 namespace {

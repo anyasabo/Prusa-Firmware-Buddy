@@ -134,6 +134,12 @@ static void USBH_MSC_WorkerTask(void const *) {
                 if (ms > buddy_usb_stats.max_ms) {
                     buddy_usb_stats.max_ms = ms;
                 }
+                if (request->count == 1) {
+                    buddy_usb_stats.single_sector++;
+                }
+                if (ms >= 20) {
+                    buddy_usb_stats.slow++;
+                }
                 if (request->result != USBH_OK) {
                     buddy_usb_stats.errors++;
                 }

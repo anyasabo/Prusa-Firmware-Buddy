@@ -291,10 +291,15 @@ StartPrintResult wui_start_print(std::span<char> filename, bool autostart_if_abl
     if (!upload_experiment::notify_hint.name_is_sfn) {
         const uint32_t sfn_start = ticks_ms();
         get_SFN_path(filename);
-        upload_experiment::timing.sfn_tcpip_ms = ticks_ms() - sfn_start;
+        if (upload_experiment::notify_hint.active) {
+            upload_experiment::timing.sfn_tcpip_ms = ticks_ms() - sfn_start;
+        }
     }
 
     if (autostart_if_able) {
+        if (upload_experiment::notify_hint.active) {
+            upload_experiment::timing.notify_mode = upload_experiment::notify_autostart;
+        }
         if (printer_can_print) {
             marlin_client::print_start(filename.data(), marlin_server::PreviewSkipIfAble::all);
             return marlin_client::is_print_started() ? StartPrintResult::PrintStarted : StartPrintResult::Failed;
@@ -305,15 +310,23 @@ StartPrintResult wui_start_print(std::span<char> filename, bool autostart_if_abl
         // The conditional here is just an optimization, to save bothering
         // marlin. If it couldn't print/initialte the preview, it would just do
         // nothing anyway.
-        if (printer_can_print) {
+        if (upload_experiment::notify_hint.active && upload_experiment::notify_hint.skip_preview) {
+            // EXPERIMENT (v0): no preview after uploads.
+            upload_experiment::timing.notify_mode = upload_experiment::notify_skipped;
+        } else if (printer_can_print) {
             if (upload_experiment::notify_hint.no_wait) {
                 // EXPERIMENT (p1): best effort anyway, don't block the
                 // caller (the tcpip thread) until Marlin takes it.
-                marlin_client::print_start_no_wait(filename.data());
-                upload_experiment::timing.notify_no_wait = true;
+                const bool sent = marlin_client::print_start_no_wait(filename.data());
+                upload_experiment::timing.notify_mode = sent ? upload_experiment::notify_no_wait_sent : upload_experiment::notify_dropped;
             } else {
                 marlin_client::print_start(filename.data());
+                if (upload_experiment::notify_hint.active) {
+                    upload_experiment::timing.notify_mode = upload_experiment::notify_waited;
+                }
             }
+        } else if (upload_experiment::notify_hint.active) {
+            upload_experiment::timing.notify_mode = upload_experiment::notify_not_sent;
         }
         // We were not asked to print. Showing the preview is "best effort",
         // but not reported to the user.

@@ -193,6 +193,21 @@ GcodeUpload::UploadResult GcodeUpload::start(const RequestParser &parser, Upload
 
 namespace {
 
+    // EXPERIMENT: times consecutive steps and counts the USB requests each one
+    // made (all tasks; see upx_f / upx_g).
+    struct StepClock {
+        uint32_t t = ticks_ms();
+        uint32_t req = upload_experiment::UsbSnapshot::now().requests;
+        void lap(uint32_t &ms, uint32_t &requests) {
+            const uint32_t now = ticks_ms();
+            const uint32_t r = upload_experiment::UsbSnapshot::now().requests;
+            ms = now - t;
+            requests = r - req;
+            t = now;
+            req = r;
+        }
+    };
+
     GcodeUpload::Result prepend_usb_path(string_view filename, char *filepath_out, size_t filepath_size) {
         if ((filename.length() + USB_MOUNT_POINT_LENGTH) >= filepath_size) {
             // The Request header fields too large is a bit of a stretch...
@@ -240,7 +255,11 @@ namespace {
         }
 
         struct stat st = {};
-        int stat_result = stat_retry(fn, &st);
+        // EXPERIMENT (r1): without overwrite, the rename itself refuses an
+        // existing target (FatFs FR_EXIST -> EEXIST), so the stat (a directory
+        // scan) is only needed to find a file to replace.
+        const bool skip_stat = !overwrite && upload_experiment::rename_without_stat;
+        int stat_result = skip_stat ? -1 : stat_retry(fn, &st);
         if (stat_result == 0 && S_ISREG(st.st_mode) && overwrite) {
             int result = remove(fn);
             if (result == -1) {
@@ -269,6 +288,9 @@ namespace {
             log_error(transfers, "rename %s -> %s: errno %d", src, fn, old_errno);
             remove(src); // No check - no way to handle errors anyway.
             switch (old_errno) {
+            case EEXIST:
+                // Only reachable with r1 (otherwise the stat caught it).
+                return make_tuple(Status::Conflict, "File already exists");
             case EISDIR:
                 return make_tuple(Status::Conflict, "Is a directory or ongoing transfer");
             case ENOTDIR:
@@ -505,6 +527,8 @@ namespace {
             uint32_t create_ms;
             uint32_t usb_ms = 0;
             uint32_t usb_req = 0;
+            uint32_t check_req = 0;
+            uint32_t lock_ms = 0;
         };
 
         static void publish_prepared(void *arg) {
@@ -517,6 +541,8 @@ namespace {
             upload_experiment::timing.cre_ms = p->create_ms;
             upload_experiment::timing.prep_usb_ms = p->usb_ms;
             upload_experiment::timing.prep_usb_req = p->usb_req;
+            upload_experiment::timing.check_usb_req = p->check_req;
+            upload_experiment::timing.prep_lock_ms = p->lock_ms;
             p->self->prepare_done.store(true, std::memory_order_release);
         }
 
@@ -529,6 +555,7 @@ namespace {
             const uint32_t queue_ms = check_start - prepare_start_ms;
             Prepared prepared { this, nullptr, check_target_name(filename, overwrite, prep_in_memory), queue_ms, 0, 0 };
             prepared.check_ms = ticks_ms() - check_start;
+            prepared.check_req = upload_experiment::UsbSnapshot::now().requests - usb_start.requests;
 
             const auto fname = transfer_name(file_idx);
             if (std::get<0>(prepared.error) == Status::Ok && !prepare_job.cancelled()) {
@@ -546,6 +573,7 @@ namespace {
             const auto usb_end = upload_experiment::UsbSnapshot::now();
             prepared.usb_ms = usb_end.busy_ms - usb_start.busy_ms;
             prepared.usb_req = usb_end.requests - usb_start.requests;
+            prepared.lock_ms = usb_end.lock_wait_ms - usb_start.lock_wait_ms;
 
             const bool had_file = prepared.file != nullptr;
             if (!prepare_job.publish(publish_prepared, &prepared)) {
@@ -667,6 +695,14 @@ namespace {
             uint32_t sfn_ms = 0;
             uint32_t usb_ms = 0;
             uint32_t usb_req = 0;
+            uint32_t reads = 0;
+            uint32_t writes = 0;
+            uint32_t lock_ms = 0;
+            uint32_t mkdir_req = 0;
+            uint32_t sync_req = 0;
+            uint32_t close_req = 0;
+            uint32_t rename_req = 0;
+            uint32_t sfn_req = 0;
         };
 
         static void publish_finished(void *arg) {
@@ -682,6 +718,14 @@ namespace {
             upload_experiment::timing.sfn_worker_ms = p->sfn_ms;
             upload_experiment::timing.fin_usb_ms = p->usb_ms;
             upload_experiment::timing.fin_usb_req = p->usb_req;
+            upload_experiment::timing.fin_reads = p->reads;
+            upload_experiment::timing.fin_writes = p->writes;
+            upload_experiment::timing.fin_lock_ms = p->lock_ms;
+            upload_experiment::timing.mkdir_req = p->mkdir_req;
+            upload_experiment::timing.sync_req = p->sync_req;
+            upload_experiment::timing.close_req = p->close_req;
+            upload_experiment::timing.rename_req = p->rename_req;
+            upload_experiment::timing.sfn_req = p->sfn_req;
             p->self->finish_done.store(true, std::memory_order_release);
         }
 
@@ -692,27 +736,21 @@ namespace {
             const auto fname = transfer_name(file_idx);
             Finished finished { this, { Status::Ok, nullptr }, {}, ticks_ms() - finish_start_ms };
             const auto usb_start = upload_experiment::UsbSnapshot::now();
-            uint32_t t = ticks_ms();
-            const auto lap = [&t]() {
-                const uint32_t now = ticks_ms();
-                const uint32_t ms = now - t;
-                t = now;
-                return ms;
-            };
+            StepClock clock;
             // create directories if uploading points to non existing one
             if (!make_dirs(filepath.data())) {
                 finished.error = make_tuple(Status::InternalServerError, "Failed to create a folder");
-                finished.mkdir_ms = lap();
+                clock.lap(finished.mkdir_ms, finished.mkdir_req);
             } else {
-                finished.mkdir_ms = lap();
+                clock.lap(finished.mkdir_ms, finished.mkdir_req);
                 if (!finishing_file->sync()) {
                     finished.error = { Status::InsufficientStorage, "Couldn't sync to file" };
                 }
-                finished.sync_ms = lap();
+                clock.lap(finished.sync_ms, finished.sync_req);
             }
             // Close the file first, otherwise it can't be moved
             finishing_file.reset();
-            finished.close_ms = lap();
+            clock.lap(finished.close_ms, finished.close_req);
             if (std::get<0>(finished.error) == Status::Ok && prepare_job.cancelled()) {
                 // The connection is gone; like the synchronous path (done()
                 // with Timeout), don't keep the upload.
@@ -725,14 +763,14 @@ namespace {
                     strlcpy(finished.name.data(), filename.data(), finished.name.size());
                     return make_tuple(Status::Ok, nullptr);
                 });
-                finished.rename_ms = lap();
+                clock.lap(finished.rename_ms, finished.rename_req);
                 // (try_rename removes the temp file when it fails.)
-                if (std::get<0>(finished.error) == Status::Ok && sfn_requested) {
+                if (std::get<0>(finished.error) == Status::Ok && sfn_requested && !prepare_job.cancelled()) {
                     // n1: what wui_start_print would do on the tcpip thread
                     // (a readdir of the whole directory), here.
                     strlcpy(finished.sfn.data(), finished.name.data(), finished.sfn.size());
                     get_SFN_path(std::span(finished.sfn));
-                    finished.sfn_ms = lap();
+                    clock.lap(finished.sfn_ms, finished.sfn_req);
                 }
             } else {
                 remove(fname.begin());
@@ -740,6 +778,9 @@ namespace {
             const auto usb_end = upload_experiment::UsbSnapshot::now();
             finished.usb_ms = usb_end.busy_ms - usb_start.busy_ms;
             finished.usb_req = usb_end.requests - usb_start.requests;
+            finished.reads = usb_end.reads - usb_start.reads;
+            finished.writes = usb_end.writes - usb_start.writes;
+            finished.lock_ms = usb_end.lock_wait_ms - usb_start.lock_wait_ms;
             if (!prepare_job.publish(publish_finished, &finished)) {
                 // Nobody waits for the result. If the rename made it, the
                 // complete upload stays; at least tell the file list about it
@@ -798,8 +839,10 @@ namespace {
         bool notify_uploaded(std::span<char> name, std::span<char> sfn) {
             const uint32_t start = ticks_ms();
             upload_experiment::notify_hint = {};
+            upload_experiment::notify_hint.active = true;
             upload_experiment::notify_hint.name_is_sfn = !sfn.empty();
             upload_experiment::notify_hint.no_wait = upload_experiment::preview_no_wait && !print_after_upload;
+            upload_experiment::notify_hint.skip_preview = !upload_experiment::preview_after_upload && !print_after_upload;
             const bool ok = uploaded_notify(sfn.empty() ? name : sfn, print_after_upload);
             upload_experiment::notify_hint = {};
             upload_experiment::timing.notify_ms = ticks_ms() - start;
@@ -838,33 +881,27 @@ namespace {
             switch (result) {
             case Result::Ok: {
                 const auto usb_start = upload_experiment::UsbSnapshot::now();
-                uint32_t t = ticks_ms();
-                const auto lap = [&t]() {
-                    const uint32_t now = ticks_ms();
-                    const uint32_t ms = now - t;
-                    t = now;
-                    return ms;
-                };
+                StepClock clock;
                 // create directories if uploading points to non existing one
                 if (!make_dirs(filepath.data())) {
                     error = make_tuple(Status::InternalServerError, "Failed to create a folder");
                     goto CLEANUP;
                 }
-                upload_experiment::timing.mkdir_ms = lap();
+                clock.lap(upload_experiment::timing.mkdir_ms, upload_experiment::timing.mkdir_req);
                 if (!f->sync()) {
                     error = { Status::InsufficientStorage, "Couldn't sync to file" };
                     goto CLEANUP;
                 }
-                upload_experiment::timing.sync_ms = lap();
+                clock.lap(upload_experiment::timing.sync_ms, upload_experiment::timing.sync_req);
 
                 // Close the file first, otherwise it can't be moved
                 f.reset();
-                upload_experiment::timing.close_ms = lap();
+                clock.lap(upload_experiment::timing.close_ms, upload_experiment::timing.close_req);
                 // Remove the "/usb/" prefix
                 // FIXME: Why? Relict of old / Post / multipart upload?
                 const char *final_filename = filepath.data() + USB_MOUNT_POINT_LENGTH;
                 error = try_rename(fname.begin(), final_filename, overwrite, [&](std::span<char> filename) -> GcodeUpload::Result {
-                    upload_experiment::timing.rename_ms = lap();
+                    clock.lap(upload_experiment::timing.rename_ms, upload_experiment::timing.rename_req);
                     // (fin_usb_* include the notify's I/O here, d0 only.)
                     monitor_slot->done(Monitor::Outcome::Finished);
                     ChangedPath::instance.changed_path(filename.data(), Type::File, Incident::Created);
@@ -882,6 +919,9 @@ namespace {
                 const auto usb_end = upload_experiment::UsbSnapshot::now();
                 upload_experiment::timing.fin_usb_ms = usb_end.busy_ms - usb_start.busy_ms;
                 upload_experiment::timing.fin_usb_req = usb_end.requests - usb_start.requests;
+                upload_experiment::timing.fin_reads = usb_end.reads - usb_start.reads;
+                upload_experiment::timing.fin_writes = usb_end.writes - usb_start.writes;
+                upload_experiment::timing.fin_lock_ms = usb_end.lock_wait_ms - usb_start.lock_wait_ms;
                 break;
             }
             case Result::CantWrite:
@@ -955,8 +995,10 @@ void GcodeUpload::step(string_view input, bool terminated_by_client, uint8_t *ou
         }
         if (!async_prepare) {
             const uint32_t check_start = ticks_ms();
+            const auto usb_check_start = upload_experiment::UsbSnapshot::now();
             auto filename_error = check_target_name(filename, upload.overwrite, upload_experiment::name_check_in_memory);
             upload_experiment::timing.chk_ms = ticks_ms() - check_start;
+            upload_experiment::timing.check_usb_req = upload_experiment::UsbSnapshot::now().requests - usb_check_start.requests;
             if (std::get<0>(filename_error) != Status::Ok) {
                 out = Step { read, 0, StatusPage(std::get<0>(filename_error), StatusPage::CloseHandling::ErrorClose, json_errors, nullopt, std::get<1>(filename_error)) };
                 return;
@@ -965,6 +1007,7 @@ void GcodeUpload::step(string_view input, bool terminated_by_client, uint8_t *ou
             const auto usb = upload_experiment::UsbSnapshot::now();
             upload_experiment::timing.prep_usb_ms = usb.busy_ms - upload_experiment::timing.usb_at_start.busy_ms;
             upload_experiment::timing.prep_usb_req = usb.requests - upload_experiment::timing.usb_at_start.requests;
+            upload_experiment::timing.prep_lock_ms = usb.lock_wait_ms - upload_experiment::timing.usb_at_start.lock_wait_ms;
         }
         filename_checked = true;
     }

@@ -30,11 +30,23 @@
 //   kN  how long the USB MSC worker sleeps waiting for a USB transfer
 //       notification before looking again, ms (500 = stock, 1..500); for all
 //       USB I/O, not just uploads
+//   vN  v1 = stock: an upload without print-after-upload opens the print
+//       preview (if the printer is idle and no preview is open); v0 = don't.
+//       While a preview is open it stats the file every second on the async
+//       job worker and further uploads skip print_start, so v0 keeps test
+//       uploads independent (and lets the test delete the file right away)
+//   rN  r1 = at the end of a non-overwriting upload, rename without the stat
+//       of the target first (the rename itself fails with "exists"); r0 = stock
+//   hN  h1 = FatFs makes 8.3 aliases from a hash of the long name right away
+//       instead of trying NAME~1..NAME~5 first (each try is a full directory
+//       scan; names sharing their first 6 characters collide); h0 = stock.
+//       For all files created on the USB drive
 //
 // Unknown letters stop the parsing. Defaults at boot: everything on, u8, m1024,
-// k500 (stock). Applied settings are reported as the "upx" metric (k in "upx_k");
+// except the ones that change behaviour beyond uploads: k500, v1, h0 (stock). Applied settings are reported as the "upx" metric;
 // per-upload timings as the "upx_t", "upx_f", "upx_u" and "upx_n" metrics (see
-// record_timing), USB I/O per second as "usb_io" (see report_usb_io).
+// record_timing), USB I/O per second as "usb_io", "usb_io2", "usb_io3" (see
+// report_usb_io).
 #include <cstddef>
 #include <cstdint>
 #include <printers.h>
@@ -51,6 +63,8 @@ inline bool finish_async = true;
 inline uint16_t advertised_mss = 1024;
 inline bool sfn_on_worker = true;
 inline bool preview_no_wait = true;
+inline bool preview_after_upload = true;
+inline bool rename_without_stat = true;
 #if PRINTER_IS_PRUSA_MINI()
 inline size_t usb_sectors_per_write = 1; // Low on RAM on mini
 #else
@@ -79,14 +93,27 @@ void apply_from_path(const char *path);
 ///   p  ms during the preparation (check + create), o  its requests,
 ///   f  ms during the finish, x  its requests,
 ///   w  USB MSC notification waits that timed out during the whole upload
+///      (with a small k most of these are just the polling interval passing,
+///      so compare w only between runs with the same k)
 /// "upx_n" (done() on the tcpip thread):
 ///   s  8.3 name lookup there (get_SFN_path in wui_start_print; 0 with n1),
 ///   n  the whole uploaded_notify (includes s and the Marlin request),
-///   l  1 if the preview request didn't wait for Marlin (p1 applied)
+///   l  the preview request: 0 not sent (printer not ready, eg. a preview is
+///      already open), 1 sent and waited for Marlin (stock), 2 sent without
+///      waiting (p1), 3 dropped (p1, Marlin's queue full), 4 skipped (v0),
+///      5 print after upload (autostart path, always waits)
+/// "upx_v": c  USB requests of the name check alone (the rest of upx_u o is
+///   the file creation), a / b  reads / writes during the finish,
+///   p / f  ms waiting for the FatFs lock (held by another task) during the
+///   preparation / finish
+/// "upx_g": USB requests per finish step, same keys as upx_f (m, y, c, r, s)
 struct UsbSnapshot {
     uint32_t requests = 0;
+    uint32_t reads = 0;
+    uint32_t writes = 0;
     uint32_t busy_ms = 0;
     uint32_t wait_timeouts = 0;
+    uint32_t lock_wait_ms = 0;
     static UsbSnapshot now();
 };
 
@@ -113,15 +140,39 @@ struct Timing {
     // upx_n
     uint32_t sfn_tcpip_ms = 0;
     uint32_t notify_ms = 0;
-    bool notify_no_wait = false;
+    uint8_t notify_mode = 0;
+    // upx_v
+    uint32_t check_usb_req = 0;
+    uint32_t fin_reads = 0;
+    uint32_t fin_writes = 0;
+    uint32_t prep_lock_ms = 0;
+    uint32_t fin_lock_ms = 0;
+    // upx_g
+    uint32_t mkdir_req = 0;
+    uint32_t sync_req = 0;
+    uint32_t close_req = 0;
+    uint32_t rename_req = 0;
+    uint32_t sfn_req = 0;
+};
+
+/// The l values of upx_n.
+enum NotifyMode : uint8_t {
+    notify_not_sent = 0,
+    notify_waited = 1,
+    notify_no_wait_sent = 2,
+    notify_dropped = 3,
+    notify_skipped = 4,
+    notify_autostart = 5,
 };
 
 /// Set by GcodeUpload's done() (tcpip thread) around uploaded_notify when the
 /// name it passes is already the 8.3 path (n1) and/or the preview request
 /// should not wait for Marlin (p1). Read by wui_start_print on the same thread.
 struct NotifyHint {
+    bool active = false; ///< inside an upload's notify (timings belong to it)
     bool name_is_sfn = false;
     bool no_wait = false;
+    bool skip_preview = false; ///< v0 and not print-after-upload
 };
 inline NotifyHint notify_hint;
 inline Timing timing;

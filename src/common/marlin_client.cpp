@@ -244,16 +244,29 @@ void print_start(const char *filename, marlin_server::PreviewSkipIfAble skip_pre
     }
 }
 
-void print_start_no_wait(const char *filename) {
+bool print_start_no_wait(const char *filename) {
     Request request;
     request.type = Request::Type::PrintStart;
     request.print_start.skip_preview = marlin_server::PreviewSkipIfAble::no;
     request.print_start.reset_tool_mapping = ResetToolMapping::yes;
+    freertos::EventGroup *client = _client_ptr();
+    if (client == nullptr) {
+        return false;
+    }
     if (strlcpy(request.print_start.filename, filename, sizeof(request.print_start.filename)) >= sizeof(request.print_start.filename)) {
         log_error(MarlinClient, "ignoring truncated filename");
-    } else {
-        _send_request_to_server_noreply(request);
+        return false;
     }
+    request.client_id = client - marlin_client_events;
+    request.response_required = 0;
+    // The queue holds one request and the server may be busy (its own
+    // print_start waits for the async job worker); don't block the caller,
+    // drop the (best effort) preview instead.
+    if (!request_queue.try_send(request, 0)) {
+        log_warning(MarlinClient, "preview request dropped, server busy");
+        return false;
+    }
+    return true;
 }
 
 bool is_print_started() {

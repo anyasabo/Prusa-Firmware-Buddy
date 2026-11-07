@@ -11,6 +11,9 @@
 #include <cstdio>
 #include <optional>
 
+// Declared in include/buddy/lwipopts.h, which pulls in lwIP; declare it here instead.
+extern "C" uint32_t buddy_tcp_wnd(void);
+
 std::vector<RecordedMetric> recorded_metrics;
 
 void metric_record_custom(metric_t *metric, const char *fmt, ...) {
@@ -104,7 +107,7 @@ TEST_CASE("upx switches parse from the file name") {
         CHECK(buddy_fatfs_numname_hash_after == 0);
         auto upx = last("upx");
         REQUIRE(upx);
-        CHECK(upx->value == " q=17i,b=2047i,u=8i,m=1024i,k=2i");
+        CHECK(upx->value == " q=33i,b=2047i,u=8i,m=1024i,k=2i");
     }
 
     SECTION("v0 and h back to stock") {

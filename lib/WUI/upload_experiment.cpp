@@ -5,7 +5,6 @@
 #include <buddy/rx_stats.h>
 #include <buddy/usb_io_stats.h>
 #include <heap.h>
-#include <malloc.h>
 #include <timing.h>
 
 #include <cstdlib>
@@ -81,7 +80,9 @@ void apply_from_path(const char *path) {
             }
             break;
         case 'o':
-            rx_ring_cap = v <= 0 ? 0 : static_cast<size_t>(v > 64 ? 64 : v) * 1024;
+            // At least 4 KB: below one full frame (~1.1 KB) nothing gets through,
+            // not even the upload that would reset the switch.
+            rx_ring_cap = v <= 0 ? 0 : static_cast<size_t>(v < 4 ? 4 : (v > 64 ? 64 : v)) * 1024;
             break;
         case 'y':
             net_prio_raised = v != 0;
@@ -153,8 +154,7 @@ void report_memory() {
     last_ms = now;
     METRIC_DEF(metric_heap_x, "heap_x", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_rx_ring, "rx_ring", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
-    const struct mallinfo mi = mallinfo();
-    metric_record_custom(&metric_heap_x, " s=%ui,f=%ui", static_cast<unsigned>(heap_bytes_remaining()), static_cast<unsigned>(mi.fordblks));
+    metric_record_custom(&metric_heap_x, " s=%ui,f=%ui", static_cast<unsigned>(heap_bytes_remaining()), static_cast<unsigned>(heap_malloc_free()));
     const uint32_t peak = buddy_rx_stats.ring_peak;
     buddy_rx_stats.ring_peak = 0; // racy with the allocator; a missed peak only shows next time
     metric_record_custom(&metric_rx_ring, " p=%ui", static_cast<unsigned>(peak));
@@ -192,10 +192,12 @@ void report_net_lat() {
     }
     METRIC_DEF(metric_net_lat, "net_lat", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     // e wake-ups, w their total ms, a the longest; n packets, q their total
-    // mailbox ms, b the longest (6 fields: keep each <= 9999 to fit 47 chars)
+    // mailbox ms, b the longest. 6 fields: counts/totals capped at 9999, maxima
+    // at 999 (worst case 46 characters, limit 47).
     const auto cap4 = [](uint32_t v) { return static_cast<unsigned>(v > 9999 ? 9999 : v); };
+    const auto cap3 = [](uint32_t v) { return static_cast<unsigned>(v > 999 ? 999 : v); };
     metric_record_custom(&metric_net_lat, " e=%ui,w=%ui,a=%ui,n=%ui,q=%ui,b=%ui",
-        cap4(wn), cap4(ws), cap4(w.max), cap4(qn), cap4(qs), cap4(q.max));
+        cap4(wn), cap4(ws), cap3(w.max), cap4(qn), cap4(qs), cap3(q.max));
 }
 
 void report_usb_io() {

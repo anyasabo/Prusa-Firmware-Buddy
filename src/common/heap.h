@@ -9,6 +9,8 @@ extern "C" {
 
 extern uint32_t heap_total_size();
 extern uint32_t heap_bytes_remaining();
+/// Free bytes inside malloc's pool (newlib mallinfo().fordblks).
+extern uint32_t heap_malloc_free();
 
 uint32_t mem_is_heap_allocated(const void *ptr);
 // Returns NULL on failure instead of redscreen

@@ -92,6 +92,10 @@ extern "C" uint32_t heap_total_size() {
     return heap_end() - heap_start;
 }
 
+extern "C" uint32_t heap_malloc_free() {
+    return mallinfo().fordblks;
+}
+
 extern "C" uint32_t heap_bytes_remaining() {
     return heap_total_size() - (current_heap_end() - heap_start);
 }

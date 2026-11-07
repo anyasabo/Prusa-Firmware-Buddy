@@ -67,6 +67,7 @@ extern "C" uint32_t ticks_s() { return now_ms / 1000; }
 void ooseq_limit::set_inbound_fix_a(bool on) { fix_a = on; }
 extern "C" void buddy_net_priority_raise(bool raised) { prio_raised = raised; }
 extern "C" uint32_t heap_bytes_remaining() { return 12345; }
+extern "C" uint32_t heap_malloc_free() { return 678; }
 
 TEST_CASE("upx switches parse from the file name") {
     using namespace upload_experiment;
@@ -125,6 +126,8 @@ TEST_CASE("upx switches parse from the file name") {
         auto upx2 = last("upx2");
         REQUIRE(upx2);
         CHECK(upx2->value == " x=16i,o=11i,y=1i");
+        apply_from_path("upx-o1-x");
+        CHECK(rx_ring_cap == 4 * 1024); // minimum
         apply_from_path("upx-x13-o0-y0-x"); // x13 isn't a valid window: kept
         CHECK(tcp_wnd_kb == 16);
         CHECK(rx_ring_cap == 0);
@@ -320,9 +323,9 @@ TEST_CASE("net_lat and memory metrics") {
     }
 
     SECTION("net_lat fits at the largest values") {
-        for (int i = 0; i < 3; i++) {
-            buddy_net_lat_record(0, 4'000'000'000u);
-            buddy_net_lat_record(1, 4'000'000'000u);
+        for (int i = 0; i < 12000; i++) { // counts and totals past their caps
+            buddy_net_lat_record(0, 300'000);
+            buddy_net_lat_record(1, 300'000);
         }
         now_ms += 1000;
         report_net_lat();
@@ -330,6 +333,7 @@ TEST_CASE("net_lat and memory metrics") {
         REQUIRE(m);
         INFO(m->value);
         CHECK_FALSE(m->too_long);
+        CHECK(m->value == " e=9999i,w=9999i,a=999i,n=9999i,q=9999i,b=999i");
     }
 
     SECTION("heap_x and rx_ring every 5 s") {
@@ -341,7 +345,7 @@ TEST_CASE("net_lat and memory metrics") {
         report_memory();
         auto h = last("heap_x");
         REQUIRE(h);
-        CHECK(h->value.rfind(" s=12345i,f=", 0) == 0);
+        CHECK(h->value == " s=12345i,f=678i");
         CHECK_FALSE(h->too_long);
         auto r = last("rx_ring");
         REQUIRE(r);

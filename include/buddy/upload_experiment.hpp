@@ -41,12 +41,17 @@
 //       instead of trying NAME~1..NAME~5 first (each try is a full directory
 //       scan; names sharing their first 6 characters collide); h0 = stock.
 //       For all files created on the USB drive
-//   xN  TCP receive window advertised in new connections, KB: 8 (stock), 12, 16.
-//       For all TCP connections. The RX ring is built for 16 (+8.4 KB RAM)
-//   oN  cap on the RX ring's usage, KB (0 = no cap, the full ~19.5 KB); o11 is
-//       about the stock ring, to test advertising more window than backed
+//   xN  TCP receive window advertised in NEW connections, KB: 8 (stock), 12, 16.
+//       For all TCP connections; each keeps the window it started with, so
+//       like m it applies from the next connection (set it with one upload,
+//       measure with the next). The RX ring is built for 16 (+8.4 KB RAM)
+//   oN  cap on the RX ring's usage, KB (0 = no cap, the full ~19.4 KB; minimum
+//       4); o11 is about the stock ring: x8-o11 is the stock baseline, x16-o11
+//       tests advertising more window than the ring backs
 //   yN  y1 = network task and tcpip thread at Normal priority (stock:
-//       BelowNormal, under the GUI, USB host, logging, metrics); y0 = stock
+//       BelowNormal, under the GUI, USB host, logging, metrics); y0 = stock.
+//       Don't test y1 while printing: it can delay media prefetch (its job
+//       starts at BelowNormal) and starve Connect
 //
 // Unknown letters stop the parsing. Defaults at boot: everything on, u8, m1024,
 // except the ones that change behaviour beyond uploads: k500, v1, h0, x8, o0,

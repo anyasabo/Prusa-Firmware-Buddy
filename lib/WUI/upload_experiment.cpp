@@ -155,10 +155,10 @@ void report_memory() {
     METRIC_DEF(metric_heap_x, "heap_x", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_rx_ring, "rx_ring", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     uint32_t free_chunks = 0;
-    uint32_t top_chunk = 0;
-    heap_malloc_chunks(&free_chunks, &top_chunk);
-    metric_record_custom(&metric_heap_x, " s=%ui,f=%ui,o=%ui,k=%ui", static_cast<unsigned>(heap_bytes_remaining()), static_cast<unsigned>(heap_malloc_free()),
-        static_cast<unsigned>(free_chunks), static_cast<unsigned>(top_chunk));
+    uint32_t largest_chunk = 0;
+    heap_malloc_chunks(&free_chunks, &largest_chunk);
+    metric_record_custom(&metric_heap_x, " s=%ui,f=%ui,o=%ui,l=%ui", static_cast<unsigned>(heap_bytes_remaining()), static_cast<unsigned>(heap_malloc_free()),
+        static_cast<unsigned>(free_chunks), static_cast<unsigned>(largest_chunk));
     const uint32_t peak = buddy_rx_stats.ring_peak;
     buddy_rx_stats.ring_peak = 0; // racy with the allocator; a missed peak only shows next time
     metric_record_custom(&metric_rx_ring, " p=%ui", static_cast<unsigned>(peak));

@@ -71,9 +71,10 @@ void ooseq_limit::set_inbound_fix_a(bool on) { fix_a = on; }
 extern "C" void buddy_net_priority_raise(bool raised) { prio_raised = raised; }
 extern "C" uint32_t heap_bytes_remaining() { return 12345; }
 extern "C" uint32_t heap_malloc_free() { return 678; }
-extern "C" void heap_malloc_chunks(uint32_t *free_chunks, uint32_t *top_chunk) {
-    *free_chunks = 9;
-    *top_chunk = 4321;
+extern "C" void heap_malloc_chunks(uint32_t *free_chunks, uint32_t *largest_chunk) {
+    // Realistic worst case for the metric length (192 KB RAM): 6-digit sizes, 5-digit count.
+    *free_chunks = 99999;
+    *largest_chunk = 196608;
 }
 
 TEST_CASE("upx switches parse from the file name") {
@@ -352,7 +353,7 @@ TEST_CASE("net_lat and memory metrics") {
         report_memory();
         auto h = last("heap_x");
         REQUIRE(h);
-        CHECK(h->value == " s=12345i,f=678i,o=9i,k=4321i");
+        CHECK(h->value == " s=12345i,f=678i,o=99999i,l=196608i");
         CHECK_FALSE(h->too_long);
         auto r = last("rx_ring");
         REQUIRE(r);

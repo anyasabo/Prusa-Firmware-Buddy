@@ -212,7 +212,7 @@ void report_usb_io();
 /// Every ~5 s from the same place: "heap_x" s = bytes never handed to malloc
 /// yet (sbrk headroom; only ever goes down, so it is the low-water mark),
 /// f = free inside malloc's pool, o = number of free chunks in the pool,
-/// k = size of the top chunk; "rx_ring" p = peak RX ring usage (bytes)
+/// l = largest free chunk in the pool (bytes; s is the contiguous rest); "rx_ring" p = peak RX ring usage (bytes)
 /// since the last report. Also, every 3 s from app_metrics.cpp, "task_cpu"
 /// n = task, c = CPU time since the last record in permille, p = priority.
 void report_memory();

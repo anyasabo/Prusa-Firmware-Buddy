@@ -91,15 +91,23 @@ void RecordRuntimeStats() {
         // permille of the run-time counter (FreeRTOSConfig.h, the 32-bit DWT cycle counter;
         // unsigned differences are correct while the interval is shorter than the ~25.6 s wrap),
         // and the task's current priority. A task that is new since the last record gets no value.
+        // After a gap of more than 20 s (metrics off, Marlin busy) the counter can have wrapped:
+        // skip that record. A value above 1000 (a task handle reused by a new task) is dropped.
+        // The arrays are static: only this task runs this code, and the Marlin stack is tight.
         METRIC_DEF(task_cpu, "task_cpu", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
         static TaskHandle_t prev_handle[std::size(task_statuses)] = {};
         static uint32_t prev_counter[std::size(task_statuses)] = {};
         static uint32_t prev_total = 0;
+        static uint32_t prev_ms = 0;
+        static TaskHandle_t new_handle[std::size(task_statuses)];
+        static uint32_t new_counter[std::size(task_statuses)];
+        const uint32_t now_ms = ticks_ms();
         const uint32_t total_delta = total_run_time - prev_total;
-        const bool have_prev_total = prev_total != 0;
+        const bool have_prev_total = prev_total != 0 && now_ms - prev_ms <= 20000;
         prev_total = total_run_time;
-        TaskHandle_t new_handle[std::size(task_statuses)] = {};
-        uint32_t new_counter[std::size(task_statuses)] = {};
+        prev_ms = now_ms;
+        std::fill(std::begin(new_handle), std::end(new_handle), nullptr);
+        std::fill(std::begin(new_counter), std::end(new_counter), 0);
         for (int idx = 0; idx < count; idx++) {
             const TaskStatus_t &ts = task_statuses[idx];
             new_handle[idx] = ts.xHandle;
@@ -110,6 +118,9 @@ void RecordRuntimeStats() {
             for (size_t j = 0; j < std::size(prev_handle); j++) {
                 if (prev_handle[j] == ts.xHandle && ts.xHandle != nullptr) {
                     const uint32_t permille = static_cast<uint32_t>(static_cast<uint64_t>(ts.ulRunTimeCounter - prev_counter[j]) * 1000 / total_delta);
+                    if (permille > 1000) {
+                        break;
+                    }
                     metric_record_custom(&task_cpu, ",n=%.7s c=%ui,p=%ui", ts.pcTaskName, static_cast<unsigned>(permille), static_cast<unsigned>(ts.uxCurrentPriority));
                     break;
                 }

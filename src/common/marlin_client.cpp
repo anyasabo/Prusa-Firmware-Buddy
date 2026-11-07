@@ -244,6 +244,18 @@ void print_start(const char *filename, marlin_server::PreviewSkipIfAble skip_pre
     }
 }
 
+void print_start_no_wait(const char *filename) {
+    Request request;
+    request.type = Request::Type::PrintStart;
+    request.print_start.skip_preview = marlin_server::PreviewSkipIfAble::no;
+    request.print_start.reset_tool_mapping = ResetToolMapping::yes;
+    if (strlcpy(request.print_start.filename, filename, sizeof(request.print_start.filename)) >= sizeof(request.print_start.filename)) {
+        log_error(MarlinClient, "ignoring truncated filename");
+    } else {
+        _send_request_to_server_noreply(request);
+    }
+}
+
 bool is_print_started() {
     // The above can't really return true/false if the print started, for two reasons:
     // * There doesn't seem to be a ready-made way to conveniently send a

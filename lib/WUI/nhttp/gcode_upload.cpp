@@ -8,6 +8,7 @@
 #include "../wui_api.h"
 
 #include <common/stat_retry.hpp>
+#include <lfn.h>
 #include <lwip/tcpip.h>
 #include <path_utils.h>
 #include <timing.h>
@@ -163,6 +164,7 @@ GcodeUpload::UploadResult GcodeUpload::start(const RequestParser &parser, Upload
 
     upload_experiment::timing = {};
     upload_experiment::timing.start_ms = ticks_ms();
+    upload_experiment::timing.usb_at_start = upload_experiment::UsbSnapshot::now();
     upload_experiment::timing.async = upload_experiment::async_prepare;
 
     if (upload_experiment::async_prepare) {
@@ -501,6 +503,8 @@ namespace {
             uint32_t queue_ms;
             uint32_t check_ms;
             uint32_t create_ms;
+            uint32_t usb_ms = 0;
+            uint32_t usb_req = 0;
         };
 
         static void publish_prepared(void *arg) {
@@ -511,6 +515,8 @@ namespace {
             upload_experiment::timing.queue_ms += p->queue_ms;
             upload_experiment::timing.chk_ms = p->check_ms;
             upload_experiment::timing.cre_ms = p->create_ms;
+            upload_experiment::timing.prep_usb_ms = p->usb_ms;
+            upload_experiment::timing.prep_usb_req = p->usb_req;
             p->self->prepare_done.store(true, std::memory_order_release);
         }
 
@@ -518,6 +524,7 @@ namespace {
             // remove the "/usb/" prefix
             const char *filename = filepath.data() + USB_MOUNT_POINT_LENGTH;
             const uint32_t check_start = ticks_ms();
+            const auto usb_start = upload_experiment::UsbSnapshot::now();
             // How long the job waited for the (shared) worker.
             const uint32_t queue_ms = check_start - prepare_start_ms;
             Prepared prepared { this, nullptr, check_target_name(filename, overwrite, prep_in_memory), queue_ms, 0, 0 };
@@ -535,6 +542,10 @@ namespace {
                     prepared.file = move(get<PartialFile::Ptr>(preallocated));
                 }
             }
+
+            const auto usb_end = upload_experiment::UsbSnapshot::now();
+            prepared.usb_ms = usb_end.busy_ms - usb_start.busy_ms;
+            prepared.usb_req = usb_end.requests - usb_start.requests;
 
             const bool had_file = prepared.file != nullptr;
             if (!prepare_job.publish(publish_prepared, &prepared)) {
@@ -613,11 +624,13 @@ namespace {
         // final_name) are published like the preparation's.
         bool finishing = false; // tcpip thread only
         bool finished_async = false; // tcpip thread only: done() uses the results
+        bool sfn_requested = false; // input of finish(), written before the job starts
         uint32_t finish_start_ms = 0; // tcpip thread only
         std::atomic<bool> finish_done = false;
         PartialFile::Ptr finishing_file;
         GcodeUpload::Result finish_error { Status::Ok, nullptr };
         std::array<char, filename_defs::filename_buffer_size> final_name {};
+        std::array<char, filename_defs::path_buffer_size> final_sfn {}; ///< n1: 8.3 path of final_name, else empty
 
         virtual bool start_finish() override {
             if (!upload_experiment::finish_async || f == nullptr || prepare_job.busy()) {
@@ -629,6 +642,8 @@ namespace {
             finish_done = false;
             finish_error = { Status::Ok, nullptr };
             final_name[0] = '\0';
+            final_sfn[0] = '\0';
+            sfn_requested = upload_experiment::sfn_on_worker;
             finish_start_ms = ticks_ms();
             prepare_job.start(finish_routine, this);
             return true;
@@ -643,13 +658,30 @@ namespace {
             GcodeUpload::Result error;
             std::array<char, filename_defs::filename_buffer_size> name;
             uint32_t queue_ms;
+            /// The 8.3 path of name (n1), empty if not looked up.
+            std::array<char, filename_defs::path_buffer_size> sfn {};
+            uint32_t mkdir_ms = 0;
+            uint32_t sync_ms = 0;
+            uint32_t close_ms = 0;
+            uint32_t rename_ms = 0;
+            uint32_t sfn_ms = 0;
+            uint32_t usb_ms = 0;
+            uint32_t usb_req = 0;
         };
 
         static void publish_finished(void *arg) {
             auto *p = static_cast<Finished *>(arg);
             p->self->finish_error = p->error;
             p->self->final_name = p->name;
+            p->self->final_sfn = p->sfn;
             upload_experiment::timing.queue_ms += p->queue_ms;
+            upload_experiment::timing.mkdir_ms = p->mkdir_ms;
+            upload_experiment::timing.sync_ms = p->sync_ms;
+            upload_experiment::timing.close_ms = p->close_ms;
+            upload_experiment::timing.rename_ms = p->rename_ms;
+            upload_experiment::timing.sfn_worker_ms = p->sfn_ms;
+            upload_experiment::timing.fin_usb_ms = p->usb_ms;
+            upload_experiment::timing.fin_usb_req = p->usb_req;
             p->self->finish_done.store(true, std::memory_order_release);
         }
 
@@ -659,14 +691,28 @@ namespace {
         void finish() {
             const auto fname = transfer_name(file_idx);
             Finished finished { this, { Status::Ok, nullptr }, {}, ticks_ms() - finish_start_ms };
+            const auto usb_start = upload_experiment::UsbSnapshot::now();
+            uint32_t t = ticks_ms();
+            const auto lap = [&t]() {
+                const uint32_t now = ticks_ms();
+                const uint32_t ms = now - t;
+                t = now;
+                return ms;
+            };
             // create directories if uploading points to non existing one
             if (!make_dirs(filepath.data())) {
                 finished.error = make_tuple(Status::InternalServerError, "Failed to create a folder");
-            } else if (!finishing_file->sync()) {
-                finished.error = { Status::InsufficientStorage, "Couldn't sync to file" };
+                finished.mkdir_ms = lap();
+            } else {
+                finished.mkdir_ms = lap();
+                if (!finishing_file->sync()) {
+                    finished.error = { Status::InsufficientStorage, "Couldn't sync to file" };
+                }
+                finished.sync_ms = lap();
             }
             // Close the file first, otherwise it can't be moved
             finishing_file.reset();
+            finished.close_ms = lap();
             if (std::get<0>(finished.error) == Status::Ok && prepare_job.cancelled()) {
                 // The connection is gone; like the synchronous path (done()
                 // with Timeout), don't keep the upload.
@@ -679,10 +725,21 @@ namespace {
                     strlcpy(finished.name.data(), filename.data(), finished.name.size());
                     return make_tuple(Status::Ok, nullptr);
                 });
+                finished.rename_ms = lap();
                 // (try_rename removes the temp file when it fails.)
+                if (std::get<0>(finished.error) == Status::Ok && sfn_requested) {
+                    // n1: what wui_start_print would do on the tcpip thread
+                    // (a readdir of the whole directory), here.
+                    strlcpy(finished.sfn.data(), finished.name.data(), finished.sfn.size());
+                    get_SFN_path(std::span(finished.sfn));
+                    finished.sfn_ms = lap();
+                }
             } else {
                 remove(fname.begin());
             }
+            const auto usb_end = upload_experiment::UsbSnapshot::now();
+            finished.usb_ms = usb_end.busy_ms - usb_start.busy_ms;
+            finished.usb_req = usb_end.requests - usb_start.requests;
             if (!prepare_job.publish(publish_finished, &finished)) {
                 // Nobody waits for the result. If the rename made it, the
                 // complete upload stays; at least tell the file list about it
@@ -736,6 +793,19 @@ namespace {
         virtual PartialFile *file() const override {
             return f.get();
         }
+        // EXPERIMENT: uploaded_notify with the n/p hints and the upx_n timing.
+        // sfn: the 8.3 path looked up on the worker (n1), or empty.
+        bool notify_uploaded(std::span<char> name, std::span<char> sfn) {
+            const uint32_t start = ticks_ms();
+            upload_experiment::notify_hint = {};
+            upload_experiment::notify_hint.name_is_sfn = !sfn.empty();
+            upload_experiment::notify_hint.no_wait = upload_experiment::preview_no_wait && !print_after_upload;
+            const bool ok = uploaded_notify(sfn.empty() ? name : sfn, print_after_upload);
+            upload_experiment::notify_hint = {};
+            upload_experiment::timing.notify_ms = ticks_ms() - start;
+            return ok;
+        }
+
         // TODO: alias for the type, probably unify with the GcodeUpload::Result
         virtual optional<tuple<http::Status, const char *>> done() override {
             debug_assert(monitor_slot.has_value());
@@ -748,7 +818,7 @@ namespace {
                 if (std::get<0>(error) == Status::Ok) {
                     monitor_slot->done(Monitor::Outcome::Finished);
                     ChangedPath::instance.changed_path(final_name.data(), Type::File, Incident::Created);
-                    if (uploaded_notify != nullptr && !uploaded_notify(std::span(final_name), print_after_upload)) {
+                    if (uploaded_notify != nullptr && !notify_uploaded(std::span(final_name), final_sfn[0] != '\0' ? std::span(final_sfn) : std::span<char>())) {
                         response = make_tuple(Status::Conflict, "Can't print right now");
                     }
                 }
@@ -767,27 +837,40 @@ namespace {
             tuple<http::Status, const char *> error { Status::InternalServerError, "Unknown error" };
             switch (result) {
             case Result::Ok: {
+                const auto usb_start = upload_experiment::UsbSnapshot::now();
+                uint32_t t = ticks_ms();
+                const auto lap = [&t]() {
+                    const uint32_t now = ticks_ms();
+                    const uint32_t ms = now - t;
+                    t = now;
+                    return ms;
+                };
                 // create directories if uploading points to non existing one
                 if (!make_dirs(filepath.data())) {
                     error = make_tuple(Status::InternalServerError, "Failed to create a folder");
                     goto CLEANUP;
                 }
+                upload_experiment::timing.mkdir_ms = lap();
                 if (!f->sync()) {
                     error = { Status::InsufficientStorage, "Couldn't sync to file" };
                     goto CLEANUP;
                 }
+                upload_experiment::timing.sync_ms = lap();
 
                 // Close the file first, otherwise it can't be moved
                 f.reset();
+                upload_experiment::timing.close_ms = lap();
                 // Remove the "/usb/" prefix
                 // FIXME: Why? Relict of old / Post / multipart upload?
                 const char *final_filename = filepath.data() + USB_MOUNT_POINT_LENGTH;
                 error = try_rename(fname.begin(), final_filename, overwrite, [&](std::span<char> filename) -> GcodeUpload::Result {
+                    upload_experiment::timing.rename_ms = lap();
+                    // (fin_usb_* include the notify's I/O here, d0 only.)
                     monitor_slot->done(Monitor::Outcome::Finished);
                     ChangedPath::instance.changed_path(filename.data(), Type::File, Incident::Created);
                     cleanup_temp_file = false;
                     if (uploaded_notify != nullptr) {
-                        if (uploaded_notify(filename, print_after_upload)) {
+                        if (notify_uploaded(filename, std::span<char>())) {
                             return make_tuple(Status::Ok, nullptr);
                         } else {
                             return make_tuple(Status::Conflict, "Can't print right now");
@@ -796,6 +879,9 @@ namespace {
                         return make_tuple(Status::Ok, nullptr);
                     }
                 });
+                const auto usb_end = upload_experiment::UsbSnapshot::now();
+                upload_experiment::timing.fin_usb_ms = usb_end.busy_ms - usb_start.busy_ms;
+                upload_experiment::timing.fin_usb_req = usb_end.requests - usb_start.requests;
                 break;
             }
             case Result::CantWrite:
@@ -876,6 +962,9 @@ void GcodeUpload::step(string_view input, bool terminated_by_client, uint8_t *ou
                 return;
             }
             upload_experiment::timing.rdy_ms = ticks_ms() - upload_experiment::timing.start_ms;
+            const auto usb = upload_experiment::UsbSnapshot::now();
+            upload_experiment::timing.prep_usb_ms = usb.busy_ms - upload_experiment::timing.usb_at_start.busy_ms;
+            upload_experiment::timing.prep_usb_req = usb.requests - upload_experiment::timing.usb_at_start.requests;
         }
         filename_checked = true;
     }

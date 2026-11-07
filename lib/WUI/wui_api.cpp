@@ -17,6 +17,8 @@
 #include <common/marlin_vars.hpp>
 
 #include <lfn.h>
+#include <buddy/upload_experiment.hpp>
+#include <timing.h>
 #include <buddy/filename_defs.hpp>
 #include <state/printer_state.hpp>
 
@@ -284,7 +286,13 @@ StartPrintResult wui_start_print(std::span<char> filename, bool autostart_if_abl
 
     // Turn it into the short name, to improve buffer length, avoid strange
     // chars like spaces in it, etc.
-    get_SFN_path(filename);
+    // EXPERIMENT (n1): an upload may have looked it up on the async job worker
+    // already; the hint is only set around wui_uploaded_gcode from nhttp.
+    if (!upload_experiment::notify_hint.name_is_sfn) {
+        const uint32_t sfn_start = ticks_ms();
+        get_SFN_path(filename);
+        upload_experiment::timing.sfn_tcpip_ms = ticks_ms() - sfn_start;
+    }
 
     if (autostart_if_able) {
         if (printer_can_print) {
@@ -298,7 +306,14 @@ StartPrintResult wui_start_print(std::span<char> filename, bool autostart_if_abl
         // marlin. If it couldn't print/initialte the preview, it would just do
         // nothing anyway.
         if (printer_can_print) {
-            marlin_client::print_start(filename.data());
+            if (upload_experiment::notify_hint.no_wait) {
+                // EXPERIMENT (p1): best effort anyway, don't block the
+                // caller (the tcpip thread) until Marlin takes it.
+                marlin_client::print_start_no_wait(filename.data());
+                upload_experiment::timing.notify_no_wait = true;
+            } else {
+                marlin_client::print_start(filename.data());
+            }
         }
         // We were not asked to print. Showing the preview is "best effort",
         // but not reported to the user.

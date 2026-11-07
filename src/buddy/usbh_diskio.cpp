@@ -14,6 +14,8 @@
 #include <FreeRTOS.h>
 #include <logging/log.hpp>
 #include <bsod/bsod.h>
+#include <buddy/usb_io_stats.h> // EXPERIMENT
+#include <timing.h>
 
 LOG_COMPONENT_REF(USBHost);
 using Mutex = freertos::Mutex;
@@ -101,6 +103,7 @@ static void USBH_MSC_WorkerTask(void const *) {
         UsbhMscRequest *request;
         BaseType_t queue_status = xQueueReceive(request_queue, &request, portMAX_DELAY);
         if (queue_status == pdPASS && request->operation != UsbhMscRequest::UsbhMscRequestOperation::Noop) {
+            const uint32_t start_ms = ticks_ms(); // EXPERIMENT: usb_io stats
             {
                 switch (request->operation) {
                 case UsbhMscRequest::UsbhMscRequestOperation::Read: {
@@ -118,6 +121,23 @@ static void USBH_MSC_WorkerTask(void const *) {
                 }
             }
 
+            {
+                // EXPERIMENT: usb_io stats (single writer: this task).
+                const uint32_t ms = ticks_ms() - start_ms;
+                if (request->operation == UsbhMscRequest::UsbhMscRequestOperation::Read) {
+                    buddy_usb_stats.reads++;
+                } else {
+                    buddy_usb_stats.writes++;
+                }
+                buddy_usb_stats.sectors += request->count;
+                buddy_usb_stats.busy_ms += ms;
+                if (ms > buddy_usb_stats.max_ms) {
+                    buddy_usb_stats.max_ms = ms;
+                }
+                if (request->result != USBH_OK) {
+                    buddy_usb_stats.errors++;
+                }
+            }
             if (request->result != USBH_OK) {
                 usbh_power_cycle::io_error();
             }
@@ -182,6 +202,7 @@ DRESULT USBH_read(BYTE lun, BYTE *buff, DWORD sector, UINT count) {
     USBH_StatusTypeDef status = USBH_OK;
 
     if ((DWORD)buff & 3) { // DMA Alignment issue, do single up to aligned buffer
+        buddy_usb_stats.unaligned++; // EXPERIMENT
         while ((count--) && (status == USBH_OK)) {
             status = USBH_exec(UsbhMscRequest::UsbhMscRequestOperation::Read, lun, (uint8_t *)scratch, sector + count, 1);
             if (status == USBH_OK) {
@@ -230,6 +251,7 @@ DRESULT USBH_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count) {
     USBH_StatusTypeDef status = USBH_OK;
     if ((DWORD)buff & 3) { // DMA Alignment issue, do single up to aligned buffer
         USBH_ErrLog("Suspicious DMA Alignment issue, do single up to aligned buffer");
+        buddy_usb_stats.unaligned++; // EXPERIMENT
         while (count--) {
             memcpy(scratch, &buff[count * FF_MAX_SS], FF_MAX_SS);
             status = USBH_exec(UsbhMscRequest::UsbhMscRequestOperation::Write, lun, (BYTE *)scratch, sector + count, 1);

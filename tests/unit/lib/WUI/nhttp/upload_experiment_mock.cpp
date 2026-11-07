@@ -5,3 +5,5 @@ void upload_experiment::apply_from_path(const char *) {}
 void upload_experiment::record_timing() {}
 void ooseq_limit::set_inbound_fix_a(bool) {}
 void upload_experiment::record_http_step(uint32_t, uint8_t, uint8_t) {}
+upload_experiment::UsbSnapshot upload_experiment::UsbSnapshot::now() { return {}; }
+void upload_experiment::report_usb_io() {}

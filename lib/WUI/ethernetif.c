@@ -1,6 +1,7 @@
 #include <inttypes.h>
 #include <buddy/main.h>
 #include "metric.h"
+#include <buddy/rx_stats.h>
 #include "pbuf_rx.h"
 #include "wui.h"
 #include <lwip/opt.h>
@@ -52,6 +53,7 @@ __ALIGN_BEGIN uint8_t Tx_Buff[ETH_TXBUFNB][ETH_TX_BUF_SIZE] __ALIGN_END; /* Ethe
 
 METRIC_DEF(metric_eth_out, "eth_out", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
 METRIC_DEF(metric_eth_in, "eth_in", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+METRIC_DEF(metric_rx_drops, "rx_drops", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
 
 /* Global Ethernet handle */
 ETH_HandleTypeDef heth;
@@ -345,10 +347,23 @@ static struct pbuf *low_level_input(struct netif *netif) {
     bytes_received_count += len;
     metric_record_custom(&metric_eth_in, " recv=%" PRIu32 "i", bytes_received_count);
 
+    {
+        // DMAMFBOCR is clear-on-read: MFC (bits 0-15) = missed for lack of descriptors,
+        // MFA (bits 17-27) = missed by FIFO overflow.
+        const uint32_t mfbocr = heth.Instance->DMAMFBOCR;
+        buddy_rx_stats.eth_missed += mfbocr & 0xFFFFU;
+        buddy_rx_stats.eth_fifo_ovf += (mfbocr >> 17) & 0x7FFU;
+        const struct buddy_rx_stats *s = &buddy_rx_stats;
+        metric_record_custom(&metric_rx_drops,
+            " alloc_fail=%" PRIu32 "i,eth_missed=%" PRIu32 "i,eth_fifo_ovf=%" PRIu32 "i,refused=%" PRIu32 "i,refused_drop=%" PRIu32 "i,ooseq_trim=%" PRIu32 "i,ooseq_reclaim=%" PRIu32 "i",
+            s->alloc_fail, s->eth_missed, s->eth_fifo_ovf, s->refused, s->refused_drop, s->ooseq_trim, s->ooseq_reclaim);
+    }
+
     if (len > 0) {
         /* We allocate a pbuf chain of pbufs from the Lwip buffer pool */
         p = pbuf_alloc_rx(len);
         if (p == NULL) {
+            buddy_rx_stats.alloc_fail++;
             log_dropped_packet_rx(len);
         }
     }

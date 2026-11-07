@@ -101,7 +101,8 @@ void apply_from_path(const char *path);
 ///   l  the preview request: 0 not sent (printer not ready, eg. a preview is
 ///      already open), 1 sent and waited for Marlin (stock), 2 sent without
 ///      waiting (p1), 3 dropped (p1, Marlin's queue full), 4 skipped (v0),
-///      5 print after upload (autostart path, always waits)
+///      5 print after upload (autostart path, always waits), 9 the notify
+///      never ran (failed / cancelled upload)
 /// "upx_v": c  USB requests of the name check alone (the rest of upx_u o is
 ///   the file creation), a / b  reads / writes during the finish,
 ///   p / f  ms waiting for the FatFs lock (held by another task) during the
@@ -140,7 +141,7 @@ struct Timing {
     // upx_n
     uint32_t sfn_tcpip_ms = 0;
     uint32_t notify_ms = 0;
-    uint8_t notify_mode = 0;
+    uint8_t notify_mode = 9; ///< NotifyMode, notify_none until the notify runs
     // upx_v
     uint32_t check_usb_req = 0;
     uint32_t fin_reads = 0;
@@ -163,6 +164,7 @@ enum NotifyMode : uint8_t {
     notify_dropped = 3,
     notify_skipped = 4,
     notify_autostart = 5,
+    notify_none = 9, ///< the notify never ran (upload failed or was cancelled)
 };
 
 /// Set by GcodeUpload's done() (tcpip thread) around uploaded_notify when the

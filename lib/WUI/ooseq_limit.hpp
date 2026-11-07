@@ -17,14 +17,14 @@ struct Limits {
     // pinned ring ~= global_bytes + global_segs * per-frame overhead; keep it well
     // under the ring size in pbuf_rx.cpp.
     uint32_t global_bytes = 4096;
-    uint32_t inbound_share_bytes = 1024;
-    uint32_t inbound_pcb_bytes = 512;
+    uint32_t inbound_share_bytes = 3072;
+    uint32_t inbound_pcb_bytes = 3072;
     uint32_t outbound_pcb_bytes = 4096;
 
     // tcp_seg count budget (protects the shared MEMP_NUM_TCP_SEG pool).
     uint16_t global_segs = 5;
-    uint16_t inbound_share_segs = 2;
-    uint16_t inbound_pcb_segs = 1;
+    uint16_t inbound_share_segs = 3;
+    uint16_t inbound_pcb_segs = 3;
     uint16_t outbound_pcb_segs = 4;
 };
 

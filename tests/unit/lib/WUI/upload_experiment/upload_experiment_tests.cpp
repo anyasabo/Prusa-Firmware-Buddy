@@ -60,6 +60,10 @@ void reset_switches() {
     usb_sectors_per_write = 8;
     buddy_usbh_msc_wait_ms = 500;
     buddy_fatfs_numname_hash_after = 5;
+    buddy_fatfs_skip_deleted = 0;
+    buddy_fatfs_dir_readahead = 0;
+    buddy_fatfs_name_cache = 0;
+    buddy_fatfs_stats = {};
     recorded_metrics.clear();
 }
 } // namespace
@@ -144,6 +148,25 @@ TEST_CASE("upx switches parse from the file name") {
         CHECK(buddy_tcp_wnd() == 8192);
     }
 
+    SECTION("FatFs lookup switches j, l, c") {
+        apply_from_path("upx-j1-l8-c1-x");
+        CHECK(buddy_fatfs_skip_deleted == 1);
+        CHECK(buddy_fatfs_dir_readahead == 8);
+        CHECK(buddy_fatfs_name_cache == 1);
+        auto upx3 = last("upx3");
+        REQUIRE(upx3);
+        CHECK(upx3->value == " j=1i,l=8i,c=1i");
+        apply_from_path("upx-l100-x");
+        CHECK(buddy_fatfs_dir_readahead == 8); // clamped
+        apply_from_path("upx-l1-x");
+        CHECK(buddy_fatfs_dir_readahead == 0); // 1 sector is no read-ahead
+        apply_from_path("upx-j0-l0-c0-x");
+        CHECK(buddy_fatfs_skip_deleted == 0);
+        CHECK(buddy_fatfs_dir_readahead == 0);
+        CHECK(buddy_fatfs_name_cache == 0);
+        CHECK(last("upx3")->value == " j=0i,l=0i,c=0i");
+    }
+
     SECTION("a prefix before upx- is fine") {
         apply_from_path("/usb/a3f9c1-upx-n0-x.gcode");
         CHECK_FALSE(sfn_on_worker);
@@ -170,10 +193,11 @@ TEST_CASE("upx switches parse from the file name") {
     }
 
     SECTION("upx fits at the largest values") {
-        apply_from_path("upx-q17-u32-m1460-k500-h1-x");
+        apply_from_path("upx-q17-u32-m1460-k500-h1-j1-l8-c1-x");
         auto upx = last("upx");
         REQUIRE(upx);
         CHECK_FALSE(upx->too_long);
+        CHECK_FALSE(last("upx3")->too_long);
     }
 }
 
@@ -191,8 +215,10 @@ TEST_CASE("per-upload metrics fit the 47 character limit") {
     timing.check_usb_req = timing.fin_reads = timing.fin_writes = timing.prep_lock_ms = timing.fin_lock_ms = huge;
     timing.mkdir_req = timing.sync_req = timing.close_req = timing.rename_req = timing.sfn_req = huge;
     buddy_usb_stats.wait_timeouts = huge;
+    buddy_fatfs_stats.nc_builds = buddy_fatfs_stats.nc_hits = buddy_fatfs_stats.nc_maybe = huge;
+    buddy_fatfs_stats.ra_reads = buddy_fatfs_stats.ra_hits = huge;
     record_timing();
-    for (const char *name : { "upx_t", "upx_f", "upx_u", "upx_n", "upx_v", "upx_g" }) {
+    for (const char *name : { "upx_t", "upx_f", "upx_u", "upx_n", "upx_v", "upx_g", "upx_c" }) {
         auto m = last(name);
         REQUIRE(m);
         INFO(name << ": " << m->value);
@@ -203,6 +229,25 @@ TEST_CASE("per-upload metrics fit the 47 character limit") {
     CHECK(last("upx_n")->value == " s=99999i,n=99999i,l=5i");
     CHECK(last("upx_v")->value == " c=99999i,a=99999i,b=99999i,p=99999i,f=99999i");
     CHECK(last("upx_g")->value == " m=99999i,y=99999i,c=99999i,r=99999i,s=99999i");
+    CHECK(last("upx_c")->value == " b=99999i,h=99999i,m=99999i,r=99999i,a=99999i");
+}
+
+TEST_CASE("upx_c counts FatFs lookups since the upload started") {
+    using namespace upload_experiment;
+    reset_switches();
+    buddy_usb_stats = {};
+    buddy_fatfs_stats.nc_builds = 4;
+    buddy_fatfs_stats.nc_hits = 10;
+    buddy_fatfs_stats.ra_hits = 0xFFFFFFF0u; // wraps during the upload
+    timing = {};
+    timing.usb_at_start = UsbSnapshot::now();
+    buddy_fatfs_stats.nc_builds = 5;
+    buddy_fatfs_stats.nc_hits = 13;
+    buddy_fatfs_stats.nc_maybe = 2;
+    buddy_fatfs_stats.ra_reads = 7;
+    buddy_fatfs_stats.ra_hits = 0x10u;
+    record_timing();
+    CHECK(last("upx_c")->value == " b=1i,h=3i,m=2i,r=7i,a=32i");
 }
 
 TEST_CASE("upx_u counts MSC wait timeouts since the upload started") {

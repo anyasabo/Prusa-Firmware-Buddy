@@ -18,7 +18,7 @@ void apply_from_path(const char *path) {
         return;
     }
     p += 4;
-    while (*p && strchr("qawfsedumnpkvrhxoy", *p)) {
+    while (*p && strchr("qawfsedumnpkvrhxoyjlc", *p)) {
         const char key = *p++;
         char *end = nullptr;
         const long v = strtol(p, &end, 10);
@@ -87,6 +87,15 @@ void apply_from_path(const char *path) {
         case 'y':
             net_prio_raised = v != 0;
             break;
+        case 'j':
+            buddy_fatfs_skip_deleted = v != 0 ? 1 : 0;
+            break;
+        case 'l':
+            buddy_fatfs_dir_readahead = static_cast<uint32_t>(v <= 1 ? 0 : (v > 8 ? 8 : v));
+            break;
+        case 'c':
+            buddy_fatfs_name_cache = v != 0 ? 1 : 0;
+            break;
         }
         if (*p == '-') {
             p++;
@@ -107,6 +116,9 @@ void apply_from_path(const char *path) {
     METRIC_DEF(metric_upx2, "upx2", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     metric_record_custom(&metric_upx2, " x=%ui,o=%ui,y=%ui", static_cast<unsigned>(tcp_wnd_kb),
         static_cast<unsigned>(rx_ring_cap / 1024), net_prio_raised ? 1u : 0u);
+    METRIC_DEF(metric_upx3, "upx3", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    metric_record_custom(&metric_upx3, " j=%ui,l=%ui,c=%ui", static_cast<unsigned>(buddy_fatfs_skip_deleted),
+        static_cast<unsigned>(buddy_fatfs_dir_readahead), static_cast<unsigned>(buddy_fatfs_name_cache));
 }
 
 UsbSnapshot UsbSnapshot::now() {
@@ -117,6 +129,11 @@ UsbSnapshot UsbSnapshot::now() {
     s.busy_ms = buddy_usb_stats.busy_ms;
     s.wait_timeouts = buddy_usb_stats.wait_timeouts;
     s.lock_wait_ms = buddy_usb_stats.lock_wait_ms;
+    s.nc_builds = buddy_fatfs_stats.nc_builds;
+    s.nc_hits = buddy_fatfs_stats.nc_hits;
+    s.nc_maybe = buddy_fatfs_stats.nc_maybe;
+    s.ra_reads = buddy_fatfs_stats.ra_reads;
+    s.ra_hits = buddy_fatfs_stats.ra_hits;
     return s;
 }
 
@@ -143,6 +160,12 @@ void record_timing() {
         cap(timing.check_usb_req), cap(timing.fin_reads), cap(timing.fin_writes), cap(timing.prep_lock_ms), cap(timing.fin_lock_ms));
     metric_record_custom(&metric_upx_g, " m=%ui,y=%ui,c=%ui,r=%ui,s=%ui",
         cap(timing.mkdir_req), cap(timing.sync_req), cap(timing.close_req), cap(timing.rename_req), cap(timing.sfn_req));
+    METRIC_DEF(metric_upx_c, "upx_c", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    const UsbSnapshot end = UsbSnapshot::now();
+    const UsbSnapshot &start = timing.usb_at_start;
+    metric_record_custom(&metric_upx_c, " b=%ui,h=%ui,m=%ui,r=%ui,a=%ui",
+        cap(end.nc_builds - start.nc_builds), cap(end.nc_hits - start.nc_hits), cap(end.nc_maybe - start.nc_maybe),
+        cap(end.ra_reads - start.ra_reads), cap(end.ra_hits - start.ra_hits));
 }
 
 void report_memory() {

@@ -52,11 +52,19 @@
 //       BelowNormal, under the GUI, USB host, logging, metrics); y0 = stock.
 //       While printing, y1 can delay the media prefetch (its job starts at
 //       BelowNormal) and starve Connect. Watch the stp_stall metric
+//   jN  j1 = FatFs moves over runs of deleted directory entries in a sector
+//       without dir_next() (less CPU for each lookup); j0 = stock
+//   lN  FatFs directory read-ahead: sectors for each USB read while it walks a
+//       directory (l0 = stock, 2..8; never past the current cluster; 4 KB RAM)
+//   cN  c1 = FatFs name cache: hashes of all names of the last directory that a
+//       lookup scanned to its end; a lookup of a name that is not there then
+//       does no USB read (name check, temp file, rename target); c0 = stock.
+//       j, l and c are for all files on the USB drive, not only uploads
 //
 // Unknown letters stop the parsing. Defaults at boot: everything on, u8, m1024,
 // except the ones that change behaviour beyond uploads: k500, v1, h0, x8, o0,
-// y0 (stock). q defaults to 33 (fits a 16 KB window of 512 B segments).
-// x/o/y are reported as "upx2". Applied settings are reported as the "upx" metric;
+// y0, j0, l0, c0 (stock). q defaults to 33 (fits a 16 KB window of 512 B segments).
+// x/o/y are reported as "upx2", j/l/c as "upx3". Applied settings are reported as the "upx" metric;
 // per-upload timings as the "upx_t", "upx_f", "upx_u" and "upx_n" metrics (see
 // record_timing), USB I/O per second as "usb_io", "usb_io2", "usb_io3" (see
 // report_usb_io).
@@ -124,6 +132,10 @@ void apply_from_path(const char *path);
 ///   p / f  ms waiting for the FatFs lock (held by another task) during the
 ///   preparation / finish
 /// "upx_g": USB requests per finish step, same keys as upx_f (m, y, c, r, s)
+/// "upx_c": FatFs lookup counters during the whole upload (switches j, l, c):
+///   b  name cache builds (full scans to the end marker), h  lookups the cache
+///   answered with no read, m  lookups it could not answer (normal scan),
+///   r  read-ahead USB reads, a  directory sectors from the read-ahead buffer
 struct UsbSnapshot {
     uint32_t requests = 0;
     uint32_t reads = 0;
@@ -131,6 +143,11 @@ struct UsbSnapshot {
     uint32_t busy_ms = 0;
     uint32_t wait_timeouts = 0;
     uint32_t lock_wait_ms = 0;
+    uint32_t nc_builds = 0;
+    uint32_t nc_hits = 0;
+    uint32_t nc_maybe = 0;
+    uint32_t ra_reads = 0;
+    uint32_t ra_hits = 0;
     static UsbSnapshot now();
 };
 

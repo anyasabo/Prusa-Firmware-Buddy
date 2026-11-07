@@ -139,6 +139,11 @@ void HAL_ETH_MspDeInit(ETH_HandleTypeDef *ethHandle) {
  * @retval None
  */
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
+    // EXPERIMENT: net_lat wake-up latency (first unserviced interrupt).
+    if (buddy_eth_irq_ms == 0) {
+        const uint32_t now = sys_now();
+        buddy_eth_irq_ms = now != 0 ? now : 1;
+    }
     notify_ethernet_data();
 }
 
@@ -420,6 +425,12 @@ static struct pbuf *low_level_input(struct netif *netif) {
 
 void ethernetif_input_once(struct netif *netif) {
     struct pbuf *p;
+    // EXPERIMENT: net_lat, interrupt -> this (network task) reading the frames.
+    const uint32_t irq_ms = buddy_eth_irq_ms;
+    if (irq_ms != 0) {
+        buddy_eth_irq_ms = 0;
+        buddy_net_lat_record(0, sys_now() - irq_ms);
+    }
     do {
         p = low_level_input(netif);
         if (p != NULL) {

@@ -18,6 +18,7 @@ struct buddy_rx_stats {
     uint32_t refused_drop; ///< lwIP dropped a data segment because refused_data was pending
     uint32_t ooseq_trim; ///< lwIP trimmed the ooseq queue (buddy ooseq caps)
     uint32_t ooseq_reclaim; ///< buddy_ooseq_reclaim() freed something
+    uint32_t ring_peak; ///< EXPERIMENT: highest RX ring usage in bytes (pbuf_rx.cpp), reset by the reporter
 };
 
 // Weak, zero-initialised, so every unit (and the host tests, which do not link
@@ -34,6 +35,14 @@ void buddy_tcpip_busy_record(uint32_t ms, uint8_t kind, uint32_t fn);
 /// EXPERIMENT: the TCP MSS advertised in new connections (tcp_out.c has a weak
 /// TCP_MSS default; upload_experiment.cpp the runtime switch).
 uint16_t buddy_advertised_mss(void);
+
+/// EXPERIMENT: per-stage receive latency (upload_experiment.cpp, "net_lat"):
+/// kind 0 = ETH interrupt -> network task reading frames (ms, per wake-up),
+/// kind 1 = packet posted to the tcpip mailbox -> handled (ms, per packet).
+void buddy_net_lat_record(uint8_t kind, uint32_t ms);
+/// EXPERIMENT: time of the first ETH RX interrupt not yet serviced (ms, 0 = none);
+/// written by the ISR, cleared by the network task.
+__attribute__((weak)) volatile uint32_t buddy_eth_irq_ms;
 
 #ifdef __cplusplus
 }

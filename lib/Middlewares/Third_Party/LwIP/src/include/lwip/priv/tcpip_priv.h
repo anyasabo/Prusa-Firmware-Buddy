@@ -145,6 +145,7 @@ struct tcpip_msg {
       struct pbuf *p;
       struct netif *netif;
       netif_input_fn input_fn;
+      u32_t post_ms; /* EXPERIMENT: buddy_net_lat_record(1, ...) */
     } inp;
 #endif /* !LWIP_TCPIP_CORE_LOCKING_INPUT */
     struct {

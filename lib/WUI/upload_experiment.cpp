@@ -4,6 +4,8 @@
 #include "metric.h"
 #include <buddy/rx_stats.h>
 #include <buddy/usb_io_stats.h>
+#include <heap.h>
+#include <malloc.h>
 #include <timing.h>
 
 #include <cstdlib>
@@ -17,7 +19,7 @@ void apply_from_path(const char *path) {
         return;
     }
     p += 4;
-    while (*p && strchr("qawfsedumnpkvrh", *p)) {
+    while (*p && strchr("qawfsedumnpkvrhxoy", *p)) {
         const char key = *p++;
         char *end = nullptr;
         const long v = strtol(p, &end, 10);
@@ -27,7 +29,7 @@ void apply_from_path(const char *path) {
         p = end;
         switch (key) {
         case 'q':
-            queue_cap = v < 1 ? 1 : (v > 17 ? 17 : static_cast<size_t>(v));
+            queue_cap = v < 1 ? 1 : (v > 33 ? 33 : static_cast<size_t>(v));
             break;
         case 'a':
             ooseq_fix_a = v != 0;
@@ -73,12 +75,24 @@ void apply_from_path(const char *path) {
         case 'h':
             buddy_fatfs_numname_hash_after = v != 0 ? 0 : 5;
             break;
+        case 'x':
+            if (v == 8 || v == 12 || v == 16) {
+                tcp_wnd_kb = static_cast<uint32_t>(v);
+            }
+            break;
+        case 'o':
+            rx_ring_cap = v <= 0 ? 0 : static_cast<size_t>(v > 64 ? 64 : v) * 1024;
+            break;
+        case 'y':
+            net_prio_raised = v != 0;
+            break;
         }
         if (*p == '-') {
             p++;
         }
     }
     ooseq_limit::set_inbound_fix_a(ooseq_fix_a);
+    buddy_net_priority_raise(net_prio_raised); // on the tcpip thread (nhttp)
     METRIC_DEF(metric_upx, "upx", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     // b: the boolean switches as bits, a=1 w=2 f=4 s=8 e=16 d=32 n=64 p=128
     // v=256 r=512 h=1024 (47 char limit).
@@ -89,6 +103,9 @@ void apply_from_path(const char *path) {
     metric_record_custom(&metric_upx, " q=%ui,b=%ui,u=%ui,m=%ui,k=%ui",
         static_cast<unsigned>(queue_cap), bits, static_cast<unsigned>(usb_sectors_per_write), static_cast<unsigned>(advertised_mss),
         static_cast<unsigned>(buddy_usbh_msc_wait_ms));
+    METRIC_DEF(metric_upx2, "upx2", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    metric_record_custom(&metric_upx2, " x=%ui,o=%ui,y=%ui", static_cast<unsigned>(tcp_wnd_kb),
+        static_cast<unsigned>(rx_ring_cap / 1024), net_prio_raised ? 1u : 0u);
 }
 
 UsbSnapshot UsbSnapshot::now() {
@@ -125,6 +142,60 @@ void record_timing() {
         cap(timing.check_usb_req), cap(timing.fin_reads), cap(timing.fin_writes), cap(timing.prep_lock_ms), cap(timing.fin_lock_ms));
     metric_record_custom(&metric_upx_g, " m=%ui,y=%ui,c=%ui,r=%ui,s=%ui",
         cap(timing.mkdir_req), cap(timing.sync_req), cap(timing.close_req), cap(timing.rename_req), cap(timing.sfn_req));
+}
+
+void report_memory() {
+    static uint32_t last_ms = 0;
+    const uint32_t now = ticks_ms();
+    if (now - last_ms < 5000) {
+        return;
+    }
+    last_ms = now;
+    METRIC_DEF(metric_heap_x, "heap_x", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_rx_ring, "rx_ring", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    const struct mallinfo mi = mallinfo();
+    metric_record_custom(&metric_heap_x, " s=%ui,f=%ui", static_cast<unsigned>(heap_bytes_remaining()), static_cast<unsigned>(mi.fordblks));
+    const uint32_t peak = buddy_rx_stats.ring_peak;
+    buddy_rx_stats.ring_peak = 0; // racy with the allocator; a missed peak only shows next time
+    metric_record_custom(&metric_rx_ring, " p=%ui", static_cast<unsigned>(peak));
+}
+
+namespace {
+    // net_lat: kind 0 written by the network task, kind 1 by the tcpip thread;
+    // reported by the tcpip thread.
+    struct LatStats {
+        uint32_t count = 0;
+        uint32_t sum = 0;
+        uint32_t max = 0;
+    };
+    LatStats lat[2];
+    LatStats lat_last[2];
+} // namespace
+
+void report_net_lat() {
+    static uint32_t last_ms = 0;
+    const uint32_t now = ticks_ms();
+    if (now - last_ms < 1000) {
+        return;
+    }
+    last_ms = now;
+    const LatStats w = lat[0], q = lat[1];
+    const uint32_t wn = w.count - lat_last[0].count, qn = q.count - lat_last[1].count;
+    const uint32_t ws = w.sum - lat_last[0].sum, qs = q.sum - lat_last[1].sum;
+    // max is reset by the reader (racy, a missed max only shows next time)
+    lat[0].max = 0;
+    lat[1].max = 0;
+    lat_last[0] = w;
+    lat_last[1] = q;
+    if (wn == 0 && qn == 0) {
+        return;
+    }
+    METRIC_DEF(metric_net_lat, "net_lat", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    // e wake-ups, w their total ms, a the longest; n packets, q their total
+    // mailbox ms, b the longest (6 fields: keep each <= 9999 to fit 47 chars)
+    const auto cap4 = [](uint32_t v) { return static_cast<unsigned>(v > 9999 ? 9999 : v); };
+    metric_record_custom(&metric_net_lat, " e=%ui,w=%ui,a=%ui,n=%ui,q=%ui,b=%ui",
+        cap4(wn), cap4(ws), cap4(w.max), cap4(qn), cap4(qs), cap4(q.max));
 }
 
 void report_usb_io() {
@@ -234,6 +305,8 @@ void record_http_step(uint32_t ms, uint8_t handler_before, uint8_t handler_after
 extern "C" void buddy_tcpip_busy_record(uint32_t ms, uint8_t kind, uint32_t fn) {
     using upload_experiment::Window;
     upload_experiment::report_usb_io();
+    upload_experiment::report_net_lat();
+    upload_experiment::report_memory();
     Window done;
     if (upload_experiment::tcpip_window.add(ms, kind, fn, &done)) {
         METRIC_DEF(metric_tcpip_blk, "tcpip_blk", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
@@ -242,6 +315,22 @@ extern "C" void buddy_tcpip_busy_record(uint32_t ms, uint8_t kind, uint32_t fn) 
             static_cast<unsigned>(done.max_ms), static_cast<unsigned>(done.tag_a),
             static_cast<unsigned>(done.over_10ms), static_cast<unsigned>(done.over_100ms), static_cast<unsigned>(done.tag_b));
     }
+}
+
+extern "C" void buddy_net_lat_record(uint8_t kind, uint32_t ms) {
+    if (kind > 1) {
+        return;
+    }
+    auto &l = upload_experiment::lat[kind];
+    l.count++;
+    l.sum += ms;
+    if (ms > l.max) {
+        l.max = ms;
+    }
+}
+
+extern "C" uint32_t buddy_tcp_wnd(void) {
+    return upload_experiment::tcp_wnd_kb * 1024;
 }
 
 extern "C" uint16_t buddy_advertised_mss(void) {

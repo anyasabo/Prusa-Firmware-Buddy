@@ -142,7 +142,11 @@ typedef err_t (*tcp_connected_fn)(void *arg, struct tcp_pcb *tpcb, err_t err);
 #define RCV_WND_SCALE(pcb, wnd) (wnd)
 #define SND_WND_SCALE(pcb, wnd) (wnd)
 #define TCPWND16(x)             (x)
+#ifdef BUDDY_TCP_WND_RUNTIME /* EXPERIMENT: runtime window (buddy/lwipopts.h) */
+#define TCP_WND_MAX(pcb)        ((tcpwnd_size_t)LWIP_MIN((u32_t)(BUDDY_TCP_WND_RUNTIME), (u32_t)TCP_WND))
+#else
 #define TCP_WND_MAX(pcb)        TCP_WND
+#endif
 #endif
 /* Increments a tcpwnd_size_t and holds at max value rather than rollover */
 #define TCP_WND_INC(wnd, inc)   do { \

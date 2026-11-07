@@ -25,6 +25,7 @@ void metric_record_custom(metric_t *metric, const char *fmt, ...) {
 namespace {
 uint32_t now_ms = 100'000;
 bool fix_a = false;
+bool prio_raised = false;
 
 std::optional<RecordedMetric> last(const char *name) {
     for (auto it = recorded_metrics.rbegin(); it != recorded_metrics.rend(); ++it) {
@@ -37,7 +38,11 @@ std::optional<RecordedMetric> last(const char *name) {
 
 void reset_switches() {
     using namespace upload_experiment;
-    queue_cap = 17;
+    queue_cap = 33;
+    tcp_wnd_kb = 8;
+    rx_ring_cap = 0;
+    net_prio_raised = false;
+    prio_raised = false;
     ooseq_fix_a = true;
     async_prepare = true;
     name_check_in_memory = true;
@@ -60,6 +65,8 @@ extern "C" uint32_t ticks_ms() { return now_ms; }
 extern "C" uint32_t ticks_us() { return now_ms * 1000; }
 extern "C" uint32_t ticks_s() { return now_ms / 1000; }
 void ooseq_limit::set_inbound_fix_a(bool on) { fix_a = on; }
+extern "C" void buddy_net_priority_raise(bool raised) { prio_raised = raised; }
+extern "C" uint32_t heap_bytes_remaining() { return 12345; }
 
 TEST_CASE("upx switches parse from the file name") {
     using namespace upload_experiment;
@@ -105,6 +112,25 @@ TEST_CASE("upx switches parse from the file name") {
         CHECK(buddy_fatfs_numname_hash_after == 0);
         apply_from_path("upx-h0-x");
         CHECK(buddy_fatfs_numname_hash_after == 5);
+    }
+
+    SECTION("window, ring cap, priority") {
+        apply_from_path("upx-x16-o11-y1-q40-x");
+        CHECK(tcp_wnd_kb == 16);
+        CHECK(buddy_tcp_wnd() == 16384);
+        CHECK(rx_ring_cap == 11 * 1024);
+        CHECK(net_prio_raised);
+        CHECK(prio_raised);
+        CHECK(queue_cap == 33); // clamped
+        auto upx2 = last("upx2");
+        REQUIRE(upx2);
+        CHECK(upx2->value == " x=16i,o=11i,y=1i");
+        apply_from_path("upx-x13-o0-y0-x"); // x13 isn't a valid window: kept
+        CHECK(tcp_wnd_kb == 16);
+        CHECK(rx_ring_cap == 0);
+        CHECK_FALSE(prio_raised);
+        apply_from_path("upx-x8-x");
+        CHECK(buddy_tcp_wnd() == 8192);
     }
 
     SECTION("a prefix before upx- is fine") {
@@ -264,5 +290,62 @@ TEST_CASE("usb_io reports deltas about once a second") {
             INFO(name << ": " << m->value);
             CHECK_FALSE(m->too_long);
         }
+    }
+}
+
+TEST_CASE("net_lat and memory metrics") {
+    using namespace upload_experiment;
+    reset_switches();
+    now_ms += 10'000;
+    report_net_lat();
+    report_memory();
+    recorded_metrics.clear();
+
+    SECTION("net_lat sums, maxima, counts per second") {
+        buddy_net_lat_record(0, 3);
+        buddy_net_lat_record(0, 30);
+        buddy_net_lat_record(1, 1);
+        buddy_net_lat_record(1, 2);
+        buddy_net_lat_record(1, 40);
+        buddy_net_lat_record(7, 999); // unknown kind: ignored
+        now_ms += 1000;
+        report_net_lat();
+        auto m = last("net_lat");
+        REQUIRE(m);
+        CHECK(m->value == " e=2i,w=33i,a=30i,n=3i,q=43i,b=40i");
+        recorded_metrics.clear();
+        now_ms += 1000;
+        report_net_lat();
+        CHECK_FALSE(last("net_lat")); // no traffic, nothing reported
+    }
+
+    SECTION("net_lat fits at the largest values") {
+        for (int i = 0; i < 3; i++) {
+            buddy_net_lat_record(0, 4'000'000'000u);
+            buddy_net_lat_record(1, 4'000'000'000u);
+        }
+        now_ms += 1000;
+        report_net_lat();
+        auto m = last("net_lat");
+        REQUIRE(m);
+        INFO(m->value);
+        CHECK_FALSE(m->too_long);
+    }
+
+    SECTION("heap_x and rx_ring every 5 s") {
+        buddy_rx_stats.ring_peak = 4'000'000'000u;
+        now_ms += 4000;
+        report_memory();
+        CHECK_FALSE(last("heap_x"));
+        now_ms += 1000;
+        report_memory();
+        auto h = last("heap_x");
+        REQUIRE(h);
+        CHECK(h->value.rfind(" s=12345i,f=", 0) == 0);
+        CHECK_FALSE(h->too_long);
+        auto r = last("rx_ring");
+        REQUIRE(r);
+        CHECK(r->value == " p=4000000000i");
+        CHECK(buddy_rx_stats.ring_peak == 0);
     }
 }

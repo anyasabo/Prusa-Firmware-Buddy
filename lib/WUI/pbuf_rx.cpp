@@ -3,6 +3,8 @@
 
 #include <ring_allocator.hpp>
 #include <freertos/mutex.hpp>
+#include <buddy/upload_experiment.hpp>
+#include <buddy/rx_stats.h>
 
 namespace {
 
@@ -10,27 +12,45 @@ namespace {
 constexpr size_t mtu_size = 1024;
 constexpr size_t alloc_record = 4;
 constexpr size_t pbuf_head = LWIP_MEM_ALIGN_SIZE(sizeof(struct pbuf_custom));
-constexpr size_t mtu_cnt = 10;
+// EXPERIMENT (upload-experiments): 18 (was 10), room for a 16 KB TCP window
+// (switch x). upload_experiment::rx_ring_cap (switch o) can hold usage to the
+// old size to test advertising more window than the ring backs.
+constexpr size_t mtu_cnt = 18;
+// Each allocation carries its size in front (for the usage accounting).
+constexpr size_t size_prefix = buddy::RingAllocator::alignment;
+static_assert(size_prefix >= sizeof(uint32_t));
 
 // A bit more for "small" packets.
-constexpr size_t buffer_size = mtu_cnt * (mtu_size + alloc_record + pbuf_head) + 500;
+constexpr size_t buffer_size = mtu_cnt * (mtu_size + alloc_record + pbuf_head + size_prefix) + 500;
 
 alignas(buddy::RingAllocator::alignment) std::array<uint8_t, buffer_size> rx_allocator_buffer;
 buddy::RingAllocator rx_allocator(rx_allocator_buffer);
 
 freertos::Mutex allocator_mutex;
+size_t used_bytes = 0; // under allocator_mutex
 
 void rx_free(struct pbuf *p) {
     std::unique_lock<freertos::Mutex> lock(allocator_mutex);
-    rx_allocator.free(p);
+    uint8_t *base = reinterpret_cast<uint8_t *>(p) - size_prefix;
+    used_bytes -= *reinterpret_cast<uint32_t *>(base);
+    rx_allocator.free(base);
 }
 
 } // namespace
 
 struct pbuf *pbuf_alloc_rx(u16_t length) {
     std::unique_lock<freertos::Mutex> lock(allocator_mutex);
-    size_t req_size = pbuf_head + length;
-    struct pbuf_custom *p = static_cast<pbuf_custom *>(rx_allocator.allocate(req_size));
+    size_t req_size = size_prefix + pbuf_head + length;
+    const size_t cap = upload_experiment::rx_ring_cap;
+    uint8_t *base = (cap != 0 && used_bytes + req_size > cap) ? nullptr : static_cast<uint8_t *>(rx_allocator.allocate(req_size));
+    if (base != nullptr) {
+        *reinterpret_cast<uint32_t *>(base) = req_size;
+        used_bytes += req_size;
+        if (used_bytes > buddy_rx_stats.ring_peak) {
+            buddy_rx_stats.ring_peak = used_bytes;
+        }
+    }
+    struct pbuf_custom *p = base != nullptr ? reinterpret_cast<pbuf_custom *>(base + size_prefix) : nullptr;
     if (!p) {
         lock.unlock();
         // The ring is full. Out-of-order TCP data may be what holds it; ask the

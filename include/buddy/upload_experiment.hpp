@@ -41,9 +41,17 @@
 //       instead of trying NAME~1..NAME~5 first (each try is a full directory
 //       scan; names sharing their first 6 characters collide); h0 = stock.
 //       For all files created on the USB drive
+//   xN  TCP receive window advertised in new connections, KB: 8 (stock), 12, 16.
+//       For all TCP connections. The RX ring is built for 16 (+8.4 KB RAM)
+//   oN  cap on the RX ring's usage, KB (0 = no cap, the full ~19.5 KB); o11 is
+//       about the stock ring, to test advertising more window than backed
+//   yN  y1 = network task and tcpip thread at Normal priority (stock:
+//       BelowNormal, under the GUI, USB host, logging, metrics); y0 = stock
 //
 // Unknown letters stop the parsing. Defaults at boot: everything on, u8, m1024,
-// except the ones that change behaviour beyond uploads: k500, v1, h0 (stock). Applied settings are reported as the "upx" metric;
+// except the ones that change behaviour beyond uploads: k500, v1, h0, x8, o0,
+// y0 (stock). q defaults to 33 (fits a 16 KB window of 512 B segments).
+// x/o/y are reported as "upx2". Applied settings are reported as the "upx" metric;
 // per-upload timings as the "upx_t", "upx_f", "upx_u" and "upx_n" metrics (see
 // record_timing), USB I/O per second as "usb_io", "usb_io2", "usb_io3" (see
 // report_usb_io).
@@ -53,7 +61,7 @@
 
 namespace upload_experiment {
 
-inline size_t queue_cap = 17;
+inline size_t queue_cap = 33;
 inline bool ooseq_fix_a = true;
 inline bool async_prepare = true;
 inline bool name_check_in_memory = true;
@@ -65,6 +73,9 @@ inline bool sfn_on_worker = true;
 inline bool preview_no_wait = true;
 inline bool preview_after_upload = true;
 inline bool rename_without_stat = true;
+inline uint32_t tcp_wnd_kb = 8;
+inline size_t rx_ring_cap = 0; ///< bytes, 0 = no cap (pbuf_rx.cpp)
+inline bool net_prio_raised = false;
 #if PRINTER_IS_PRUSA_MINI()
 inline size_t usb_sectors_per_write = 1; // Low on RAM on mini
 #else
@@ -193,7 +204,22 @@ void record_http_step(uint32_t ms, uint8_t handler_before, uint8_t handler_after
 /// worker task has too little stack to format metrics.
 void report_usb_io();
 
+/// Every ~5 s from the same place: "heap_x" s = bytes never handed to malloc
+/// yet (sbrk headroom; only ever goes down, so it is the low-water mark),
+/// f = free inside malloc's pool; "rx_ring" p = peak RX ring usage (bytes)
+/// since the last report.
+void report_memory();
+
+/// Per second from the same place, when there was traffic: "net_lat"
+/// e / w / a = ETH interrupt -> network task wake-ups: count, total ms, max ms;
+/// n / q / b = packets through the tcpip mailbox: count, total wait ms, max ms.
+void report_net_lat();
+
 } // namespace upload_experiment
+
+/// EXPERIMENT (switch y, wui.cpp): network task and the calling thread (the
+/// tcpip thread) at Normal priority (true) or stock BelowNormal (false).
+extern "C" void buddy_net_priority_raise(bool raised);
 
 namespace ooseq_limit {
 /// EXPERIMENT: switch the inbound ooseq caps between stock and fix A

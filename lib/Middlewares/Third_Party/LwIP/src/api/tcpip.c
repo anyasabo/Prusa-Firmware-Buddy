@@ -192,6 +192,7 @@ tcpip_thread_handle_msg(struct tcpip_msg *msg)
 #if !LWIP_TCPIP_CORE_LOCKING_INPUT
     case TCPIP_MSG_INPKT:
       LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: PACKET %p\n", (void *)msg));
+      buddy_net_lat_record(1, sys_now() - msg->msg.inp.post_ms); /* EXPERIMENT */
       if (msg->msg.inp.input_fn(msg->msg.inp.p, msg->msg.inp.netif) != ERR_OK) {
         pbuf_free(msg->msg.inp.p);
       }
@@ -281,6 +282,7 @@ tcpip_inpkt(struct pbuf *p, struct netif *inp, netif_input_fn input_fn)
   msg->msg.inp.p = p;
   msg->msg.inp.netif = inp;
   msg->msg.inp.input_fn = input_fn;
+  msg->msg.inp.post_ms = sys_now(); /* EXPERIMENT */
   if (sys_mbox_trypost(&tcpip_mbox, msg) != ERR_OK) {
     memp_free(MEMP_TCPIP_MSG_INPKT, msg);
     return ERR_MEM;

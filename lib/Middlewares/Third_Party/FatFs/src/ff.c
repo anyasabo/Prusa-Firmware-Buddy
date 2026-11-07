@@ -22,6 +22,7 @@
 #include <string.h>
 #include "ff.h"			/* Basic definitions and declarations of API */
 #include "diskio.h"		/* Declarations of MAI */
+#include <buddy/usb_io_stats.h> /* EXPERIMENT: switch h */
 
 /*--------------------------------------------------------------------------
 
@@ -2028,7 +2029,7 @@ static void gen_numname (
 
 	memcpy(dst, src, 11);	/* Prepare the SFN to be modified */
 
-	if (seq > 5) {	/* In case of many collisions, generate a hash number instead of sequential number */
+	if (seq > buddy_fatfs_numname_hash_after) {	/* In case of many collisions, generate a hash number instead of sequential number (EXPERIMENT: switch h, stock 5) */
 		WCHAR wc;
 		DWORD crc_sreg = seq;
 

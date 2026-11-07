@@ -31,7 +31,8 @@ struct buddy_usb_stats {
     // USB host ISR (usbh_conf.cpp HAL_HCD_HC_NotifyURBChange_Callback)
     uint32_t urb_events; ///< URB state changes notified (a few per request is normal)
     uint32_t urb_notready; ///< of those, URB_NOTREADY (NAK / NYET / retried transaction errors)
-    // any task taking the FatFs volume lock (ffsystem.c ff_req_grant)
+    // any task taking a FatFs lock (ffsystem.c ff_mutex_take: the volume lock, and the system lock of
+    // the file lock table that every call with a path also takes)
     uint32_t lock_waits; ///< the lock was held by another task
     uint32_t lock_wait_ms; ///< time spent waiting for it
 };

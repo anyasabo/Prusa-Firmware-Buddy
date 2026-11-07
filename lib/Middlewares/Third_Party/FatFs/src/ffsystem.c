@@ -3,6 +3,7 @@
 /*------------------------------------------------------------------------*/
 
 #include "ff.h"
+#include <buddy/usb_io_stats.h> /* EXPERIMENT: lock wait stats */
 
 
 #if FF_USE_LFN == 3	/* Use dynamic memory allocation */
@@ -166,7 +167,15 @@ int ff_mutex_take (	/* Returns 1:Succeeded or 0:Timeout */
 	return (int)(err == OS_NO_ERR);
 
 #elif OS_TYPE == 3	/* FreeRTOS */
-	return (int)(xSemaphoreTake(Mutex[vol], FF_FS_TIMEOUT) == pdTRUE);
+	/* EXPERIMENT: count and time waits for a lock another task holds */
+	if (xSemaphoreTake(Mutex[vol], 0) == pdTRUE) {
+		return 1;
+	}
+	const TickType_t wait_start = xTaskGetTickCount();
+	const int got = (int)(xSemaphoreTake(Mutex[vol], FF_FS_TIMEOUT) == pdTRUE);
+	buddy_usb_stats.lock_waits++;
+	buddy_usb_stats.lock_wait_ms += (uint32_t)(xTaskGetTickCount() - wait_start) * portTICK_PERIOD_MS;
+	return got;
 
 #elif OS_TYPE == 4	/* CMSIS-RTOS */
 	return (int)(osMutexWait(Mutex[vol], FF_FS_TIMEOUT) == osOK);

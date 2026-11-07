@@ -1,3 +1,4 @@
+#include <buddy/rx_stats.h>
 #include "ooseq_limit.hpp"
 
 #include <lwip/tcp.h>
@@ -158,6 +159,9 @@ uint32_t buddy_ooseq_reclaim(void) {
             }
             tcp_free_ooseq(pcb);
         }
+    }
+    if (freed) {
+        buddy_rx_stats.ooseq_reclaim++;
     }
     return freed;
 }

@@ -1,3 +1,4 @@
+#include <buddy/rx_stats.h>
 #include "server.h"
 #include "splice.h"
 
@@ -908,6 +909,7 @@ bool Server::TransferSlot::take_pbuf(pbuf *data) {
     if (pbuf_queue_size >= PbufQueueMax) {
         // Not enough room in the queue (unlikely, but possible with tiny
         // packets). Refuse the pbuf now and let lwip call us later again with it.
+        buddy_rx_stats.refused++;
         return false;
     }
 

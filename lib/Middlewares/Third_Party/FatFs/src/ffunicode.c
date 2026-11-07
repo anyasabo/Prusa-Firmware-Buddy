@@ -1,13 +1,13 @@
 /*------------------------------------------------------------------------*/
-/* Unicode handling functions for FatFs R0.13+                            */
+/* Unicode Handling Functions for FatFs R0.13 and Later                   */
 /*------------------------------------------------------------------------*/
-/* This module will occupy a huge memory in the .const section when the    /
-/  FatFs is configured for LFN with DBCS. If the system has any Unicode    /
-/  utilitiy for the code conversion, this module should be modified to use /
-/  that function to avoid silly memory consumption.                        /
-/-------------------------------------------------------------------------*/
+/* This module will occupy a huge memory in the .rodata section when the  */
+/* FatFs is configured for LFN with DBCS. If the system has a Unicode     */
+/* library for the code conversion, this module should be modified to use */
+/* it to avoid silly memory consumption.                                  */
+/*------------------------------------------------------------------------*/
 /*
-/ Copyright (C) 2014, ChaN, all right reserved.
+/ Copyright (C) 2022, ChaN, all right reserved.
 /
 / FatFs module is an open source software. Redistribution and use of FatFs in
 / source and binary forms, with or without modification, are permitted provided
@@ -25,7 +25,7 @@
 
 #include "ff.h"
 
-#if FF_USE_LFN	/* This module will be blanked if non-LFN configuration */
+#if FF_USE_LFN != 0	/* This module will be blanked if in non-LFN configuration */
 
 #define MERGE2(a, b) a ## b
 #define CVTBL(tbl, cp) MERGE2(tbl, cp)
@@ -15065,8 +15065,7 @@ static const WCHAR uc775[] = {	/*  CP775(Baltic) to Unicode conversion table */
 	0x00AD, 0x00B1, 0x201C, 0x00BE, 0x00B6, 0x00A7, 0x00F7, 0x201E, 0x00B0, 0x2219, 0x00B7, 0x00B9, 0x00B3, 0x00B2, 0x25A0, 0x00A0
 };
 #endif
-// PRUSA: Don't use codepages at all, consider SFN filenames as raw bytes
-#if 0 // FF_CODE_PAGE == 850 || FF_CODE_PAGE == 0
+#if FF_CODE_PAGE == 850 || FF_CODE_PAGE == 0
 static const WCHAR uc850[] = {	/*  CP850(Latin 1) to Unicode conversion table */
 	0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7, 0x00EA, 0x00EB, 0x00E8, 0x00EF, 0x00EE, 0x00EC, 0x00C4, 0x00C5,
 	0x00C9, 0x00E6, 0x00C6, 0x00F4, 0x00F6, 0x00F2, 0x00FB, 0x00F9, 0x00FF, 0x00D6, 0x00DC, 0x00F8, 0x00A3, 0x00D8, 0x00D7, 0x0192,
@@ -15215,8 +15214,8 @@ static const WCHAR uc869[] = {	/*  CP869(Greek 2) to Unicode conversion table */
 
 
 /*------------------------------------------------------------------------*/
-/* OEM <==> Unicode conversions for static code page configuration        */
-/* SBCS fixed code page                                                   */
+/* OEM <==> Unicode Conversions for Static Code Page Configuration with   */
+/* SBCS Fixed Code Page                                                   */
 /*------------------------------------------------------------------------*/
 
 #if FF_CODE_PAGE != 0 && FF_CODE_PAGE < 900
@@ -15225,16 +15224,21 @@ WCHAR ff_uni2oem (	/* Returns OEM code character, zero on error */
 	WORD	cp		/* Code page for the conversion */
 )
 {
-	// PRUSA: Don't use codepages at all, consider SFN filenames as raw bytes
-	// If the symbol wouldn't fit into one byte,
-	// distribute uniformly into printable characters to reduce SFN name collisions.
-	// This can be non-reveretable - it's basically just for generating SFNs from LFNs.
-	// !!! Do not use '?', because that's not a valid filename character, so it would not work down the line.
-	if(uni >= 0x100) {
-		return 'A' + (uni % ('Z' - 'A' + 1));
+	WCHAR c = 0;
+	const WCHAR* p = CVTBL(uc, FF_CODE_PAGE);
+
+
+	if (uni < 0x80) {	/* ASCII? */
+		c = (WCHAR)uni;
+
+	} else {			/* Non-ASCII */
+		if (uni < 0x10000 && cp == FF_CODE_PAGE) {	/* Is it in BMP and valid code page? */
+			for (c = 0; c < 0x80 && uni != p[c]; c++) ;
+			c = (c + 0x80) & 0xFF;
+		}
 	}
 
-	return uni;
+	return c;
 }
 
 WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
@@ -15242,8 +15246,20 @@ WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
 	WORD	cp		/* Code page for the conversion */
 )
 {
-	// PRUSA: Don't use codepages at all, consider SFN filenames as raw bytes
-	return oem;
+	WCHAR c = 0;
+	const WCHAR* p = CVTBL(uc, FF_CODE_PAGE);
+
+
+	if (oem < 0x80) {	/* ASCII? */
+		c = oem;
+
+	} else {			/* Extended char */
+		if (cp == FF_CODE_PAGE) {	/* Is it a valid code page? */
+			if (oem < 0x100) c = p[oem - 0x80];
+		}
+	}
+
+	return c;
 }
 
 #endif
@@ -15251,8 +15267,8 @@ WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
 
 
 /*------------------------------------------------------------------------*/
-/* OEM <==> Unicode conversions for static code page configuration        */
-/* DBCS fixed code page                                                   */
+/* OEM <==> Unicode Conversions for Static Code Page Configuration with   */
+/* DBCS Fixed Code Page                                                   */
 /*------------------------------------------------------------------------*/
 
 #if FF_CODE_PAGE >= 900
@@ -15261,7 +15277,7 @@ WCHAR ff_uni2oem (	/* Returns OEM code character, zero on error */
 	WORD	cp		/* Code page for the conversion */
 )
 {
-	const WCHAR *p;
+	const WCHAR* p;
 	WCHAR c = 0, uc;
 	UINT i = 0, n, li, hi;
 
@@ -15297,7 +15313,7 @@ WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
 	WORD	cp		/* Code page for the conversion */
 )
 {
-	const WCHAR *p;
+	const WCHAR* p;
 	WCHAR c = 0;
 	UINT i = 0, n, li, hi;
 
@@ -15330,7 +15346,7 @@ WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
 
 
 /*------------------------------------------------------------------------*/
-/* OEM <==> Unicode conversions for dynamic code page configuration       */
+/* OEM <==> Unicode Conversions for Dynamic Code Page Configuration       */
 /*------------------------------------------------------------------------*/
 
 #if FF_CODE_PAGE == 0
@@ -15344,7 +15360,7 @@ WCHAR ff_uni2oem (	/* Returns OEM code character, zero on error */
 	WORD	cp		/* Code page for the conversion */
 )
 {
-	const WCHAR *p;
+	const WCHAR* p;
 	WCHAR c = 0, uc;
 	UINT i, n, li, hi;
 
@@ -15396,7 +15412,7 @@ WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
 	WORD	cp		/* Code page for the conversion */
 )
 {
-	const WCHAR *p;
+	const WCHAR* p;
 	WCHAR c = 0;
 	UINT i, n, li, hi;
 
@@ -15442,14 +15458,14 @@ WCHAR ff_oem2uni (	/* Returns Unicode character in UTF-16, zero on error */
 
 
 /*------------------------------------------------------------------------*/
-/* Unicode up-case conversion                                             */
+/* Unicode Up-case Conversion                                             */
 /*------------------------------------------------------------------------*/
 
 DWORD ff_wtoupper (	/* Returns up-converted code point */
 	DWORD uni		/* Unicode code point to be up-converted */
 )
 {
-	const WORD *p;
+	const WORD* p;
 	WORD uc, bc, nc, cmd;
 	static const WORD cvt1[] = {	/* Compressed up conversion table for U+0000 - U+0FFF */
 		/* Basic Latin */
@@ -15574,4 +15590,4 @@ DWORD ff_wtoupper (	/* Returns up-converted code point */
 }
 
 
-#endif /* #if FF_USE_LFN */
+#endif /* #if FF_USE_LFN != 0 */

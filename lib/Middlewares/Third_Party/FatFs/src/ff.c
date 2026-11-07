@@ -1059,6 +1059,24 @@ static void clear_share (	/* Clear all lock entries of the volume */
 /*-----------------------------------------------------------------------*/
 /* Move/Flush disk access window in the filesystem object                */
 /*-----------------------------------------------------------------------*/
+
+/* EXPERIMENT (buddy_fatfs_dir_readahead): directory read-ahead buffer. It holds sectors of one
+/  directory cluster. Each disk_write() of FatFs that overlaps it invalidates it. A remount
+/  changes fs->id. Raw writes outside FatFs (PartialFile) touch only file data clusters. */
+#define FF_DIR_RA_MAX	8
+static BYTE RaBuf[FF_DIR_RA_MAX * FF_MAX_SS];
+static FATFS* RaFs;		/* Volume of the buffer (0: empty) */
+static WORD RaId;		/* Mount ID of the volume */
+static LBA_t RaSect;	/* First sector in the buffer */
+static UINT RaCount;	/* Number of sectors in the buffer */
+
+static DRESULT ff_disk_write (BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
+{
+	if (RaCount && sector < RaSect + RaCount && sector + count > RaSect) RaCount = 0;
+	return disk_write(pdrv, buff, sector, count);
+}
+#define disk_write ff_disk_write
+
 #if !FF_FS_READONLY
 static FRESULT sync_window (	/* Returns FR_OK or FR_DISK_ERR */
 	FATFS* fs			/* Filesystem object */
@@ -1762,6 +1780,82 @@ static FRESULT dir_sdi (	/* FR_OK(0):succeeded, !=0:error */
 
 
 /*-----------------------------------------------------------------------*/
+/* EXPERIMENT: Directory walk helpers (read-ahead, skip of deleted entries) */
+/*-----------------------------------------------------------------------*/
+
+/* Like move_window(fs, dp->sect), but with buddy_fatfs_dir_readahead > 1 it reads up to that
+/  many sectors of the current directory cluster in one disk_read() and serves the next
+/  sectors from RaBuf. */
+static __attribute__((noinline)) FRESULT dir_window_load (
+	DIR* dp		/* Directory object, dp->sect is the sector to load */
+)
+{
+	FATFS *fs = dp->obj.fs;
+	LBA_t sect = dp->sect, end;
+	UINT n = buddy_fatfs_dir_readahead;
+	FRESULT res;
+
+
+	if (n <= 1 || (FF_FS_EXFAT && fs->fs_type == FS_EXFAT)) return move_window(fs, sect);
+	if (n > FF_DIR_RA_MAX) n = FF_DIR_RA_MAX;
+	if (RaCount && RaFs == fs && RaId == fs->id && sect >= RaSect && sect < RaSect + RaCount) {
+		buddy_fatfs_stats.ra_hits++;
+	} else {
+		if (dp->clust == 0) {	/* Static root directory (FAT12/16) */
+			end = fs->dirbase + fs->n_rootdir / (SS(fs) / SZDIRE);
+		} else {
+			end = clst2sect(fs, dp->clust);
+			if (end == 0) return move_window(fs, sect);
+			end += fs->csize;
+		}
+		if (sect >= end) return move_window(fs, sect);
+		if (end - sect < n) n = (UINT)(end - sect);
+		if (n <= 1) return move_window(fs, sect);
+		res = sync_window(fs);	/* A dirty window can hold one of the sectors to read */
+		if (res != FR_OK) return res;
+		RaCount = 0;
+		if (disk_read(fs->pdrv, RaBuf, sect, n) != RES_OK) return FR_DISK_ERR;
+		RaFs = fs; RaId = fs->id; RaSect = sect; RaCount = n;
+		buddy_fatfs_stats.ra_reads++;
+	}
+	res = sync_window(fs);	/* Flush the window (this can invalidate RaBuf) */
+	if (res != FR_OK) return res;
+	if (RaCount == 0) return move_window(fs, sect);
+	memcpy(fs->win, RaBuf + (size_t)(sect - RaSect) * SS(fs), SS(fs));
+	fs->winsect = sect;
+	return FR_OK;
+}
+
+static inline __attribute__((always_inline)) FRESULT dir_window (DIR* dp)
+{
+	return (dp->sect == dp->obj.fs->winsect) ? FR_OK : dir_window_load(dp);	/* Same as move_window() if loaded */
+}
+
+
+/* With buddy_fatfs_skip_deleted, move dp over the deleted entries that follow the current
+/  entry in the same sector. dp->dir must point into the loaded window. The caller then calls
+/  dir_next() as usual. The next sector boundary stops it, thus no FAT or table limit is
+/  crossed. */
+static inline __attribute__((always_inline)) void dir_skip_deleted (
+	DIR* dp
+)
+{
+	DWORD ofs;
+	BYTE* dir;
+
+	if (!buddy_fatfs_skip_deleted) return;
+	ofs = dp->dptr; dir = dp->dir;
+	while ((ofs + SZDIRE) % SS(dp->obj.fs) != 0 && dir[SZDIRE] == DDEM) {
+		ofs += SZDIRE;
+		dir += SZDIRE;
+	}
+	dp->dptr = ofs; dp->dir = dir;
+}
+
+
+
+
+/*-----------------------------------------------------------------------*/
 /* Directory handling - Move directory table index next                  */
 /*-----------------------------------------------------------------------*/
 
@@ -1840,7 +1934,7 @@ static FRESULT dir_alloc (	/* FR_OK(0):succeeded, !=0:error */
 	if (res == FR_OK) {
 		n = 0;
 		do {
-			res = move_window(fs, dp->sect);
+			res = dir_window(dp);	/* EXPERIMENT: was move_window(fs, dp->sect) */
 			if (res != FR_OK) break;
 #if FF_FS_EXFAT
 			if ((fs->fs_type == FS_EXFAT) ? (int)((dp->dir[XDIR_Type] & 0x80) == 0) : (int)(dp->dir[DIR_Name] == DDEM || dp->dir[DIR_Name] == 0)) {	/* Is the entry free? */
@@ -1848,6 +1942,13 @@ static FRESULT dir_alloc (	/* FR_OK(0):succeeded, !=0:error */
 			if (dp->dir[DIR_Name] == DDEM || dp->dir[DIR_Name] == 0) {	/* Is the entry free? */
 #endif
 				if (++n == n_ent) break;	/* Is a block of contiguous free entries found? */
+				if (buddy_fatfs_skip_deleted && !(FF_FS_EXFAT && fs->fs_type == FS_EXFAT)) {	/* EXPERIMENT: count the deleted entries that follow in this sector */
+					while ((dp->dptr + SZDIRE) % SS(fs) != 0 && dp->dir[SZDIRE] == DDEM) {
+						dp->dptr += SZDIRE; dp->dir += SZDIRE;
+						if (++n == n_ent) break;
+					}
+					if (n == n_ent) break;
+				}
 			} else {
 				n = 0;				/* Not a free entry, restart to search */
 			}
@@ -2350,7 +2451,7 @@ static FRESULT dir_read (
 #endif
 
 	while (dp->sect) {
-		res = move_window(fs, dp->sect);
+		res = dir_window(dp);	/* EXPERIMENT: was move_window(fs, dp->sect) */
 		if (res != FR_OK) break;
 		et = dp->dir[DIR_Name];	/* Test for the entry type */
 		if (et == 0) {
@@ -2377,6 +2478,7 @@ static FRESULT dir_read (
 #if FF_USE_LFN		/* LFN configuration */
 			if (et == DDEM || et == '.' || (int)((attr & ~AM_ARC) == AM_VOL) != vol) {	/* An entry without valid data */
 				ord = 0xFF;
+				dir_skip_deleted(dp);	/* EXPERIMENT */
 			} else {
 				if (attr == AM_LFN) {	/* An LFN entry is found */
 					if (et & LLEF) {		/* Is it start of an LFN sequence? */
@@ -2412,6 +2514,168 @@ static FRESULT dir_read (
 
 
 /*-----------------------------------------------------------------------*/
+/* EXPERIMENT: Name cache (buddy_fatfs_name_cache)                        */
+/*-----------------------------------------------------------------------*/
+/* The cache holds 16-bit hashes of all names in one directory: the SFN of each entry and the
+/  LFN of each LFN set that dir_find() can match. dir_find() makes it when it scans the
+/  directory from the start to the end marker. dir_register() adds the new names. A removed
+/  name stays in the cache (it only makes a hash match, then dir_find() scans as usual).
+/  If no hash of the name to find is in the cache, dir_find() gives FR_NO_FILE with no read.
+/  The hash of an LFN uses each character after ff_wtoupper() and its position, thus two names
+/  that cmp_lfn() finds equal have the same hash. All access is under the volume lock. */
+
+#define NC_MAX	384		/* Number of hashes (2 bytes each) */
+
+static struct {
+	FATFS*	fs;			/* Volume (0: none) */
+	WORD	id;			/* Mount ID of the volume */
+	BYTE	valid;		/* 1: the hashes cover all names of the directory */
+	DWORD	sclust;		/* Start cluster of the directory (0: root) */
+	UINT	n;			/* Number of hashes */
+	WORD	h[NC_MAX];
+} Nc;
+
+static void nc_drop (void)
+{
+	if (Nc.valid) buddy_fatfs_stats.nc_drops++;
+	Nc.valid = 0;
+	Nc.fs = 0;
+}
+
+static DWORD nc_mix (DWORD x)
+{
+	x ^= x >> 16; x *= 0x7FEB352DUL;
+	x ^= x >> 15; x *= 0x846CA68BUL;
+	x ^= x >> 16;
+	return x;
+}
+
+static DWORD nc_lfn_chr (UINT i, WCHAR c)	/* Hash part of one LFN character at position i */
+{
+	DWORD u = (c < 0x80) ? ((c >= 'a' && c <= 'z') ? c - 0x20 : c) : (ff_wtoupper(c) & 0xFFFF);	/* = ff_wtoupper() for ASCII */
+	return nc_mix(((DWORD)i << 16 | u) + 0x9E3779B9UL);
+}
+
+static WORD nc_lfn_end (DWORD acc, UINT len)	/* Hash of an LFN from the sum of its character parts */
+{
+	DWORD h = nc_mix(acc + nc_mix(len + 0x4C464E00UL));
+	return (WORD)(h ^ h >> 16);
+}
+
+static WORD nc_lfn (const WCHAR* lfn)	/* Hash of a null-terminated LFN */
+{
+	DWORD acc = 0;
+	UINT i;
+
+	for (i = 0; lfn[i]; i++) acc += nc_lfn_chr(i, lfn[i]);
+	return nc_lfn_end(acc, i);
+}
+
+static WORD nc_sfn (const BYTE* sfn)	/* Hash of the 11 bytes of an SFN */
+{
+	DWORD h = 0x53464E00UL;
+	UINT i;
+
+	for (i = 0; i < 11; i++) h = nc_mix(h + sfn[i]);
+	return (WORD)(h ^ h >> 16);
+}
+
+static int nc_add (WORD h)	/* 1: added, 0: no space */
+{
+	if (Nc.n >= NC_MAX) return 0;
+	Nc.h[Nc.n++] = h;
+	return 1;
+}
+
+static int nc_has (WORD h)
+{
+	UINT i;
+
+	for (i = 0; i < Nc.n; i++) {
+		if (Nc.h[i] == h) return 1;
+	}
+	return 0;
+}
+
+static int nc_valid_for (const DIR* dp)	/* 1: the cache is valid for the directory of dp */
+{
+	return Nc.valid && Nc.fs == dp->obj.fs && Nc.id == dp->obj.fs->id && Nc.sclust == dp->obj.sclust;
+}
+
+/* State of a cache build during one dir_find() scan */
+typedef struct {
+	BYTE	on;			/* 1: building */
+	BYTE	unsafe;		/* 1: an LFN entry that the hash cannot represent was found */
+	BYTE	lfn;		/* 1: in an LFN set that can still match */
+	BYTE	ord;		/* Next expected LFN order */
+	BYTE	sum;		/* SFN checksum of the LFN set */
+	UINT	len;		/* Length of the LFN */
+	DWORD	acc;		/* Sum of the character parts of the LFN */
+} NC_BUILD;
+
+/* Add one entry to the build. It follows the same rules as dir_find() and cmp_lfn(). */
+static void nc_build_entry (NC_BUILD* b, const BYTE* dir)
+{
+	BYTE et = dir[DIR_Name], attr = dir[DIR_Attr] & AM_MASK;
+	UINT i, di, last;
+	WCHAR pc, c;
+
+
+	if (et == DDEM || ((attr & AM_VOL) && attr != AM_LFN)) {	/* Deleted entry or volume label */
+		b->lfn = 0;
+		return;
+	}
+	if (attr == AM_LFN) {
+		last = (et & LLEF) != 0;
+		if (last) {						/* Start of an LFN set */
+			et &= (BYTE)~LLEF;
+			b->lfn = 1; b->ord = et; b->sum = dir[LDIR_Chksum]; b->acc = 0; b->len = 0;
+		}
+		if (!b->lfn || et != b->ord || et == 0 || b->sum != dir[LDIR_Chksum] || ld_16(dir + LDIR_FstClusLO) != 0) {
+			b->lfn = 0;					/* dir_find() cannot match this set */
+			return;
+		}
+		i = (UINT)(et - 1) * 13;
+		for (pc = 1, di = 0; di < 13; di++) {
+			c = ld_16(dir + LfnOfs[di]);
+			if (pc != 0) {
+				if (i >= FF_MAX_LFN + 1) { b->lfn = 0; return; }	/* cmp_lfn() fails */
+				if (c == 0) {
+					if (!last) b->unsafe = 1;	/* Terminator in a middle entry */
+					b->len = i;
+				} else {
+					b->acc += nc_lfn_chr(i, c);
+				}
+				i++;
+				pc = c;
+			} else {
+				if (c != 0xFFFF) { b->lfn = 0; return; }	/* cmp_lfn() fails */
+			}
+		}
+		if (last && pc != 0) b->len = i;	/* No terminator: the name fills the entry */
+		b->ord = et - 1;
+		return;
+	}
+	/* SFN entry */
+	if (!nc_add(nc_sfn(dir))) b->on = 0;
+	if (b->on && b->lfn && b->ord == 0 && b->sum == sum_sfn(dir)) {
+		if (!nc_add(nc_lfn_end(b->acc, b->len))) b->on = 0;
+	}
+	b->lfn = 0;
+}
+
+/* dir_register() has made an entry for dp->fn (and the LFN in fs->lfnbuf if has_lfn).
+/  This runs also when the switch is off, thus the cache stays correct if it is set again. */
+static void nc_register (DIR* dp, int has_lfn)
+{
+	if (!nc_valid_for(dp)) return;
+	if (!nc_add(nc_sfn(dp->fn)) || (has_lfn && !nc_add(nc_lfn(dp->obj.fs->lfnbuf)))) nc_drop();
+}
+
+
+
+
+/*-----------------------------------------------------------------------*/
 /* Directory handling - Find an object in the directory                  */
 /*-----------------------------------------------------------------------*/
 
@@ -2424,6 +2688,7 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 	BYTE et;
 #if FF_USE_LFN
 	BYTE attr, ord, sum;
+	NC_BUILD nb;	/* EXPERIMENT: name cache build */
 #endif
 
 	res = dir_sdi(dp, 0);			/* Rewind directory object */
@@ -2451,16 +2716,43 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 	/* On the FAT/FAT32 volume */
 #if FF_USE_LFN
 	ord = sum = 0xFF; dp->blk_ofs = 0xFFFFFFFF;	/* Reset LFN sequence */
+	nb.on = 0;
+	if (buddy_fatfs_name_cache) {	/* EXPERIMENT: name cache */
+		if (nc_valid_for(dp)) {
+			if (!((!(dp->fn[NSFLAG] & NS_NOLFN) && nc_has(nc_lfn(fs->lfnbuf)))
+				|| (!(dp->fn[NSFLAG] & NS_LOSS) && nc_has(nc_sfn(dp->fn))))) {
+				buddy_fatfs_stats.nc_hits++;
+				return FR_NO_FILE;	/* No name in the directory has this hash */
+			}
+			buddy_fatfs_stats.nc_maybe++;
+		} else {					/* Make the cache in this scan */
+			Nc.valid = 0; Nc.fs = fs; Nc.id = fs->id; Nc.sclust = dp->obj.sclust; Nc.n = 0;
+			nb.on = 1; nb.unsafe = 0; nb.lfn = 0; nb.ord = 0; nb.sum = 0; nb.len = 0; nb.acc = 0;
+		}
+	}
 #endif
 	do {
-		res = move_window(fs, dp->sect);
+		res = dir_window(dp);	/* EXPERIMENT: was move_window(fs, dp->sect) */
 		if (res != FR_OK) break;
 		et = dp->dir[DIR_Name];		/* Entry type */
-		if (et == 0) { res = FR_NO_FILE; break; }	/* Reached end of directory table */
+		if (et == 0) {				/* Reached end of directory table */
+			res = FR_NO_FILE;
+#if FF_USE_LFN
+			if (nb.on && !nb.unsafe) {	/* EXPERIMENT: the cache has all names now */
+				Nc.valid = 1;
+				buddy_fatfs_stats.nc_builds++;
+			}
+#endif
+			break;
+		}
 #if FF_USE_LFN		/* LFN configuration */
+		if (nb.on) {	/* EXPERIMENT */
+			if (et == DDEM) nb.lfn = 0; else nc_build_entry(&nb, dp->dir);
+		}
 		dp->obj.attr = attr = dp->dir[DIR_Attr] & AM_MASK;
 		if (et == DDEM || ((attr & AM_VOL) && attr != AM_LFN)) {	/* An entry without valid data */
 			ord = 0xFF; dp->blk_ofs = 0xFFFFFFFF;	/* Reset LFN sequence */
+			dir_skip_deleted(dp);	/* EXPERIMENT */
 		} else {
 			if (attr == AM_LFN) {			/* Is it an LFN entry? */
 				if (!(dp->fn[NSFLAG] & NS_NOLFN)) {
@@ -2593,6 +2885,7 @@ static FRESULT dir_register (	/* FR_OK:succeeded, FR_DENIED:no free entry or too
 			memcpy(dp->dir + DIR_Name, dp->fn, 11);	/* Put SFN */
 #if FF_USE_LFN
 			dp->dir[DIR_NTres] = dp->fn[NSFLAG] & (NS_BODY | NS_EXT);	/* Put low-case flags */
+			nc_register(dp, (sn[NSFLAG] & NS_LFN) != 0);	/* EXPERIMENT: name cache */
 #endif
 			fs->wflag = 1;
 		}
@@ -3511,6 +3804,8 @@ static FRESULT mount_volume (	/* FR_OK(0): successful, !=0: an error occurred */
 	/* Following code attempts to mount the volume. (find an FAT volume, analyze the BPB and initialize the filesystem object) */
 
 	fs->fs_type = 0;					/* Invalidate the filesystem object */
+	RaCount = 0;						/* EXPERIMENT: drop the directory read-ahead */
+	nc_drop();							/* EXPERIMENT: drop the name cache */
 	stat = disk_initialize(fs->pdrv);	/* Initialize the volume hosting physical drive */
 	if (stat & STA_NOINIT) { 			/* Check if the initialization succeeded */
 		return FR_NOT_READY;			/* Failed to initialize due to no medium or hard error */
@@ -5140,6 +5435,7 @@ FRESULT f_unlink (
 				dclst = ld_clust(fs, dj.dir);
 			}
 			if (dj.obj.attr & AM_DIR) {		/* Is the object a sub-directory? */
+				nc_drop();	/* EXPERIMENT: drop the name cache (it can be for this directory) */
 #if FF_FS_RPATH
 				if (dclst == fs->cdir) {
 					res = FR_DENIED;		/* Current directory cannot be removed */
@@ -5210,6 +5506,7 @@ FRESULT f_mkdir (
 		if (res == FR_NO_FILE) {				/* It is clear to create a new directory */
 			sobj.fs = fs;						/* New object ID to create a new chain */
 			dcl = create_chain(&sobj, 0);		/* Allocate a cluster for the new directory */
+			nc_drop();	/* EXPERIMENT: the cache can be for a removed directory at this cluster */
 			res = FR_OK;
 			if (dcl == 0) res = FR_DENIED;		/* No space to allocate a new cluster? */
 			if (dcl == 1) res = FR_INT_ERR;		/* Any insanity? */

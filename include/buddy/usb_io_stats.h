@@ -50,6 +50,27 @@ __attribute__((weak)) volatile uint32_t buddy_usbh_msc_wait_ms = 500;
 /// is a full directory scan). Stock: 5. Switch "h" (h1: 0, hash right away).
 __attribute__((weak)) volatile uint32_t buddy_fatfs_numname_hash_after = 5;
 
+/// FatFs directory lookups (ff.c, FAT/FAT32 only). All 0 = stock R0.16 behaviour.
+/// Skip runs of deleted entries inside a sector without dir_next() (dir_find, dir_read, dir_alloc).
+__attribute__((weak)) volatile uint32_t buddy_fatfs_skip_deleted = 0;
+/// Directory read-ahead: sectors per read while dir_find/dir_read/dir_alloc walk a directory
+/// (0 or 1: off, max FF_DIR_RA_MAX in ff.c). It never reads past the current cluster.
+__attribute__((weak)) volatile uint32_t buddy_fatfs_dir_readahead = 0;
+/// Name cache: hashes of all names in the last directory that dir_find scanned to its end.
+/// dir_find answers "no such name" from it without disk reads.
+__attribute__((weak)) volatile uint32_t buddy_fatfs_name_cache = 0;
+
+struct buddy_fatfs_stats {
+    // all written under the FatFs volume lock
+    uint32_t nc_builds; ///< full scans that made the name cache valid
+    uint32_t nc_hits; ///< lookups answered "not present" with no disk read
+    uint32_t nc_maybe; ///< lookups the cache could not answer (name hash present: normal scan)
+    uint32_t nc_drops; ///< cache invalidations (mount, mkdir, rmdir, too many names, unusual LFN)
+    uint32_t ra_reads; ///< read-ahead disk reads
+    uint32_t ra_hits; ///< directory sectors served from the read-ahead buffer
+};
+__attribute__((weak)) struct buddy_fatfs_stats buddy_fatfs_stats;
+
 #ifdef __cplusplus
 }
 #endif

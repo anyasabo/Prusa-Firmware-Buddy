@@ -6,9 +6,17 @@
 #include <buddy/usb_io_stats.h>
 #include <heap.h>
 #include <timing.h>
+#if __has_include(<logging/log.hpp>) // not in the host test
+    #include <logging/log.hpp>
+    #define UPX_HAS_LOG 1
+#endif
 
 #include <cstdlib>
 #include <cstring>
+
+#ifdef UPX_HAS_LOG
+LOG_COMPONENT_REF(WUI);
+#endif
 
 namespace upload_experiment {
 
@@ -137,7 +145,23 @@ UsbSnapshot UsbSnapshot::now() {
     return s;
 }
 
+namespace {
+    uint32_t uploads_done = 0; // cumulative (field u of net_cnt2)
+} // namespace
+
 void record_timing() {
+    ++uploads_done;
+    // One log line for each upload with the main values: a metric keeps only the last upload of
+    // each 30 s scrape (EXPERIMENT, metrics survey E6).
+#ifdef UPX_HAS_LOG
+    log_info(WUI, "upload %u: chk %u ms, cre %u, rdy %u, fin %u, check_req %u, prep_req %u, fin_req %u, rename_req %u, nc b%u h%u m%u",
+        static_cast<unsigned>(uploads_done), static_cast<unsigned>(timing.chk_ms), static_cast<unsigned>(timing.cre_ms),
+        static_cast<unsigned>(timing.rdy_ms), static_cast<unsigned>(timing.fin_ms), static_cast<unsigned>(timing.check_usb_req),
+        static_cast<unsigned>(timing.prep_usb_req), static_cast<unsigned>(timing.fin_usb_req), static_cast<unsigned>(timing.rename_req),
+        static_cast<unsigned>(UsbSnapshot::now().nc_builds - timing.usb_at_start.nc_builds),
+        static_cast<unsigned>(UsbSnapshot::now().nc_hits - timing.usb_at_start.nc_hits),
+        static_cast<unsigned>(UsbSnapshot::now().nc_maybe - timing.usb_at_start.nc_maybe));
+#endif
     METRIC_DEF(metric_upx_t, "upx_t", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_upx_f, "upx_f", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_upx_u, "upx_u", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
@@ -199,7 +223,33 @@ namespace {
     LatStats lat_last[2];
 } // namespace
 
+// EXPERIMENT (metrics survey E1): the cumulative counters behind usb_io* and net_lat. A scrape each
+// 30 s keeps one value, and a counter loses nothing: use rate() or increase(). Each 5 s.
+static void report_cumulative() {
+    static uint32_t last_ms = 0;
+    const uint32_t now = ticks_ms();
+    if (now - last_ms < 5000) {
+        return;
+    }
+    last_ms = now;
+    const struct buddy_usb_stats u = buddy_usb_stats;
+    const auto v = [](uint32_t x) { return static_cast<unsigned>(x); };
+    METRIC_DEF(metric_usb_cnt, "usb_cnt", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_usb_cnt2, "usb_cnt2", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_usb_cnt3, "usb_cnt3", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_net_cnt, "net_cnt", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    METRIC_DEF(metric_net_cnt2, "net_cnt2", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    // 3 fields of 10 digits are 45 characters (limit 47).
+    metric_record_custom(&metric_usb_cnt, " r=%ui,w=%ui,t=%ui", v(u.reads), v(u.writes), v(u.busy_ms));
+    metric_record_custom(&metric_usb_cnt2, " s=%ui,x=%ui,o=%ui", v(u.sectors), v(u.errors), v(u.wait_timeouts));
+    metric_record_custom(&metric_usb_cnt3, " l=%ui,c=%ui,d=%ui", v(u.slow), v(u.lock_waits), v(u.lock_wait_ms));
+    const LatStats w = lat[0], q = lat[1];
+    metric_record_custom(&metric_net_cnt, " e=%ui,w=%ui,n=%ui", v(w.count), v(w.sum), v(q.count));
+    metric_record_custom(&metric_net_cnt2, " q=%ui,u=%ui", v(q.sum), v(uploads_done));
+}
+
 void report_net_lat() {
+    report_cumulative();
     static uint32_t last_ms = 0;
     const uint32_t now = ticks_ms();
     if (now - last_ms < 1000) {

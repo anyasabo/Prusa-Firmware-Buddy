@@ -41,6 +41,7 @@ EndBSPDependencies */
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbh_msc.h"
+#include <buddy/usb_io_stats.h> /* EXPERIMENT */
 #include "usbh_msc_bot.h"
 #include "usbh_msc_scsi.h"
 #include <buddy/filesystem_semihosting.h>
@@ -900,7 +901,12 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
     if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
         USBH_LL_GetURBState(phost, MSC_Handle->InPipe) != USBH_URB_DONE)
     {
-      ulTaskNotifyTake(pdFALSE, 500 / portTICK_PERIOD_MS);
+      /* EXPERIMENT: buddy_usbh_msc_wait_ms (stock 500), count timeouts */
+      const uint32_t wait_ms = buddy_usbh_msc_wait_ms;
+      const TickType_t wait_ticks = wait_ms / portTICK_PERIOD_MS;
+      if (ulTaskNotifyTake(pdFALSE, wait_ticks > 0 ? wait_ticks : 1) == 0) {
+        buddy_usb_stats.wait_timeouts++;
+      }
     }
 
     uint32_t elapsed_ticks = ticks_ms() - timeout;
@@ -984,7 +990,12 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
     if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
         USBH_LL_GetURBState(phost, MSC_Handle->InPipe) != USBH_URB_DONE)
     {
-      ulTaskNotifyTake(pdFALSE, 500 / portTICK_PERIOD_MS);
+      /* EXPERIMENT: buddy_usbh_msc_wait_ms (stock 500), count timeouts */
+      const uint32_t wait_ms = buddy_usbh_msc_wait_ms;
+      const TickType_t wait_ticks = wait_ms / portTICK_PERIOD_MS;
+      if (ulTaskNotifyTake(pdFALSE, wait_ticks > 0 ? wait_ticks : 1) == 0) {
+        buddy_usb_stats.wait_timeouts++;
+      }
     }
 
     uint32_t elapsed_ticks = ticks_ms() - timeout;

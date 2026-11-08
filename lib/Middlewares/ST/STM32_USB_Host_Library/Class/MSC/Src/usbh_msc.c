@@ -721,7 +721,7 @@ uint8_t USBH_MSC_IsReady(USBH_HandleTypeDef *phost)
   MSC_HandleTypeDef *MSC_Handle;
   uint8_t res = 0U;
 
-  if (phost->pActiveClass != NULL)
+  if ((phost->pActiveClass != NULL) && (phost->pActiveClassData != NULL))
   {
     MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
@@ -744,7 +744,7 @@ uint8_t USBH_MSC_GetMaxLUN(USBH_HandleTypeDef *phost)
 {
   MSC_HandleTypeDef *MSC_Handle;
 
-  if (phost->pActiveClass != NULL)
+  if ((phost->pActiveClass != NULL) && (phost->pActiveClassData != NULL))
   {
     MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
@@ -769,12 +769,9 @@ uint8_t USBH_MSC_UnitIsReady(USBH_HandleTypeDef *phost, uint8_t lun)
   MSC_HandleTypeDef *MSC_Handle;
   uint8_t res = 0U;
 
-  if (phost->pActiveClass != NULL)
+  if ((phost->pActiveClass != NULL) && (phost->pActiveClassData != NULL))
   {
     MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
-
-    /* Store the current lun */
-    MSC_Handle->current_lun = lun;
 
     if ((phost->gState == HOST_CLASS) && (MSC_Handle->unit[lun].error == MSC_OK))
     {
@@ -796,12 +793,9 @@ USBH_StatusTypeDef USBH_MSC_GetLUNInfo(USBH_HandleTypeDef *phost, uint8_t lun, M
 {
   MSC_HandleTypeDef *MSC_Handle;
 
-  if (phost->pActiveClass != NULL)
+  if ((phost->pActiveClass != NULL) && (phost->pActiveClassData != NULL))
   {
     MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
-
-    /* Store the current lun */
-    MSC_Handle->current_lun = lun;
 
     if (phost->gState == HOST_CLASS)
     {
@@ -849,10 +843,12 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
 
   MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
-  /* Store the current lun */
-  MSC_Handle->current_lun = lun;
-
-  if ((phost->device.PortEnabled == 0U) ||
+  /* Prusa: do not store lun in current_lun. Only the start state machine
+     (MSC_INIT) uses current_lun. A store from another task between two
+     steps of MSC_INIT makes it repeat a LUN that is done, and it does not
+     stop. */
+  if ((MSC_Handle == NULL) ||
+      (phost->device.PortEnabled == 0U) ||
       (phost->device.is_connected == 0U) ||
       (phost->gState != HOST_CLASS) ||
       (MSC_Handle->unit[lun].state != MSC_IDLE) ||
@@ -928,10 +924,12 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
 
   MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
-  /* Store the current lun */
-  MSC_Handle->current_lun = lun;
-
-  if ((phost->device.PortEnabled == 0U) ||
+  /* Prusa: do not store lun in current_lun. Only the start state machine
+     (MSC_INIT) uses current_lun. A store from another task between two
+     steps of MSC_INIT makes it repeat a LUN that is done, and it does not
+     stop. */
+  if ((MSC_Handle == NULL) ||
+      (phost->device.PortEnabled == 0U) ||
       (phost->device.is_connected == 0U) ||
       (phost->gState != HOST_CLASS) ||
       (MSC_Handle->unit[lun].state != MSC_IDLE) ||

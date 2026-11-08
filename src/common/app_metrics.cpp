@@ -265,8 +265,12 @@ void RecordMarlinVariables() {
     const uint32_t plan_count = PreciseStepping::planner_block_count.load(std::memory_order_relaxed);
     metric_record_integer(&metric_planner_block_count, plan_count);
 
-    const uint8_t plan_min = PreciseStepping::planner_min_depth.exchange(UINT8_MAX, std::memory_order_relaxed);
-    metric_record_integer(&metric_planner_min_depth, plan_min);
+    // Reset the minimum only when it records. Else each loop pass resets it, and the value covers
+    // one pass, not the window of the metric.
+    if (metric_record_is_due(&metric_planner_min_depth)) {
+        const uint8_t plan_min = PreciseStepping::planner_min_depth.exchange(UINT8_MAX, std::memory_order_relaxed);
+        metric_record_integer(&metric_planner_min_depth, plan_min);
+    }
 
     metric_record_integer(&metric_planner_unoptimized, PreciseStepping::planner_unoptimized_count.load(std::memory_order_relaxed));
 

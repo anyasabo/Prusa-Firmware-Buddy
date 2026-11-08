@@ -1,4 +1,6 @@
 #include <selftest_fans.hpp>
+
+#include <algorithm>
 #include <option/xbuddy_extension_variant.h>
 #if XBUDDY_EXTENSION_VARIANT_IS_STANDARD()
     #include <feature/xbuddy_extension/xbuddy_extension.hpp>
@@ -45,6 +47,7 @@ void FanHandler::reset_samples() {
     sample_count = 0;
     sample_sum = 0;
     avg_rpm = 0;
+    sample_min = UINT16_MAX;
 }
 
 TestResult FanHandler::test_result() const {
@@ -66,8 +69,10 @@ void CommonFanHandler::set_pwm(uint8_t pwm) {
 }
 
 void CommonFanHandler::record_sample() {
+    const uint16_t rpm = fan->get_actual_rpm();
     sample_count++;
-    sample_sum += fan->get_actual_rpm();
+    sample_sum += rpm;
+    sample_min = std::min(sample_min, rpm);
 }
 
 #if XBUDDY_EXTENSION_VARIANT_IS_STANDARD()

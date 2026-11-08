@@ -3,6 +3,7 @@
 #include <fanctl/CFanCtlCommon.hpp>
 #include <option/has_switched_fan_test.h>
 #include <array>
+#include <cstdint>
 #include <span>
 #include <selftest_fans_config.hpp>
 #include <utils/enum_array.hpp>
@@ -105,6 +106,8 @@ public:
     bool is_failed() const { return failed; }
     void set_failed(const bool set) { failed = set; }
     uint16_t get_avg_rpm() const { return avg_rpm; }
+    /// Lowest recorded sample since reset_samples(). UINT16_MAX if there is no sample.
+    uint16_t get_min_sample() const { return sample_min; }
     FanType get_type() const { return fan_type; }
     FanRPMRange get_range() const { return fan_range; }
     void set_range(const FanRPMRange new_range) { fan_range = new_range; }
@@ -120,6 +123,7 @@ protected:
     uint16_t sample_count { 0 };
     uint32_t sample_sum { 0 };
     uint16_t avg_rpm { 0 };
+    uint16_t sample_min { UINT16_MAX };
 };
 
 class CommonFanHandler : public FanHandler {

@@ -77,18 +77,17 @@ constexpr uint32_t show_results_delay = 4000;
 
 // Low-speed print fan test (fork experiment). A print uses the slow dynamic PWM periods at low
 // print fan speeds (CFanCtl3WireDynamic), and users report print fan errors there.
-#define HAS_LOW_SPEED_PRINT_FAN_TEST() ((PRINTER_IS_PRUSA_MK4() || PRINTER_IS_PRUSA_COREONE() || PRINTER_IS_PRUSA_COREONEL()) && !HAS_INDX())
-#if HAS_LOW_SPEED_PRINT_FAN_TEST()
-/// Start from 0% at this speed. The result must be above the RPM limit of a print.
-/// 15% is the lowest min_fan_speed in the Prusa CORE One filament presets (PC). It uses the
-/// 4 Hz dynamic PWM period.
-constexpr uint8_t low_speed_test_percent = 15;
-constexpr uint32_t wait_rpm_low_speed_delay = 3000;
-constexpr uint32_t measure_rpm_low_speed_delay = measure_rpm_delay;
-/// Then go down from 40% in these steps without a stop, and only log the RPM.
+#define LOW_SPEED_PRINT_FAN_TEST_ENABLED() ((PRINTER_IS_PRUSA_MK4() || PRINTER_IS_PRUSA_COREONE() || PRINTER_IS_PRUSA_COREONEL()) && !HAS_INDX())
+#if LOW_SPEED_PRINT_FAN_TEST_ENABLED()
+/// Go down from 40% in these steps without a stop. Log the RPM. Check the 15% value.
 constexpr std::array<uint8_t, 6> low_speed_sweep_percent { 35, 30, 25, 20, 15, 10 };
 constexpr uint32_t wait_rpm_sweep_delay = 3000;
-constexpr uint32_t measure_rpm_sweep_delay = 3000;
+constexpr uint32_t measure_rpm_sweep_delay = 6000; // shared tach: about 3 updates of each fan
+/// Then start from 0% at this speed. 15% is the lowest min_fan_speed in the Prusa CORE One
+/// filament presets (PC). It uses the 4 Hz dynamic PWM period.
+constexpr uint8_t low_speed_test_percent = 15;
+constexpr uint32_t wait_rpm_low_speed_delay = 10000; // the full-power start must be over
+constexpr uint32_t measure_rpm_low_speed_delay = 6000;
 #endif
 
 constexpr uint32_t full_time_estimate
@@ -97,7 +96,7 @@ constexpr uint32_t full_time_estimate
     + wait_rpm_0_percent_delay
     + wait_rpm_40_percent_delay
     + measure_rpm_40_percent_delay
-#if HAS_LOW_SPEED_PRINT_FAN_TEST()
+#if LOW_SPEED_PRINT_FAN_TEST_ENABLED()
     + low_speed_sweep_percent.size() * (wait_rpm_sweep_delay + measure_rpm_sweep_delay)
     + wait_rpm_0_percent_delay
     + wait_rpm_low_speed_delay
@@ -213,7 +212,7 @@ public:
         measure(measure_rpm_40_percent_delay);
         evaluate();
 #endif
-#if HAS_LOW_SPEED_PRINT_FAN_TEST()
+#if LOW_SPEED_PRINT_FAN_TEST_ENABLED()
         run_low_speed_print_fan_test();
 #endif
         finish_and_show_results();
@@ -234,47 +233,62 @@ private:
         }
     }
 
-#if HAS_LOW_SPEED_PRINT_FAN_TEST()
-    /// Runs only the print fans at \p pwm, and stops the other fans.
-    void set_up_print_fan_measurement(const uint8_t pwm) {
+#if LOW_SPEED_PRINT_FAN_TEST_ENABLED()
+    /// Runs the print fans at \p pwm and the heatbreak fans at 100%. Stops the other fans.
+    /// The heatbreak fan must run: the hotend can be hot. The shared tach measures one fan at a
+    /// time, so the heatbreak fan does not change the print fan reading.
+    void set_up_low_speed_measurement(const uint8_t pwm) {
         for (auto *fan : fans) {
-            fan->set_pwm(fan->get_type() == FanType::print ? pwm : 0);
+            switch (fan->get_type()) {
+            case FanType::print:
+                fan->set_pwm(pwm);
+                break;
+            case FanType::heatbreak:
+                fan->set_pwm(pwm_100_percent);
+                break;
+            default:
+                fan->set_pwm(0);
+                break;
+            }
             fan->reset_samples();
         }
     }
 
+    /// A print gives a print fan error on one filtered RPM value under FANCTLPRINT_RPM_MIN
+    /// (CFanCtl3Wire::get_rpm_is_ok, no debounce). So check the lowest sample, not the average.
+    void check_print_fans(const char *step, uint8_t percent, bool evaluate) {
+        for (auto *fan : fans) {
+            if (fan->get_type() != FanType::print) {
+                continue;
+            }
+            const uint16_t min_rpm = fan->get_min_sample();
+            const bool ok = min_rpm >= FANCTLPRINT_RPM_MIN;
+            log_info(Selftest, "print fan %c: %s %u%%: RPM avg %u min %u%s", '0' + fan->get_desc_num(), step, percent,
+                fan->calculate_avg_rpm(), min_rpm, evaluate ? (ok ? " ok" : " LOW-SPEED FAIL") : "");
+            if (evaluate && !ok) {
+                fan->set_failed(true);
+            }
+        }
+    }
+
     /// The print fans run at 40% now. Two parts:
-    /// 1. Go down in steps without a stop, and log the RPM. This is how a print lowers the fan speed.
-    /// 2. Stop the fans, then start the print fans at low_speed_test_percent. The RPM must be above
-    ///    FANCTLPRINT_RPM_MIN, the limit that gives a print fan error during a print.
+    /// 1. Go down in steps without a stop, as a print does. Log the RPM. Check the 15% step.
+    /// 2. Stop the print fans, then start them at low_speed_test_percent. Check the RPM after the
+    ///    full-power start.
     void run_low_speed_print_fan_test() {
         for (const uint8_t percent : low_speed_sweep_percent) {
-            set_up_print_fan_measurement(percentage_to_pwm(percent));
+            set_up_low_speed_measurement(percentage_to_pwm(percent));
             wait(wait_rpm_sweep_delay);
             measure(measure_rpm_sweep_delay);
-            for (auto *fan : fans) {
-                if (fan->get_type() == FanType::print) {
-                    log_info(Selftest, "print fan %c: sweep down %u%%: RPM %u", '0' + fan->get_desc_num(), percent, fan->calculate_avg_rpm());
-                }
-            }
+            check_print_fans("sweep down", percent, percent == low_speed_test_percent);
         }
 
-        set_up_measurement(0);
+        set_up_low_speed_measurement(0);
         wait(wait_rpm_0_percent_delay);
-        for (auto *fan : fans) {
-            if (fan->get_type() == FanType::print) {
-                fan->set_range({ .rpm_min = FANCTLPRINT_RPM_MIN, .rpm_max = current_print_fan_range().rpm_max });
-            }
-        }
-        log_info(Selftest, "print fan: start from 0%% at %u%%", low_speed_test_percent);
-        set_up_print_fan_measurement(percentage_to_pwm(low_speed_test_percent));
+        set_up_low_speed_measurement(percentage_to_pwm(low_speed_test_percent));
         wait(wait_rpm_low_speed_delay);
         measure(measure_rpm_low_speed_delay);
-        for (auto *fan : fans) {
-            if (fan->get_type() == FanType::print) {
-                fan->evaluate();
-            }
-        }
+        check_print_fans("start from 0% at", low_speed_test_percent, true);
     }
 #endif
 

@@ -13,6 +13,7 @@
 #include "knob_event.hpp"
 #include "marlin_client.hpp"
 #include <timing.h>
+#include <buddy/cpu_prof.h> // EXPERIMENT
 #include <utils/timing/rate_limiter.hpp>
 #include <logging/log.hpp>
 #include "display_hw_checks.hpp"
@@ -149,6 +150,7 @@ void gui_redraw(void) {
     bool should_sleep = true;
     if (gui_invalid) {
         if (gui_redraw_timer.check(now)) {
+            cpu_prof::Scope s(cpu_prof::Section::draw); // EXPERIMENT
             Screens::Access()->Draw();
             gui_invalid = false;
             should_sleep = false;
@@ -156,7 +158,10 @@ void gui_redraw(void) {
     }
 
     if (should_sleep) {
-        uint32_t sleep = std::clamp(gui_redraw_timer.remaining_cooldown(now), GUI_DELAY_MIN, GUI_DELAY_MAX);
+        // EXPERIMENT: M9959 sets the minimum (stock GUI_DELAY_MIN = 1 ms: a 1 kHz loop at idle).
+        const uint32_t delay_wanted = buddy_gui_delay_min;
+        const uint32_t delay_min = std::clamp(delay_wanted, GUI_DELAY_MIN, GUI_DELAY_MAX);
+        uint32_t sleep = std::clamp(gui_redraw_timer.remaining_cooldown(now), delay_min, GUI_DELAY_MAX);
         osDelay(sleep);
     }
 }
@@ -225,7 +230,10 @@ void gui_loop(void) {
 #endif
 
 #if HAS_ANFC()
-    buddy::openprinttag::gui_loop_opt();
+    {
+        cpu_prof::Scope s(cpu_prof::Section::opt); // EXPERIMENT
+        buddy::openprinttag::gui_loop_opt();
+    }
 #endif
 
     --guiloop_nesting;

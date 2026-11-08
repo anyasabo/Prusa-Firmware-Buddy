@@ -391,6 +391,10 @@ bool GcodeSuite::process_parsed_command_custom(bool no_ok) {
             PrusaGcodeSuite::M9933();
             break;
 
+        case 9959: // EXPERIMENT
+            PrusaGcodeSuite::M9959();
+            break;
+
 #if HAS_LOCAL_ACCELEROMETER() || HAS_REMOTE_ACCELEROMETER()
         case 9958: // EXPERIMENT
             PrusaGcodeSuite::M9958();

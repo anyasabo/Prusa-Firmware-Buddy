@@ -93,9 +93,10 @@
         SEGGER_SYSVIEW_OnIdle();                           \
     } else {                                               \
         SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB); \
-    }
+    }                                                      \
+    buddy_prof_switched_in(pxCurrentTCB) /* EXPERIMENT: cpu_prof.h */
 
-#define traceTASK_SWITCHED_OUT()
+#define traceTASK_SWITCHED_OUT() buddy_prof_switched_out(pxCurrentTCB) /* EXPERIMENT: cpu_prof.h */
 
 #define traceTASK_CREATE(tcb)                              \
     static int __task_counter = 0;                         \
@@ -119,6 +120,14 @@ extern "C"
     #endif
     uint32_t
     buddy_run_time_counter(void);
+    #ifdef __cplusplus
+extern "C" {
+    #endif
+void buddy_prof_switched_in(void *tcb); // EXPERIMENT: cpu_prof.h
+void buddy_prof_switched_out(void *tcb);
+    #ifdef __cplusplus
+}
+    #endif
 #endif
 
 // EXPERIMENT (upload-experiments): CPU time for each task (metric task_cpu). The counter is the

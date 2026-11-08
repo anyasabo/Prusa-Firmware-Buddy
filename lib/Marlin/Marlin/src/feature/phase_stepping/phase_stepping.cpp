@@ -1,6 +1,7 @@
 #include "phase_stepping.hpp"
 #include "calibration_hooks.hpp"
 #include "debug_util.hpp"
+#include <buddy/cpu_prof.h> // EXPERIMENT
 
 #if HAS_BURST_STEPPING()
     // #error dead code found by automatic analyses (see BFW-5461)
@@ -1079,8 +1080,10 @@ extern "C" void PHSTEP_TIMER_ISR_HANDLER(void) {
     // - we don't use HAL handler: HAL_TIM_IRQHandler(&htim13) as it takes 3 µs
     // - we avoid indirect access to peripheral registers via handle as it takes
     //   0.4 µs
+    const uint32_t start_cycles = DWT->CYCCNT; // EXPERIMENT: cpu_prof.h (a few cycles each call)
     TIM13->SR &= ~TIM_FLAG_UPDATE;
     phase_stepping::handle_periodic_refresh();
+    buddy_phstep_isr_cycles = buddy_phstep_isr_cycles + (DWT->CYCCNT - start_cycles);
 }
 
 // For the same reason as the ISR handler above, we include the

@@ -205,6 +205,7 @@ void M9202(); //< Clear precise homing calibration
 
 void M9933(); //< Cork for tracking when gcode finished executing
 void M9958(); //< EXPERIMENT: select and time the input shaper fitting
+void M9959(); //< EXPERIMENT: minimum sleep of the GUI loop
 
 #if HAS_CRASH_DETECTION()
 void M9944(); ///< Execute G-Code interrupt

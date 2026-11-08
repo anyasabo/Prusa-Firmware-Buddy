@@ -249,6 +249,12 @@ static USBH_StatusTypeDef USBH_MSC_InterfaceDeInit(USBH_HandleTypeDef *phost)
 {
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
 
+  /* Prusa: the class init can fail before the class data is allocated */
+  if (MSC_Handle == NULL)
+  {
+    return USBH_OK;
+  }
+
   if ((MSC_Handle->OutPipe) != 0U)
   {
     (void)USBH_ClosePipe(phost, MSC_Handle->OutPipe);
@@ -304,7 +310,10 @@ static USBH_StatusTypeDef USBH_MSC_ClassRequest(USBH_HandleTypeDef *phost)
 
       if (status == USBH_OK)
       {
-        MSC_Handle->max_lun = (MSC_Handle->max_lun > MAX_SUPPORTED_LUN) ? MAX_SUPPORTED_LUN : (MSC_Handle->max_lun + 1U);
+        /* Prusa: max_lun is the highest LUN index. With MAX_SUPPORTED_LUN 1 and
+           a device with 2 LUNs (index 1), the ST code gave 2, and MSC_INIT wrote
+           past unit[]. */
+        MSC_Handle->max_lun = (uint8_t)MIN((uint32_t)MSC_Handle->max_lun + 1U, (uint32_t)MAX_SUPPORTED_LUN);
         USBH_UsrLog("Number of supported LUN: %d", MSC_Handle->max_lun);
 
         for (lun_idx = 0U; lun_idx < MSC_Handle->max_lun; lun_idx++)
@@ -444,6 +453,13 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
           case MSC_READ_CAPACITY10:
             scsi_status = USBH_MSC_SCSI_ReadCapacity(phost, (uint8_t)MSC_Handle->current_lun, &MSC_Handle->unit[MSC_Handle->current_lun].capacity);
 
+            /* Prusa: a block size that is not supported is an unrecovered error.
+               Without this, MSC_INIT sends READ CAPACITY again and does not stop. */
+            if (scsi_status == USBH_NOT_SUPPORTED)
+            {
+              scsi_status = USBH_UNRECOVERED_ERROR;
+            }
+
             if (scsi_status == USBH_OK)
             {
               if (MSC_Handle->unit[MSC_Handle->current_lun].state_changed == 1U)
@@ -539,6 +555,18 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
       if (MSC_Handle->lun < MSC_Handle->max_lun)
       {
         MSC_Handle->current_lun = MSC_Handle->lun;
+        MSC_Handle->lun++;
+
+        /* Prusa: go to MSC_IDLE before the last callback, as v3.4.0 did.
+           USBH_MSC_Read() and USBH_MSC_Write() fail if the class is not idle.
+           The HOST_USER_CLASS_ACTIVE callback can wake a task that reads
+           at once, before this task runs again. */
+        if (MSC_Handle->lun >= MSC_Handle->max_lun)
+        {
+          MSC_Handle->lun = 0U;
+          MSC_Handle->state = MSC_IDLE;
+        }
+
         if (MSC_Handle->unit[MSC_Handle->current_lun].error == MSC_OK)
         {
           phost->pUser(phost, HOST_USER_CLASS_ACTIVE);
@@ -547,8 +575,6 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
         {
           phost->pUser(phost, HOST_USER_UNRECOVERED_ERROR);
         }
-
-        MSC_Handle->lun++;
       }
       else
       {
@@ -865,7 +891,11 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
   uint16_t sof_counter = get_sof_counter(phost);
   uint32_t sof_counter_delta = 0;
 
-  while (USBH_MSC_RdWrProcess(phost, lun) == USBH_BUSY)
+  /* Prusa: return the result of the transfer. The ST code returned USBH_OK
+     also when USBH_MSC_RdWrProcess() gave USBH_FAIL (a failed command or a
+     disabled port). */
+  USBH_StatusTypeDef status;
+  while ((status = USBH_MSC_RdWrProcess(phost, lun)) == USBH_BUSY)
   {
     if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
         USBH_LL_GetURBState(phost, MSC_Handle->InPipe) != USBH_URB_DONE)
@@ -896,7 +926,7 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
     }
   }
 
-  return USBH_OK;
+  return status;
 }
 
 /**
@@ -945,7 +975,11 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
   uint32_t timeout = ticks_ms();
   uint16_t sof_counter = get_sof_counter(phost);
   uint32_t sof_counter_delta = 0;
-  while (USBH_MSC_RdWrProcess(phost, lun) == USBH_BUSY)
+  /* Prusa: return the result of the transfer. The ST code returned USBH_OK
+     also when USBH_MSC_RdWrProcess() gave USBH_FAIL (a failed command or a
+     disabled port). */
+  USBH_StatusTypeDef status;
+  while ((status = USBH_MSC_RdWrProcess(phost, lun)) == USBH_BUSY)
   {
     if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
         USBH_LL_GetURBState(phost, MSC_Handle->InPipe) != USBH_URB_DONE)
@@ -976,7 +1010,7 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
     }
   }
 
-  return USBH_OK;
+  return status;
 }
 
 /**

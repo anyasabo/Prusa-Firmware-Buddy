@@ -104,6 +104,10 @@ void RecordRuntimeStats() {
         static uint32_t prev_ms = 0;
         static TaskHandle_t new_handle[std::size(task_statuses)];
         static uint32_t new_counter[std::size(task_statuses)];
+        // Field t: cumulative CPU ms of the task (a counter: use rate() or increase()). The time
+        // of a skipped record (a gap of more than 20 s) is not added.
+        static uint64_t prev_cum[std::size(task_statuses)] = {};
+        static uint64_t new_cum[std::size(task_statuses)];
         const uint32_t now_ms = ticks_ms();
         const uint32_t total_delta = total_run_time - prev_total;
         const bool have_prev_total = prev_total != 0 && now_ms - prev_ms <= 20000;
@@ -111,26 +115,33 @@ void RecordRuntimeStats() {
         prev_ms = now_ms;
         std::fill(std::begin(new_handle), std::end(new_handle), nullptr);
         std::fill(std::begin(new_counter), std::end(new_counter), 0);
+        std::fill(std::begin(new_cum), std::end(new_cum), 0);
+        const uint32_t cycles_per_ms = SystemCoreClock / 1000;
         for (int idx = 0; idx < count; idx++) {
             const TaskStatus_t &ts = task_statuses[idx];
             new_handle[idx] = ts.xHandle;
             new_counter[idx] = ts.ulRunTimeCounter;
-            if (!have_prev_total || total_delta == 0) {
-                continue;
-            }
             for (size_t j = 0; j < std::size(prev_handle); j++) {
                 if (prev_handle[j] == ts.xHandle && ts.xHandle != nullptr) {
-                    const uint32_t permille = static_cast<uint32_t>(static_cast<uint64_t>(ts.ulRunTimeCounter - prev_counter[j]) * 1000 / total_delta);
+                    new_cum[idx] = prev_cum[j];
+                    if (!have_prev_total || total_delta == 0) {
+                        break;
+                    }
+                    const uint32_t delta = ts.ulRunTimeCounter - prev_counter[j];
+                    const uint32_t permille = static_cast<uint32_t>(static_cast<uint64_t>(delta) * 1000 / total_delta);
                     if (permille > 1000) {
                         break;
                     }
-                    metric_record_custom(&task_cpu, ",n=%.7s c=%ui,p=%ui", ts.pcTaskName, static_cast<unsigned>(permille), static_cast<unsigned>(ts.uxCurrentPriority));
+                    new_cum[idx] += delta;
+                    metric_record_custom(&task_cpu, ",n=%.7s c=%ui,p=%ui,t=%ui", ts.pcTaskName, static_cast<unsigned>(permille), static_cast<unsigned>(ts.uxCurrentPriority),
+                        static_cast<unsigned>(new_cum[idx] / cycles_per_ms));
                     break;
                 }
             }
         }
         std::copy(std::begin(new_handle), std::end(new_handle), std::begin(prev_handle));
         std::copy(std::begin(new_counter), std::end(new_counter), std::begin(prev_counter));
+        std::copy(std::begin(new_cum), std::end(new_cum), std::begin(prev_cum));
 
         for (int idx = 0; idx < count; idx++) {
             const char *task_name = task_statuses[idx].pcTaskName;

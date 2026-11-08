@@ -31,6 +31,10 @@ void PrusaGcodeSuite::M331() {
     if (!config_store().enable_metrics.get()) {
         SERIAL_ERROR_MSG("Warning: Metrics are not enabled");
     }
+    if (!parser.string_arg) { // the parser gives nullptr when there is no argument
+        SERIAL_ERROR_MSG("Missing metric name");
+        return;
+    }
 
     for (auto metric = metric_get_iterator_begin(), e = metric_get_iterator_end(); metric != e; metric++) {
         if (strcmp(metric->name, parser.string_arg) == 0) {
@@ -60,6 +64,10 @@ void PrusaGcodeSuite::M331() {
 void PrusaGcodeSuite::M332() {
     if (!config_store().enable_metrics.get()) {
         SERIAL_ERROR_MSG("Warning: Metrics are not enabled");
+    }
+    if (!parser.string_arg) { // the parser gives nullptr when there is no argument
+        SERIAL_ERROR_MSG("Missing metric name");
+        return;
     }
 
     for (auto metric = metric_get_iterator_begin(), e = metric_get_iterator_end(); metric != e; metric++) {
@@ -123,7 +131,8 @@ void PrusaGcodeSuite::M334() {
 
     // If metrics_host_size changes, we gotta change the scan format
     static_assert(config_store_ns::metrics_host_size == 20);
-    const auto scanned_fields = sscanf(parser.string_arg, "%20s %i %i", host.data(), &metrics_port, &syslog_port);
+    // An empty M334 (string_arg is nullptr) disables metrics, as documented above.
+    const auto scanned_fields = parser.string_arg ? sscanf(parser.string_arg, "%20s %i %i", host.data(), &metrics_port, &syslog_port) : 0;
     const bool enable_metrics = (scanned_fields > 0);
 
     // Check if the gcode is trying to change the metrics configuration

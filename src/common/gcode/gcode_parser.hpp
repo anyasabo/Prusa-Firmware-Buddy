@@ -4,6 +4,8 @@
 #include <expected>
 #include <type_traits>
 #include <concepts>
+#include <limits>
+#include <utility>
 
 #include "gcode_basic_parser.hpp"
 
@@ -114,9 +116,16 @@ public:
     template <std::integral T>
         requires(!std::is_same_v<T, bool> && !std::is_same_v<T, LargestInteger>)
     StoreOptionResult store_option_if_present(char key, T &target, T min_value = std::numeric_limits<T>::min(), T max_value = std::numeric_limits<T>::max()) const {
+        // Clamp the limits to the range of LargestInteger. Without this, the default max_value of
+        // an unsigned type as wide as LargestInteger (uint32_t, size_t) becomes -1, and each value fails.
+        constexpr auto li_min = std::numeric_limits<LargestInteger>::min();
+        constexpr auto li_max = std::numeric_limits<LargestInteger>::max();
+        const LargestInteger min_li = std::cmp_less(min_value, li_min) ? li_min : std::cmp_greater(min_value, li_max) ? li_max : static_cast<LargestInteger>(min_value);
+        const LargestInteger max_li = std::cmp_greater(max_value, li_max) ? li_max : std::cmp_less(max_value, li_min) ? li_min : static_cast<LargestInteger>(max_value);
+
         LargestInteger val {};
         // There is an explicit overload for LargestInteger, so this does not infinitely recurse
-        const auto result = store_option_if_present(key, val, static_cast<LargestInteger>(min_value), static_cast<LargestInteger>(max_value));
+        const auto result = store_option_if_present(key, val, min_li, max_li);
         if (!result) {
             return result;
         }

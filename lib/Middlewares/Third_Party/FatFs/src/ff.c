@@ -1064,7 +1064,7 @@ static void clear_share (	/* Clear all lock entries of the volume */
 /  directory cluster. Each disk_write() of FatFs that overlaps it invalidates it. A remount
 /  changes fs->id. Raw writes outside FatFs (PartialFile) touch only file data clusters. */
 #define FF_DIR_RA_MAX	8
-static BYTE RaBuf[FF_DIR_RA_MAX * FF_MAX_SS];
+static BYTE RaBuf[FF_DIR_RA_MAX * FF_MAX_SS] __attribute__((aligned(4)));	/* USBH_read() reads an unaligned buffer one sector at a time */
 static FATFS* RaFs;		/* Volume of the buffer (0: empty) */
 static WORD RaId;		/* Mount ID of the volume */
 static LBA_t RaSect;	/* First sector in the buffer */
@@ -2513,33 +2513,54 @@ static FRESULT dir_read (
 
 
 
+#if FF_USE_LFN
 /*-----------------------------------------------------------------------*/
 /* EXPERIMENT: Name cache (buddy_fatfs_name_cache)                        */
 /*-----------------------------------------------------------------------*/
-/* The cache holds 16-bit hashes of all names in one directory: the SFN of each entry and the
+/* A cache holds 16-bit hashes of all names in one directory: the SFN of each entry and the
 /  LFN of each LFN set that dir_find() can match. dir_find() makes it when it scans the
 /  directory from the start to the end marker. dir_register() adds the new names. A removed
 /  name stays in the cache (it only makes a hash match, then dir_find() scans as usual).
 /  If no hash of the name to find is in the cache, dir_find() gives FR_NO_FILE with no read.
 /  The hash of an LFN uses each character after ff_wtoupper() and its position, thus two names
-/  that cmp_lfn() finds equal have the same hash. All access is under the volume lock. */
+/  that cmp_lfn() finds equal have the same hash. All access is under the volume lock.
+/  There are two caches: one for the root directory and one for the last other directory.
+/  A path lookup in a subdirectory first finds the subdirectory in the root, thus one cache
+/  for both would be built again on each lookup. */
 
-#define NC_MAX	384		/* Number of hashes (2 bytes each) */
+#define NC_MAX	256		/* Number of hashes in each cache (2 bytes each) */
 
-static struct {
+typedef struct {
 	FATFS*	fs;			/* Volume (0: none) */
 	WORD	id;			/* Mount ID of the volume */
 	BYTE	valid;		/* 1: the hashes cover all names of the directory */
-	DWORD	sclust;		/* Start cluster of the directory (0: root) */
+	DWORD	key;		/* Start cluster of the directory (0: root, see nc_key()) */
 	UINT	n;			/* Number of hashes */
 	WORD	h[NC_MAX];
-} Nc;
+} NC_CACHE;
+static NC_CACHE Nc[2];	/* [0]: root directory, [1]: the last other directory */
 
 static void nc_drop (void)
 {
-	if (Nc.valid) buddy_fatfs_stats.nc_drops++;
-	Nc.valid = 0;
-	Nc.fs = 0;
+	UINT i;
+
+	for (i = 0; i < 2; i++) {
+		if (Nc[i].valid) buddy_fatfs_stats.nc_drops++;
+		Nc[i].valid = 0;
+		Nc[i].fs = 0;
+	}
+}
+
+static DWORD nc_key (const DIR* dp)	/* The root directory is 0 also if a ".." entry gave its cluster number */
+{
+	FATFS *fs = dp->obj.fs;
+
+	return (fs->fs_type == FS_FAT32 && dp->obj.sclust == (DWORD)fs->dirbase) ? 0 : dp->obj.sclust;
+}
+
+static NC_CACHE* nc_slot (const DIR* dp)
+{
+	return &Nc[nc_key(dp) == 0 ? 0 : 1];
 }
 
 static DWORD nc_mix (DWORD x)
@@ -2552,7 +2573,7 @@ static DWORD nc_mix (DWORD x)
 
 static DWORD nc_lfn_chr (UINT i, WCHAR c)	/* Hash part of one LFN character at position i */
 {
-	DWORD u = (c < 0x80) ? ((c >= 'a' && c <= 'z') ? c - 0x20 : c) : (ff_wtoupper(c) & 0xFFFF);	/* = ff_wtoupper() for ASCII */
+	DWORD u = (c < 0x80) ? ((c >= 'a' && c <= 'z') ? (DWORD)c - 0x20 : (DWORD)c) : (ff_wtoupper(c) & 0xFFFF);	/* = ff_wtoupper() for ASCII */
 	return nc_mix(((DWORD)i << 16 | u) + 0x9E3779B9UL);
 }
 
@@ -2580,30 +2601,33 @@ static WORD nc_sfn (const BYTE* sfn)	/* Hash of the 11 bytes of an SFN */
 	return (WORD)(h ^ h >> 16);
 }
 
-static int nc_add (WORD h)	/* 1: added, 0: no space */
+static int nc_add (NC_CACHE* c, WORD h)	/* 1: added, 0: no space */
 {
-	if (Nc.n >= NC_MAX) return 0;
-	Nc.h[Nc.n++] = h;
+	if (c->n >= NC_MAX) return 0;
+	c->h[c->n++] = h;
 	return 1;
 }
 
-static int nc_has (WORD h)
+static int nc_has (const NC_CACHE* c, WORD h)
 {
 	UINT i;
 
-	for (i = 0; i < Nc.n; i++) {
-		if (Nc.h[i] == h) return 1;
+	for (i = 0; i < c->n; i++) {
+		if (c->h[i] == h) return 1;
 	}
 	return 0;
 }
 
 static int nc_valid_for (const DIR* dp)	/* 1: the cache is valid for the directory of dp */
 {
-	return Nc.valid && Nc.fs == dp->obj.fs && Nc.id == dp->obj.fs->id && Nc.sclust == dp->obj.sclust;
+	const NC_CACHE* c = nc_slot(dp);
+
+	return c->valid && c->fs == dp->obj.fs && c->id == dp->obj.fs->id && c->key == nc_key(dp);
 }
 
 /* State of a cache build during one dir_find() scan */
 typedef struct {
+	NC_CACHE*	c;		/* The cache to fill */
 	BYTE	on;			/* 1: building */
 	BYTE	unsafe;		/* 1: an LFN entry that the hash cannot represent was found */
 	BYTE	lfn;		/* 1: in an LFN set that can still match */
@@ -2657,9 +2681,9 @@ static void nc_build_entry (NC_BUILD* b, const BYTE* dir)
 		return;
 	}
 	/* SFN entry */
-	if (!nc_add(nc_sfn(dir))) b->on = 0;
+	if (!nc_add(b->c, nc_sfn(dir))) b->on = 0;
 	if (b->on && b->lfn && b->ord == 0 && b->sum == sum_sfn(dir)) {
-		if (!nc_add(nc_lfn_end(b->acc, b->len))) b->on = 0;
+		if (!nc_add(b->c, nc_lfn_end(b->acc, b->len))) b->on = 0;
 	}
 	b->lfn = 0;
 }
@@ -2668,9 +2692,14 @@ static void nc_build_entry (NC_BUILD* b, const BYTE* dir)
 /  This runs also when the switch is off, thus the cache stays correct if it is set again. */
 static void nc_register (DIR* dp, int has_lfn)
 {
+	NC_CACHE* c = nc_slot(dp);
+
 	if (!nc_valid_for(dp)) return;
-	if (!nc_add(nc_sfn(dp->fn)) || (has_lfn && !nc_add(nc_lfn(dp->obj.fs->lfnbuf)))) nc_drop();
+	if (!nc_add(c, nc_sfn(dp->fn)) || (has_lfn && !nc_add(c, nc_lfn(dp->obj.fs->lfnbuf)))) nc_drop();
 }
+#else
+static void nc_drop (void) {}
+#endif	/* FF_USE_LFN */
 
 
 
@@ -2716,18 +2745,20 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 	/* On the FAT/FAT32 volume */
 #if FF_USE_LFN
 	ord = sum = 0xFF; dp->blk_ofs = 0xFFFFFFFF;	/* Reset LFN sequence */
-	nb.on = 0;
+	nb.on = 0; nb.c = 0;
 	if (buddy_fatfs_name_cache) {	/* EXPERIMENT: name cache */
+		NC_CACHE* c = nc_slot(dp);
+
 		if (nc_valid_for(dp)) {
-			if (!((!(dp->fn[NSFLAG] & NS_NOLFN) && nc_has(nc_lfn(fs->lfnbuf)))
-				|| (!(dp->fn[NSFLAG] & NS_LOSS) && nc_has(nc_sfn(dp->fn))))) {
+			if (!((!(dp->fn[NSFLAG] & NS_NOLFN) && nc_has(c, nc_lfn(fs->lfnbuf)))
+				|| (!(dp->fn[NSFLAG] & NS_LOSS) && nc_has(c, nc_sfn(dp->fn))))) {
 				buddy_fatfs_stats.nc_hits++;
 				return FR_NO_FILE;	/* No name in the directory has this hash */
 			}
 			buddy_fatfs_stats.nc_maybe++;
 		} else {					/* Make the cache in this scan */
-			Nc.valid = 0; Nc.fs = fs; Nc.id = fs->id; Nc.sclust = dp->obj.sclust; Nc.n = 0;
-			nb.on = 1; nb.unsafe = 0; nb.lfn = 0; nb.ord = 0; nb.sum = 0; nb.len = 0; nb.acc = 0;
+			c->valid = 0; c->fs = fs; c->id = fs->id; c->key = nc_key(dp); c->n = 0;
+			nb.c = c; nb.on = 1; nb.unsafe = 0; nb.lfn = 0; nb.ord = 0; nb.sum = 0; nb.len = 0; nb.acc = 0;
 		}
 	}
 #endif
@@ -2739,8 +2770,16 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 			res = FR_NO_FILE;
 #if FF_USE_LFN
 			if (nb.on && !nb.unsafe) {	/* EXPERIMENT: the cache has all names now */
-				Nc.valid = 1;
-				buddy_fatfs_stats.nc_builds++;
+				/* FatFs keeps all entries after the end marker 0. If a used entry follows it (an
+				/  other tool wrote it), dir_register() can write over the end marker, and then
+				/  dir_find() sees that entry. Check the rest of this sector (no read): if an
+				/  entry is not 0, make no cache. Entries after this sector are not checked. */
+				UINT o;
+				for (o = (UINT)(dp->dptr % SS(fs)) + SZDIRE; o < SS(fs) && fs->win[o] == 0; o += SZDIRE) ;
+				if (o >= SS(fs)) {
+					nb.c->valid = 1;
+					buddy_fatfs_stats.nc_builds++;
+				}
 			}
 #endif
 			break;

@@ -56,8 +56,9 @@ __attribute__((weak)) volatile uint32_t buddy_fatfs_skip_deleted = 0;
 /// Directory read-ahead: sectors per read while dir_find/dir_read/dir_alloc walk a directory
 /// (0 or 1: off, max FF_DIR_RA_MAX in ff.c). It never reads past the current cluster.
 __attribute__((weak)) volatile uint32_t buddy_fatfs_dir_readahead = 0;
-/// Name cache: hashes of all names in the last directory that dir_find scanned to its end.
-/// dir_find answers "no such name" from it without disk reads.
+/// Name cache: hashes of all names in a directory that dir_find scanned to its end (two caches:
+/// the root and the last other directory). dir_find answers "no such name" from it without
+/// disk reads.
 __attribute__((weak)) volatile uint32_t buddy_fatfs_name_cache = 0;
 
 struct buddy_fatfs_stats {

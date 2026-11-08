@@ -56,9 +56,10 @@
 //       without dir_next() (less CPU for each lookup); j0 = stock
 //   lN  FatFs directory read-ahead: sectors for each USB read while it walks a
 //       directory (l0 = stock, 2..8; never past the current cluster; 4 KB RAM)
-//   cN  c1 = FatFs name cache: hashes of all names of the last directory that a
-//       lookup scanned to its end; a lookup of a name that is not there then
-//       does no USB read (name check, temp file, rename target); c0 = stock.
+//   cN  c1 = FatFs name cache: hashes of all names of a directory that a lookup
+//       scanned to its end (the root and the last other directory, 1 KB RAM); a
+//       lookup of a name that is not there then does no USB read (name check,
+//       temp file, rename target); c0 = stock.
 //       j, l and c are for all files on the USB drive, not only uploads
 //
 // Unknown letters stop the parsing. Defaults at boot: everything on, u8, m1024,

@@ -71,6 +71,8 @@ static int textprotocol_append_point(char *buffer, int buffer_len, metric_point_
         buffer_used += append_format(buffer + buffer_used, buffer_len - buffer_used, "v=\"");
         buffer_used += textprotocol_append_escaped(buffer + buffer_used, buffer_len - buffer_used, point->value_str);
         buffer_used += append_format(buffer + buffer_used, buffer_len - buffer_used, "\"");
+    } else if (point->metric->type == METRIC_VALUE_EVENT && point->event_count) {
+        buffer_used += append_format(buffer + buffer_used, buffer_len - buffer_used, "n=%ui", static_cast<unsigned>(point->value_int)); // unsigned: the count can pass 2^31
     } else if (point->metric->type == METRIC_VALUE_EVENT) {
         buffer_used += append_format(buffer + buffer_used, buffer_len - buffer_used, "v=T");
     } else {

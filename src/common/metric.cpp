@@ -49,6 +49,40 @@ static osMailQId metric_system_queue;
 // internal variables
 static std::atomic<uint16_t> dropped_points_count = 0;
 
+// The cumulative count of each event metric since boot. An event point (v=T) can be lost (the rate
+// limit, a full queue, UDP), and a count sent again at a fixed interval cannot. The metric task
+// sends each count as the field n (for example "probe_start n=5i") every event_count_interval_ms,
+// also when it is 0.
+static constexpr size_t max_event_metrics = 16;
+static constexpr uint32_t event_count_interval_ms = 10'000;
+static metric_t *event_metrics[max_event_metrics];
+static std::atomic<uint32_t> event_counts[max_event_metrics];
+static size_t event_metrics_count = 0;
+
+static void count_event(const metric_t *metric) {
+    for (size_t i = 0; i < event_metrics_count; i++) {
+        if (event_metrics[i] == metric) {
+            event_counts[i].fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+    }
+}
+
+static void send_event_counts() {
+    for (size_t i = 0; i < event_metrics_count; i++) {
+        metric_t *metric = event_metrics[i];
+        if (!metric->enabled) {
+            continue;
+        }
+        metric_point_t point {};
+        point.metric = metric;
+        point.timestamp = ticks_us();
+        point.event_count = true;
+        point.value_int = static_cast<int>(event_counts[i].load(std::memory_order_relaxed));
+        metric_handler(&point);
+    }
+}
+
 // logging component
 LOG_COMPONENT_DEF(Metrics, logging::Severity::info);
 
@@ -56,6 +90,11 @@ LOG_COMPONENT_DEF(Metrics, logging::Severity::info);
 METRIC_DEF(metric_dropped_points, "points_dropped", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
 
 void metric_system_init() {
+    for (metric_t *metric = __start_metric_definitions; metric != __end_metric_definitions; metric++) {
+        if (metric->type == METRIC_VALUE_EVENT && event_metrics_count < max_event_metrics) {
+            event_metrics[event_metrics_count++] = metric;
+        }
+    }
     // first create mail queue, then thread, Note that we pass nullptr as thread_id to osMailCreate, but its unused so its fine.
     metric_system_queue = osMailCreate(osMailQ(metric_system_queue), nullptr);
     metric_system_task = osThreadCreate(osThread(metric_system_task), NULL);
@@ -70,15 +109,24 @@ metric_t *metric_get_iterator_end() {
 }
 
 static void metric_system_task_run(const void *) {
+    uint32_t last_counts_ms = ticks_ms();
     for (;;) {
-        osEvent event = osMailGet(metric_system_queue, osWaitForever);
-        debug_assert(event.status == osEventMail);
-        metric_point_t *point = (metric_point_t *)event.value.p;
-        if (are_metrics_enabled()) {
-            metric_handler(point);
+        // Wake at least each second to send the event counts on time.
+        osEvent event = osMailGet(metric_system_queue, 1000);
+        if (event.status == osEventMail) {
+            metric_point_t *point = (metric_point_t *)event.value.p;
+            if (are_metrics_enabled()) {
+                metric_handler(point);
+            }
+            osMailFree(metric_system_queue, point);
+            metric_record_integer(&metric_dropped_points, dropped_points_count.load(std::memory_order::relaxed));
         }
-        osMailFree(metric_system_queue, point);
-        metric_record_integer(&metric_dropped_points, dropped_points_count.load(std::memory_order::relaxed));
+        if (ticks_ms() - last_counts_ms >= event_count_interval_ms) {
+            last_counts_ms = ticks_ms();
+            if (are_metrics_enabled()) {
+                send_event_counts();
+            }
+        }
     }
 }
 
@@ -124,6 +172,7 @@ static metric_point_t *point_check_and_prepare(metric_t *metric, uint32_t timest
 
     point->metric = metric;
     point->error = false;
+    point->event_count = false;
     point->timestamp = timestamp;
     return point;
 }
@@ -207,6 +256,7 @@ void metric_record_event(metric_t *metric) {
 }
 
 void metric_record_event_at_time(metric_t *metric, uint32_t timestamp) {
+    count_event(metric); // also when the metric is off, rate-limited, or the queue is full
     metric_point_t *recording = point_check_and_prepare(metric, timestamp, METRIC_VALUE_EVENT);
     if (!recording) {
         return;

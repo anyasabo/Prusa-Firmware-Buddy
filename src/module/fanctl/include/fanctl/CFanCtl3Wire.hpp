@@ -48,7 +48,7 @@ public:
     CFanCtlPWM(const WritePinFunc &write_pin_func, const PWMParams &pwm_params);
 
 public:
-    int8_t tick(); // tick callback from timer interrupt
+    int16_t tick(); // tick callback from timer interrupt
     // returns: positive number means pwm is on N ticks, negative number means pwm is off and will be switched on in -N ticks
 
     // getters
@@ -94,7 +94,7 @@ public:
     CFanCtlTach(const ReadPinFunc &read_pin_func);
 
 public:
-    bool tick(int8_t pwm_on); // tick callback from timer interrupt (currently 1kHz), returns true when edge detected
+    bool tick(int16_t pwm_on); // tick callback from timer interrupt (currently 1kHz), returns true when edge detected
     // returns: true = tach cycle complete (used for RPM calculation)
 
     // getters

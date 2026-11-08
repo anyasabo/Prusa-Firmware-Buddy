@@ -138,6 +138,7 @@ void gui_handle_touch() {
 
 void gui_redraw(void) {
     const uint32_t now = ticks_ms();
+    cpu_prof::fold(); // EXPERIMENT
 
     if (gui_loop_timer.check(now)) {
         Screens::Access()->ScreenEvent(nullptr, GUI_event_t::LOOP, 0);

@@ -27,8 +27,8 @@ namespace cpu_prof {
 /// The calling task becomes the measured task. Call it once from the GUI task.
 void set_task_to_current();
 
-/// CPU cycles of the measured task so far (wraps). Call it only from the measured task.
-uint32_t now();
+/// CPU cycles of the measured task since set_task_to_current(). Call it only from the measured task.
+uint64_t now();
 
 enum class Section : uint8_t { tick,
     screens,
@@ -39,7 +39,11 @@ enum class Section : uint8_t { tick,
     count };
 
 /// Adds cycles to a section. Only the measured task calls it.
-void add(Section s, uint32_t cycles);
+void add(Section s, uint64_t cycles);
+
+/// Takes the 32-bit phase stepping counter into 64 bits (it wraps after 25.6 s of ISR time). The
+/// GUI task calls it on each redraw pass, also in modal loops that do not call loop_done().
+void fold();
 
 /// Counts one GUI loop pass, and sends the metrics about once each second.
 void loop_done();
@@ -56,7 +60,7 @@ public:
 
 private:
     Section section;
-    uint32_t start;
+    uint64_t start;
 };
 
 } // namespace cpu_prof

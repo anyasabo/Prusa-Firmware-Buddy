@@ -154,13 +154,14 @@ void record_timing() {
     // One log line for each upload with the main values: a metric keeps only the last upload of
     // each 30 s scrape (EXPERIMENT, metrics survey E6).
 #ifdef UPX_HAS_LOG
+    const UsbSnapshot usb_end = UsbSnapshot::now();
     log_info(WUI, "upload %u: chk %u ms, cre %u, rdy %u, fin %u, check_req %u, prep_req %u, fin_req %u, rename_req %u, nc b%u h%u m%u",
         static_cast<unsigned>(uploads_done), static_cast<unsigned>(timing.chk_ms), static_cast<unsigned>(timing.cre_ms),
         static_cast<unsigned>(timing.rdy_ms), static_cast<unsigned>(timing.fin_ms), static_cast<unsigned>(timing.check_usb_req),
         static_cast<unsigned>(timing.prep_usb_req), static_cast<unsigned>(timing.fin_usb_req), static_cast<unsigned>(timing.rename_req),
-        static_cast<unsigned>(UsbSnapshot::now().nc_builds - timing.usb_at_start.nc_builds),
-        static_cast<unsigned>(UsbSnapshot::now().nc_hits - timing.usb_at_start.nc_hits),
-        static_cast<unsigned>(UsbSnapshot::now().nc_maybe - timing.usb_at_start.nc_maybe));
+        static_cast<unsigned>(usb_end.nc_builds - timing.usb_at_start.nc_builds),
+        static_cast<unsigned>(usb_end.nc_hits - timing.usb_at_start.nc_hits),
+        static_cast<unsigned>(usb_end.nc_maybe - timing.usb_at_start.nc_maybe));
 #endif
     METRIC_DEF(metric_upx_t, "upx_t", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     METRIC_DEF(metric_upx_f, "upx_f", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);

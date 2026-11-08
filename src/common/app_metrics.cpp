@@ -23,6 +23,7 @@
     #include "advanced_power.hpp"
 #endif // HAS_ADVANCED_POWER()
 #include "timing.h"
+#include <syslog/syslog_transport.hpp>
 #include <stdint.h>
 #include <device/board.h>
 #include "printers.h"
@@ -99,6 +100,10 @@ void RecordRuntimeStats() {
             metric_record_custom(&stack, ",n=%.7s t=%i,m=%hu", task_name, s, task_statuses[idx].usStackHighWaterMark);
         }
     }
+
+    /// Cumulative count of UDP datagrams that the syslog transports (metrics and log) dropped.
+    METRIC_DEF(metric_syslog_drop, "syslog_drop", METRIC_VALUE_INTEGER, 1009, METRIC_ENABLED);
+    metric_record_integer(&metric_syslog_drop, static_cast<int>(syslog_dropped_datagrams.load(std::memory_order_relaxed)));
 
     METRIC_DEF(heap, "heap", METRIC_VALUE_CUSTOM, 503, METRIC_ENABLED);
     if (metric_record_is_due(&heap)) { // xPortGetFreeHeapSize() walks the free list (mallinfo)

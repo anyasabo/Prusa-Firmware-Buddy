@@ -8,6 +8,10 @@
 
 #include <atomic>
 
+/// Datagrams that the syslog transports (metrics and log) dropped: no message slot, no pbuf, the
+/// tcpip mailbox full, DNS not ready, or no socket. A cumulative counter (metric "syslog_drop").
+extern std::atomic<uint32_t> syslog_dropped_datagrams;
+
 struct udp_pcb;
 
 struct SyslogTransport {

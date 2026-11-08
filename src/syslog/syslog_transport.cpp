@@ -1,4 +1,12 @@
 #include "syslog_transport.hpp"
+
+std::atomic<uint32_t> syslog_dropped_datagrams { 0 };
+
+namespace {
+void count_drop() {
+    syslog_dropped_datagrams.fetch_add(1, std::memory_order_relaxed);
+}
+} // namespace
 #include <lwip/tcpip.h>
 
 #include <lwip/udp.h>
@@ -103,12 +111,14 @@ void SyslogTransport::send(const char *message, int message_len) {
     if (!msg) {
         // Out of memory for the messages (there are too many in
         // flight already)
+        count_drop();
         return;
     }
 
     msg->me = this;
     msg->message = pbuf_alloc(PBUF_TRANSPORT, message_len, PBUF_RAM);
     if (msg->message == nullptr) {
+        count_drop();
         return release(msg);
     }
 
@@ -124,6 +134,7 @@ void SyslogTransport::send(const char *message, int message_len) {
 
     if (post != ERR_OK) {
         // We failed to send the message. Therefore it is up to us to return the buffer.
+        count_drop();
         release(msg);
     }
 }
@@ -159,6 +170,7 @@ void SyslogTransport::do_send(pbuf *message) {
 
     if (dns_resolved != DnsState::Resolved) {
         // Still waiting for the IP address. Drop the message, try next time.
+        count_drop();
         return;
     }
 
@@ -166,21 +178,26 @@ void SyslogTransport::do_send(pbuf *message) {
         socket.reset(udp_new());
         if (!socket) {
             // Not enough memory for the UDP socket, try next time.
+            count_drop();
             return;
         }
         if (udp_bind(socket.get(), IP_ADDR_ANY, 0) != ERR_OK) {
             socket.reset();
+            count_drop();
             return;
         }
     }
 
     switch (udp_sendto(socket.get(), message, &addr, remote_port)) {
     case ERR_OK:
+        break;
     case ERR_MEM:
     case ERR_RTE:
         // These don't mean the PCB is broken, so keep it around.
+        count_drop();
         break;
     default:
+        count_drop();
         // Some other (unknown) error, better kill the PCB and start fresh next time.
         close();
         socket.reset();

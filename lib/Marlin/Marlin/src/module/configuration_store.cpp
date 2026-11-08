@@ -671,6 +671,11 @@ void MarlinSettings::reset() {
                               " Z", LINEAR_UNIT(probe_offset.z));
     #endif
 
+    //
+    // Bed Skew Correction
+    //
+    TERN_(SKEW_CORRECTION_GCODE, gcode.M852_report(forReplay));
+
     #if HAS_TRINAMIC
 
       /**

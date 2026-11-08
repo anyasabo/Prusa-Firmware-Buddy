@@ -625,7 +625,9 @@ void GcodeSuite::process_parsed_command_standard() {
         case 851: M851(); break;                                  // M851: Set Z Probe Z Offset
       #endif
 
-      // M852: Set Skew factors REMOVED
+      #if ENABLED(SKEW_CORRECTION_GCODE)
+        case 852: M852(); break;                                  // M852: Set Skew factors
+      #endif
 
       #if HAS_PAUSE()
         case 600: M600(); break;                                  // M600: Pause for Filament Change

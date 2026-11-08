@@ -68,6 +68,7 @@ if(BOARD_IS_MASTER_BOARD)
             Marlin/Marlin/src/gcode/calibrate/G28.cpp
             Marlin/Marlin/src/gcode/calibrate/G80.cpp
             Marlin/Marlin/src/gcode/calibrate/M666.cpp
+            Marlin/Marlin/src/gcode/calibrate/M852.cpp
             Marlin/Marlin/src/gcode/config/M200-M205.cpp
             Marlin/Marlin/src/gcode/config/M217.cpp
             Marlin/Marlin/src/gcode/config/M218.cpp

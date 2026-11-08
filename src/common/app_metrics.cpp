@@ -74,7 +74,9 @@ void RecordRuntimeStats() {
 
     METRIC_DEF(metric_current_filament, "filament", METRIC_VALUE_STRING, 10 * 1007, METRIC_ENABLED);
 
-    metric_record_string(&metric_current_filament, "%s", FilamentType::for_tool(VirtualToolIndex::currently_selected()).parameters().name.data());
+    if (metric_record_is_due(&metric_current_filament)) { // the lookup is too costly for each loop pass
+        metric_record_string(&metric_current_filament, "%s", FilamentType::for_tool(VirtualToolIndex::currently_selected()).parameters().name.data());
+    }
 
     METRIC_DEF(stack, "stack", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED); // Thread stack usage
     constexpr const uint32_t STACK_RUNTIME_RECORD_INTERVAL_MS = 3000;
@@ -99,7 +101,9 @@ void RecordRuntimeStats() {
     }
 
     METRIC_DEF(heap, "heap", METRIC_VALUE_CUSTOM, 503, METRIC_ENABLED);
-    metric_record_custom(&heap, " free=%zui,total=%zui", xPortGetFreeHeapSize(), static_cast<size_t>(heap_total_size()));
+    if (metric_record_is_due(&heap)) { // xPortGetFreeHeapSize() walks the free list (mallinfo)
+        metric_record_custom(&heap, " free=%zui,total=%zui", xPortGetFreeHeapSize(), static_cast<size_t>(heap_total_size()));
+    }
 
     // Config store metrics (BFW-7758)
     {
@@ -232,14 +236,17 @@ void RecordMarlinVariables() {
     METRIC_DEF(ipos_z, "ipos_z", METRIC_VALUE_INTEGER, 10, METRIC_DISABLED);
     metric_record_integer(&ipos_z, stepper.position_from_startup(AxisEnum::Z_AXIS));
 
-    xyz_pos_t pos;
-    planner.get_axis_position_mm(pos);
     METRIC_DEF(pos_x, "pos_x", METRIC_VALUE_FLOAT, 11, METRIC_DISABLED);
-    metric_record_float(&pos_x, pos[X_AXIS]);
     METRIC_DEF(pos_y, "pos_y", METRIC_VALUE_FLOAT, 11, METRIC_DISABLED);
-    metric_record_float(&pos_y, pos[Y_AXIS]);
     METRIC_DEF(pos_z, "pos_z", METRIC_VALUE_FLOAT, 11, METRIC_DISABLED);
-    metric_record_float(&pos_z, pos[Z_AXIS]);
+    // The metrics are off by default: get the position only if one of them will record.
+    if (metric_record_is_due(&pos_x) || metric_record_is_due(&pos_y) || metric_record_is_due(&pos_z)) {
+        xyz_pos_t pos;
+        planner.get_axis_position_mm(pos);
+        metric_record_float(&pos_x, pos[X_AXIS]);
+        metric_record_float(&pos_y, pos[Y_AXIS]);
+        metric_record_float(&pos_z, pos[Z_AXIS]);
+    }
 
     /// Integer that increases/changes every time a motor stall is detected - meaning the planner has run out of commands.
     /// If this is encountered during printing, it might be a cause of print artefacts

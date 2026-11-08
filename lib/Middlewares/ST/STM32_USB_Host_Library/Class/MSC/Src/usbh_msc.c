@@ -43,7 +43,7 @@ EndBSPDependencies */
 #include "usbh_msc.h"
 #include "usbh_msc_bot.h"
 #include "usbh_msc_scsi.h"
-
+#include <buddy/filesystem_semihosting.h>
 
 /** @addtogroup USBH_LIB
   * @{
@@ -112,6 +112,8 @@ USBH_ClassTypeDef  USBH_msc =
   USBH_MSC_SOFProcess,
   NULL,
 };
+
+uint32_t ticks_ms();
 
 /**
   * @}
@@ -214,6 +216,17 @@ static USBH_StatusTypeDef USBH_MSC_InterfaceInit(USBH_HandleTypeDef *phost)
     (void)USBH_OpenPipe(phost, MSC_Handle->InPipe, MSC_Handle->InEp,
                         phost->device.address, phost->device.speed, USB_EP_TYPE_BULK,
                         MSC_Handle->InEpSize);
+#if defined(USBH_USE_IN_CHANNEL_BULK_NACK_INTERRUPTS) && (USBH_USE_IN_CHANNEL_BULK_NACK_INTERRUPTS == 0U)
+    // Disable USB in channel bulk NAK interrupts
+    //
+    // It's for the in direction only, thus needs to be done here, lower in the
+    // stack we don't have the information whether it's in or out.
+    //
+    // The NAK interrupts in the in direction can hammer down the MCU and the
+    // handling doesn't actually do anything in case of using DMA.
+    uint32_t USBx_BASE = (uint32_t)((HCD_HandleTypeDef *)phost->pData)->Instance;
+    USBx_HC((uint32_t)MSC_Handle->InPipe)->HCINTMSK &= ~USB_OTG_HCINTMSK_NAKM;
+#endif
   }
   else
   {
@@ -345,6 +358,7 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
   switch (MSC_Handle->state)
   {
     case MSC_INIT:
+      rw_mutex_writer_take(&phost->class_mutex);
 
       if (MSC_Handle->current_lun < MSC_Handle->max_lun)
       {
@@ -467,7 +481,7 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
                   (MSC_Handle->unit[MSC_Handle->current_lun].sense.key == SCSI_SENSE_KEY_NOT_READY))
               {
 
-                if ((phost->Timer - MSC_Handle->timer) < 10000U)
+                if ((phost->Timer - MSC_Handle->timer) < USBH_MSC_IO_TIMEOUT)
                 {
                   MSC_Handle->unit[MSC_Handle->current_lun].state = MSC_TEST_UNIT_READY;
                   break;
@@ -507,6 +521,7 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_CLASS_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+        rw_mutex_writer_give(&phost->class_mutex);
       }
       else
       {
@@ -516,6 +531,7 @@ static USBH_StatusTypeDef USBH_MSC_Process(USBH_HandleTypeDef *phost)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_CLASS_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+        rw_mutex_writer_give(&phost->class_mutex);
       }
       break;
 
@@ -619,9 +635,11 @@ static USBH_StatusTypeDef USBH_MSC_RdWrProcess(USBH_HandleTypeDef *phost, uint8_
         }
       }
 
+#if (USBH_USE_MSC_CLASS_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
       USBH_OS_PutMessage(phost, USBH_CLASS_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_MSC_CLASS_EVENTS == 1U) */
       break;
 
     case MSC_WRITE:
@@ -645,9 +663,11 @@ static USBH_StatusTypeDef USBH_MSC_RdWrProcess(USBH_HandleTypeDef *phost, uint8_
         }
       }
 
+#if (USBH_USE_MSC_CLASS_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
       USBH_OS_PutMessage(phost, USBH_CLASS_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_MSC_CLASS_EVENTS == 1U) */
       break;
 
     case MSC_REQUEST_SENSE:
@@ -676,9 +696,11 @@ static USBH_StatusTypeDef USBH_MSC_RdWrProcess(USBH_HandleTypeDef *phost, uint8_
         }
       }
 
+#if (USBH_USE_MSC_CLASS_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
       USBH_OS_PutMessage(phost, USBH_CLASS_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_MSC_CLASS_EVENTS == 1U) */
       break;
 
     default:
@@ -792,6 +814,17 @@ USBH_StatusTypeDef USBH_MSC_GetLUNInfo(USBH_HandleTypeDef *phost, uint8_t lun, M
 }
 
 /**
+ * @brief get_sof_counter
+ *        Read OTG_HS host frame number (OTG_HS_HFNUM->FRNUM)
+ * @param  phost: Host handle
+*/
+static uint16_t get_sof_counter(USBH_HandleTypeDef *phost) {
+  HCD_HandleTypeDef *hhcd = (HCD_HandleTypeDef *)(phost->pData);
+  USB_OTG_GlobalTypeDef *USBx = hhcd->Instance;
+  return USB_GetCurrentFrame(USBx);
+}
+
+/**
   * @brief  USBH_MSC_Read
   *         The function performs a Read operation
   * @param  phost: Host handle
@@ -807,7 +840,6 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
                                  uint8_t *pbuf,
                                  uint32_t length)
 {
-  uint32_t timeout;
   MSC_HandleTypeDef *MSC_Handle;
 
   if (phost->pActiveClass == NULL)
@@ -821,8 +853,10 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
   MSC_Handle->current_lun = lun;
 
   if ((phost->device.PortEnabled == 0U) ||
+      (phost->device.is_connected == 0U) ||
       (phost->gState != HOST_CLASS) ||
-      (MSC_Handle->unit[lun].state != MSC_IDLE))
+      (MSC_Handle->unit[lun].state != MSC_IDLE) ||
+      (MSC_Handle->state != MSC_IDLE))
   {
     return  USBH_FAIL;
   }
@@ -831,12 +865,37 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
 
   (void)USBH_MSC_SCSI_Read(phost, lun, address, pbuf, length);
 
-  timeout = phost->Timer;
+  uint32_t timeout = ticks_ms();
+  uint16_t sof_counter = get_sof_counter(phost);
+  uint32_t sof_counter_delta = 0;
 
   while (USBH_MSC_RdWrProcess(phost, lun) == USBH_BUSY)
   {
-    if (((phost->Timer - timeout) > (10000U * length)) || (phost->device.PortEnabled == 0U))
+    if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
+        USBH_LL_GetURBState(phost, MSC_Handle->InPipe) != USBH_URB_DONE)
     {
+      ulTaskNotifyTake(pdFALSE, 500 / portTICK_PERIOD_MS);
+    }
+
+    uint32_t elapsed_ticks = ticks_ms() - timeout;
+    uint16_t elapsed_sof = get_sof_counter(phost) - sof_counter;
+    // handle OTG_HS_HFNUM->FRNUM insufficient precision
+    // the FRNUM register is only 16-bit, so after reaching half of its range, the beginning is
+    // reset and the offset is increased, so that the measurement works even for intervals longer than 16s
+    if (elapsed_sof > 8100) {
+      sof_counter += 8000;
+      sof_counter_delta += 8000;
+    }
+    // fail if the request takes longer than USBH_MSC_IO_TIMEOUT,
+    // or immediately if SOF generation stops (this is behavior observed by logic analyzers directly on the bus,
+    // it is an undocumented error condition that will be investigated further)
+    if (phost->device.is_connected == 0U ||
+        phost->device.PortEnabled == 0U ||
+        elapsed_ticks > (USBH_MSC_IO_TIMEOUT * length)) {
+      return USBH_FAIL;
+    }
+    if (!filesystem_semihosting_active() && (uint32_t)(elapsed_sof + sof_counter_delta + 3) < elapsed_ticks) {
+      USBH_ErrLog("USB MSC operation read - missing SOF");
       return USBH_FAIL;
     }
   }
@@ -860,7 +919,6 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
                                   uint8_t *pbuf,
                                   uint32_t length)
 {
-  uint32_t timeout;
   MSC_HandleTypeDef *MSC_Handle;
 
   if (phost->pActiveClass == NULL)
@@ -874,8 +932,10 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
   MSC_Handle->current_lun = lun;
 
   if ((phost->device.PortEnabled == 0U) ||
+      (phost->device.is_connected == 0U) ||
       (phost->gState != HOST_CLASS) ||
-      (MSC_Handle->unit[lun].state != MSC_IDLE))
+      (MSC_Handle->unit[lun].state != MSC_IDLE) ||
+      (MSC_Handle->state != MSC_IDLE))
   {
     return  USBH_FAIL;
   }
@@ -884,11 +944,36 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
 
   (void)USBH_MSC_SCSI_Write(phost, lun, address, pbuf, length);
 
-  timeout = phost->Timer;
+  uint32_t timeout = ticks_ms();
+  uint16_t sof_counter = get_sof_counter(phost);
+  uint32_t sof_counter_delta = 0;
   while (USBH_MSC_RdWrProcess(phost, lun) == USBH_BUSY)
   {
-    if (((phost->Timer - timeout) > (10000U * length)) || (phost->device.PortEnabled == 0U))
+    if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
+        USBH_LL_GetURBState(phost, MSC_Handle->InPipe) != USBH_URB_DONE)
     {
+      ulTaskNotifyTake(pdFALSE, 500 / portTICK_PERIOD_MS);
+    }
+
+    uint32_t elapsed_ticks = ticks_ms() - timeout;
+    uint16_t elapsed_sof = get_sof_counter(phost) - sof_counter;
+    // handle OTG_HS_HFNUM->FRNUM insufficient precision
+    // the FRNUM register is only 16-bit, so after reaching half of its range, the beginning is
+    // reset and the offset is increased, so that the measurement works even for intervals longer than 16s
+    if (elapsed_sof > 8100) {
+      sof_counter += 8000;
+      sof_counter_delta += 8000;
+    }
+    // fail if the request takes longer than USBH_MSC_IO_TIMEOUT,
+    // or immediately if SOF generation stops (this is behavior observed by logic analyzers directly on the bus,
+    // it is an undocumented error condition that will be investigated further)
+    if (phost->device.is_connected == 0U ||
+        phost->device.PortEnabled == 0U ||
+        elapsed_ticks > (USBH_MSC_IO_TIMEOUT * length)) {
+      return USBH_FAIL;
+    }
+    if(!filesystem_semihosting_active() && (uint32_t)elapsed_sof + sof_counter_delta + 3 < elapsed_ticks) {
+      USBH_ErrLog("USB MSC operation write - missing SOF");
       return USBH_FAIL;
     }
   }

@@ -78,11 +78,11 @@ private:
     uint8_t pwm; // requested pwm value
     uint8_t cnt; // pwm counter (value 0..max-1)
     uint8_t val; // pwm value (cached during pwm cycle)
-    int8_t pha; // pwm phase shift
+    int16_t pha; // pwm phase shift
     PhaseShiftMode pha_mode; // pwm phase shift mode
     uint8_t pha_thr; // pwm phase shift threshold (shifting will be enabled for pwm <= pha_thr)
-    int8_t pha_max; // pwm phase shift maximum (calculated when pwm changed)
-    int8_t pha_stp; // pwm phase shift step (calculated when pwm changed)
+    int16_t pha_max; // pwm phase shift maximum (calculated when pwm changed)
+    int16_t pha_stp; // pwm phase shift step (calculated when pwm changed)
     bool has_inverted_pwm;
 };
 

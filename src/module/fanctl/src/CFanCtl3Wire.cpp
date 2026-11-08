@@ -28,7 +28,8 @@ CFanCtlPWM::CFanCtlPWM(const WritePinFunc &pin_write_func, const PWMParams &pwm_
     , has_inverted_pwm(pwm_params.has_inverted_pwm) {}
 
 int16_t CFanCtlPWM::tick() {
-    // int16_t: with dynamic PWM, max_value can be 250, and pwm_on - max_value must not wrap.
+    // 16 bit: with dynamic PWM, max_value can be 250. pwm_on - max_value and max_value - val
+    // do not fit in int8_t.
     int16_t pwm_on = cnt - pha; // calculate on time (number of ticks after 0-1 pwm transition)
     if (pwm_on >= val) {
         pwm_on -= max_value;
@@ -65,7 +66,7 @@ int16_t CFanCtlPWM::tick() {
                 }
                 break;
             case random:
-                pha = static_cast<uint8_t>(pha_max * rand_f_from_u(rand_u_sw()));
+                pha = static_cast<int16_t>(pha_max * rand_f_from_u(rand_u_sw()));
                 break;
             }
         }

@@ -26,6 +26,9 @@
 #include <selftest_result.hpp>
 #include <module/prusa/dock_position.hpp>
 #include <module/prusa/tool_offset.hpp>
+#if ENABLED(SKEW_CORRECTION)
+    #include <module/planner_skew.h>
+#endif
 #include <tristate.hpp>
 #include <utils/meta/meta_utils.hpp>
 #include <tool_index.hpp>
@@ -1010,6 +1013,11 @@ struct CurrentStore
 
 #if HAS_MANUAL_BELT_TUNING()
     StoreItem<bool, false, ItemFlag::calibrations, journal::hash("Manual Belt Tuning Completed")> manual_belt_tuning_completed;
+#endif
+
+#if ENABLED(SKEW_CORRECTION)
+    /// Skew correction factors, M852 I J K (written by M852 W). The defaults are 0 = no correction.
+    StoreItem<skew_factor_t, skew_factor_t { XY_SKEW_FACTOR, XZ_SKEW_FACTOR, YZ_SKEW_FACTOR }, ItemFlag::calibrations, journal::hash("Skew Correction Factors")> skew_factor;
 #endif
 
 #if HAS_ILI9488_DISPLAY()

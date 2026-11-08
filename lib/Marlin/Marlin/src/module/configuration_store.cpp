@@ -87,6 +87,10 @@
   #include "stepper/indirection.h"
 #endif
 
+#if ENABLED(SKEW_CORRECTION)
+  #include "prusa/skew.hpp"
+#endif
+
 #include <option/has_phase_stepping.h>
 #if HAS_PHASE_STEPPING()
   #include <option/has_burst_stepping.h>
@@ -266,6 +270,15 @@ void MarlinSettings::reset() {
 
   #if HAS_LEVELING
     reset_bed_level();
+  #endif
+
+  //
+  // Skew Correction
+  //
+
+  #if ENABLED(SKEW_CORRECTION_GCODE)
+    // Buddy: from the config store, not the defaults (as for the other settings here)
+    load_skew_factor();
   #endif
 
   #if HAS_BED_PROBE

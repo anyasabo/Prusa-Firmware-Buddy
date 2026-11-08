@@ -80,8 +80,10 @@ uint8_t Controller::AutomaticMode::calculate_pwm() const {
 
         return 0.0f;
     }();
-    const auto pwm = static_cast<uint8_t>(std::lerp(min_pwm, max_pwm, scale));
-    return std::clamp(pwm, min_pwm, max_pwm);
+    // std::lerp extrapolates outside 0..1, and a float above 255 converted to uint8_t is undefined.
+    // A difference above the threshold gives max_pwm. NaN gives min_pwm.
+    const float clamped_scale = scale > 0.0f ? std::min(scale, 1.0f) : 0.0f;
+    return static_cast<uint8_t>(std::lerp(static_cast<float>(min_pwm), static_cast<float>(max_pwm), clamped_scale));
 }
 
 } // namespace bed_fan

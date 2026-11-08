@@ -580,6 +580,11 @@ static int mkdir_r(struct _reent *r, const char *path, int mode) {
     path = process_path(path, devoptab_fatfs.name);
 
     result = f_mkdir(path);
+    if (result == FR_INVALID_NAME && path[strspn(path, "/")] == '\0') {
+        // The root of the volume always exists. FatFs R0.16 gives FR_INVALID_NAME for it
+        // (R0.14b gave FR_EXIST). make_dirs() expects EEXIST, as POSIX mkdir("/") gives.
+        result = FR_EXIST;
+    }
     errno = get_errno(result);
     r->_errno = errno;
 

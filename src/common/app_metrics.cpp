@@ -97,7 +97,10 @@ void RecordRuntimeStats() {
             if (mem_is_heap_allocated(stack_base)) {
                 s = malloc_usable_size((void *)stack_base);
             }
-            metric_record_custom(&stack, ",n=%.7s t=%i,m=%hu", task_name, s, task_statuses[idx].usStackHighWaterMark);
+            // t: stack size in bytes (0 for a static stack), m: free stack low-water mark in words,
+            // b: the same low-water mark in bytes. t and m keep their old (float) type.
+            metric_record_custom(&stack, ",n=%.7s t=%i,m=%hu,b=%ui", task_name, s, task_statuses[idx].usStackHighWaterMark,
+                static_cast<unsigned>(task_statuses[idx].usStackHighWaterMark * sizeof(StackType_t)));
         }
     }
 

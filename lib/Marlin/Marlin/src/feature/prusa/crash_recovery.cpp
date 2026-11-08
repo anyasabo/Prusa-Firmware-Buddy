@@ -131,15 +131,18 @@ void Crash_s::restore_state() {
     }
 
     // also reset internal crash locations to current_position when requested
+    // (the machine position can differ from current_position, for example with skew; leveling is still off here)
+    debug_assert(!planner.leveling_active);
+    const MachinePosXYZE current_machine = current_machine_position();
     if (!(recover_flags & RECOVER_XY_POSITION)) {
         LOOP_XY(i) {
             start_current_position[i] = current_position[i];
-            crash_machine_position[i] = current_position[i];
+            crash_machine_position[i] = current_machine[i];
         }
     }
     if (!(recover_flags & RECOVER_Z_POSITION)) {
         start_current_position[Z_AXIS] = current_position[Z_AXIS];
-        crash_machine_position[Z_AXIS] = current_position[Z_AXIS];
+        crash_machine_position[Z_AXIS] = current_machine[Z_AXIS];
     }
 
     // order is important here!

@@ -7,6 +7,7 @@
 #include <feature/compatibility_checks/filament_compatibility.hpp>
 
 #include <option/board_is_master_board.h>
+#include <option/has_indx.h>
 #if BOARD_IS_MASTER_BOARD()
     #include <marlin_server.hpp>
     #include <feature/safety_timer/safety_timer.hpp>
@@ -18,6 +19,15 @@ static constexpr HeaterWatch::Config heater_watch_config {
     .period_s = WATCH_TEMP_PERIOD,
     .min_temp_diff = WATCH_TEMP_INCREASE + TEMP_HYSTERESIS + 1,
 };
+
+    #if ENABLED(THERMAL_PROTECTION_HOTENDS) && !HAS_INDX()
+// HeaterWatch stops at min_temp_diff under the target, and ThermalRunaway arms at
+// THERMAL_PROTECTION_HYSTERESIS under the target. If these ranges do not overlap, a hotend that
+// stops between them has no protection. INDX does not meet this (24 C against 15 C). The INDX
+// hotend has its own model-based runaway check (hotend_temp_model).
+static_assert(heater_watch_config.min_temp_diff <= THERMAL_PROTECTION_HYSTERESIS,
+    "The heating watch and the thermal runaway protection of the hotend must overlap");
+    #endif
 #endif
 
 BaseHotend::BaseHotend(PhysicalToolIndex tool, const Config *config)

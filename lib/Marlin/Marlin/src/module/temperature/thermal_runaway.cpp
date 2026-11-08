@@ -22,8 +22,9 @@ bool ThermalRunaway::step(float current, float target, uint16_t period_seconds, 
 
     // When first heating, wait until the temperature is within the hysteresis of the target,
     // then go to Stable state. Do not wait for the exact target: the heating watch (HeaterWatch)
-    // stops a few degrees below the target. A heater that never reaches the exact target would
-    // then have no protection at all.
+    // stops at WATCH_TEMP_INCREASE + TEMP_HYSTERESIS + 1 under the target. The two checks must
+    // overlap (static_assert in base_hotend.cpp and temperature.cpp), or a heater that stops
+    // between them has no protection.
     case TRFirstHeating:
         if (current < tr_target_temperature - hysteresis_degc) {
             break;

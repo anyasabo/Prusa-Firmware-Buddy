@@ -288,7 +288,16 @@ void set_current_from_steppers() {
  * Suitable for homing, does not apply UBL.
  */
 void line_to_current_position(const feedRate_t &fr_mm_s/*=feedrate_mm_s*/) {
-  planner.buffer_line(current_position, fr_mm_s, PhysicalToolIndex::currently_selected());
+  #if ENABLED(SKEW_CORRECTION)
+    // Marlin applies all modifiers here (planner.buffer_line() -> apply_modifiers()). Buddy does not apply MBL here,
+    // but it must apply the skew. Without it, the planner XY differs from to_machine_pos(current_position), and a later
+    // sync_plan_position() shifts the position. Homing turns the skew off, so homing moves do not change.
+    MachinePosXYZE target = current_position.to_tag<MachinePosTag>();
+    planner.skew(target.x, target.y, target.z);
+    planner.buffer_line(target, fr_mm_s, PhysicalToolIndex::currently_selected());
+  #else
+    planner.buffer_line(current_position, fr_mm_s, PhysicalToolIndex::currently_selected());
+  #endif
 }
 
 void line_to_machine_pos(const MachinePosXYZE &target, feedRate_t fr_mm_s, const MoveHints &hints) {

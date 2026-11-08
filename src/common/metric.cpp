@@ -83,11 +83,17 @@ static void metric_system_task_run(const void *) {
 }
 
 static bool check_min_interval(metric_t *metric, uint32_t timestamp) {
-    if (metric->min_interval_ms) {
-        return ticks_diff(timestamp, metric->_last_update_timestamp) >= 1000 * (int32_t)metric->min_interval_ms;
-    } else {
+    if (!metric->min_interval_ms) {
         return true;
     }
+    // Unsigned difference of the µs timestamps: correct across the wrap of ticks_us() (71.6 min).
+    // A signed difference made a metric "not due" for 35.8 min after a gap of more than 35.8 min.
+    // A timestamp up to 1 s before the last record (taken by another task) is not due.
+    const uint32_t elapsed_us = timestamp - metric->_last_update_timestamp;
+    if (elapsed_us > UINT32_MAX - 1'000'000u) {
+        return false;
+    }
+    return elapsed_us >= 1000u * metric->min_interval_ms;
 }
 
 static metric_point_t *point_check_and_prepare(metric_t *metric, uint32_t timestamp, metric_value_type_t type) {

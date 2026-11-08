@@ -20,9 +20,12 @@ bool ThermalRunaway::step(float current, float target, uint16_t period_seconds, 
     case TRInactive:
         break;
 
-    // When first heating, wait for the temperature to be reached then go to Stable state
+    // When first heating, wait until the temperature is within the hysteresis of the target,
+    // then go to Stable state. Do not wait for the exact target: the heating watch (HeaterWatch)
+    // stops a few degrees below the target. A heater that never reaches the exact target would
+    // then have no protection at all.
     case TRFirstHeating:
-        if (current < tr_target_temperature) {
+        if (current < tr_target_temperature - hysteresis_degc) {
             break;
         }
         state = TRStable;

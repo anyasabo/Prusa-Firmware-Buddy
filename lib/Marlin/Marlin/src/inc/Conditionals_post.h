@@ -37,6 +37,16 @@
 #define HAS_CLASSIC_E_JERK HAS_CLASSIC_JERK
 
 /**
+ * XYZ Bed Skew Correction
+ */
+#if ENABLED(SKEW_CORRECTION)
+  // Buddy: Marlin allows -1 to 1. Real printers measure 0.0001 to 0.001. At 0.005, the shift is
+  // 1.5 mm over 300 mm of travel. A larger skew must be fixed in the frame.
+  #define SKEW_FACTOR_MIN -0.005
+  #define SKEW_FACTOR_MAX 0.005
+#endif
+
+/**
  * Axis lengths and center
  */
 #define X_MAX_LENGTH (X_MAX_POS - (X_MIN_POS))

@@ -10,8 +10,20 @@
 
 // This unit has UNITTESTS in machine_pos_conv_tests.cpp
 
+// to_machine_pos() and to_native_pos() are the Buddy versions of Planner::apply_modifiers() and
+// Planner::unapply_modifiers() in upstream Marlin, with the same order:
+// - to_machine_pos(): skew, then MBL. MBL looks up the mesh at the skewed XY.
+// - to_native_pos(): MBL, then unskew.
+// As in Marlin, G29 probes the mesh with the skew on (probe_at_point() -> do_blocking_move_to() -> to_machine_pos()).
+// As in Marlin, skew() and unskew() do nothing near the X and Y limits (COORDINATE_OKAY). In that band,
+// to_native_pos() is not the exact inverse of to_machine_pos().
+
 MachinePosXYZ to_machine_pos(const xyz_pos_t &pos) {
     MachinePosXYZ result = pos.to_tag<MachinePosTag>();
+
+#if ENABLED(SKEW_CORRECTION)
+    planner.skew(result);
+#endif
 
 #if HAS_MESH
     if (planner.leveling_active) {
@@ -71,6 +83,10 @@ xyz_pos_t to_native_pos(const MachinePosXYZ &pos) {
             result.z -= mbl_correction;
         }
     }
+#endif
+
+#if ENABLED(SKEW_CORRECTION)
+    planner.unskew(result);
 #endif
 
     return result;

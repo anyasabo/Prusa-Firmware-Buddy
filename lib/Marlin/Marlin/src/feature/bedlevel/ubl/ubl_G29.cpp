@@ -57,6 +57,9 @@
   #endif
 
   #include <option/has_nozzle_cleaner_lite.h>
+  #if ENABLED(SKEW_CORRECTION)
+    #include "../../../module/prusa/skew.hpp"
+  #endif
   #if HAS_NOZZLE_CLEANER_LITE()
     #include <feature/nozzle_cleaner_lite/include/nozzle_cleaner_lite.hpp>
   #endif
@@ -704,6 +707,13 @@
   void unified_bed_leveling::probe_major_points(const PrintArea::rect_t &probe_area, const bool do_ubl_mesh_map, const bool stow_probe, const bool extend_mesh) {
     save_ubl_active_state_and_disable();  // No bed level correction so only raw data is obtained
     pressure_advance::PressureAdvanceDisabler pa_disabler; // Reduce move delays as we don't extrude
+
+    #if ENABLED(SKEW_CORRECTION)
+      // Buddy: probe with the skew off, as Klipper does (Marlin probes with the skew on). The mesh is then keyed by
+      // machine XY, where to_machine_pos() looks it up, and it does not depend on the skew factors at G29 time.
+      // The probe area has a margin of one major point, which is more than the skew shift.
+      TemporarySkewDisabler skew_disabler;
+    #endif
 
     #if ENABLED(NOZZLE_LOAD_CELL)
       // Enable loadcell high precision across the entire sequence to prime the noise filters

@@ -337,3 +337,27 @@ TEST_CASE("machine_pos_conv skew round trip") {
         }
     }
 }
+
+TEST_CASE("machine_pos_conv skew and G29 probing") {
+    // G29 probes with the skew off (TemporarySkewDisabler in probe_major_points()), as Klipper does
+    reset_corrections();
+    Planner::skew_factor = { lim, lim, -lim };
+
+    // While probing: the probe goes to the machine XY of the mesh point, so the mesh is keyed by machine XY
+    Planner::skew_disabled = 1;
+    for (const xyz_pos_t mesh_point : { xyz_pos_t { 10, 10, 5 }, xyz_pos_t { 150, 150, 5 }, xyz_pos_t { 290, 290, 5 } }) {
+        CHECK(to_machine_pos(mesh_point) == mesh_point.to_tag<MachinePosTag>());
+    }
+
+    // While printing: the correction at a native position is the mesh value at its machine XY,
+    // which is where the probe measured it
+    Planner::skew_disabled = 0;
+    UBL::z_correction = 0.1f;
+    UBL::slope = { { { 0.01f, -0.002f } } };
+    for (const xyz_pos_t native : { xyz_pos_t { 100, 50, 0.2f }, xyz_pos_t { 250, 280, 1 } }) {
+        CAPTURE(native.x, native.y, native.z);
+        const MachinePosXYZ machine = to_machine_pos(native);
+        CHECK(machine.xy() != native.xy()); // the skew applies
+        CHECK_THAT(machine.z - native.z, Catch::Matchers::WithinAbs(ubl.get_z_correction(machine.xy()), tolerance * 10));
+    }
+}

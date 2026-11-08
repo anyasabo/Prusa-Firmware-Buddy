@@ -14,7 +14,9 @@
 // Planner::unapply_modifiers() in upstream Marlin, with the same order:
 // - to_machine_pos(): skew, then MBL. MBL looks up the mesh at the skewed XY.
 // - to_native_pos(): MBL, then unskew.
-// As in Marlin, G29 probes the mesh with the skew on (probe_at_point() -> do_blocking_move_to() -> to_machine_pos()).
+// The skew math and M852 follow Marlin. G29 probes the mesh with the skew off (see probe_major_points()), as
+// Klipper does (Marlin probes with the skew on). The bed is fixed in machine coordinates, so the mesh is then keyed
+// by machine XY, where the lookup occurs, and an old mesh stays correct when the skew factors change.
 // As in Marlin, skew() and unskew() do nothing near the X and Y limits (COORDINATE_OKAY). In that band,
 // to_native_pos() is not the exact inverse of to_machine_pos().
 

@@ -252,6 +252,19 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
   MachinePosXYZE machine_position;
   planner.get_axis_position_mm(machine_position);
 
+  #if ENABLED(SKEW_CORRECTION)
+    // Buddy: skew couples the axes. The native X depends on the machine X, Y and Z, and the native Y on the machine Y
+    // and Z. Marlin updates only the native position of this axis, so after a Z probe move, the next sync_plan_position()
+    // shifts X and Y by the Z distance times the skew factor. So take this axis from the steppers, keep the other axes
+    // at the machine position of current_position, and update all native XYZ.
+    if (axis <= Z_AXIS && planner.skew_active()) {
+      MachinePosXYZ machine_xyz = current_machine_position().xyz();
+      machine_xyz[axis] = machine_position[axis];
+      current_position.set(to_native_pos(machine_xyz));
+      return;
+    }
+  #endif
+
   const xyze_pos_t native_position = to_native_pos(machine_position);
   
   if (axis == ALL_AXES_ENUM)

@@ -8,6 +8,9 @@
 #include "../../module/endstops.h"
 #include "../stepper.h"
 #include <config_store/store_instance.hpp>
+#if ENABLED(SKEW_CORRECTION)
+    #include "skew.hpp"
+#endif
 
 #if HAS_WORKSPACE_OFFSET
 static workspace_xyz_t disable_workspace(bool do_x, bool do_y, bool do_z) {
@@ -54,6 +57,11 @@ bool disable_modifiers_if(bool condition, bool do_z) {
     set_bed_leveling_enabled(false);
 #endif
 
+#if ENABLED(SKEW_CORRECTION)
+    // Unlike leveling, enable_modifiers_if() always turns the skew on again
+    disable_skew();
+#endif
+
     sync_plan_position();
     return leveling_was_active;
 }
@@ -62,6 +70,10 @@ void enable_modifiers_if(bool condition, bool restore_leveling) {
     if (!condition) {
         return;
     }
+
+#if ENABLED(SKEW_CORRECTION)
+    restore_skew();
+#endif
 
 #if HAS_LEVELING
     if (restore_leveling) {

@@ -29,6 +29,7 @@
 
 #include <config_store/store_instance.hpp>
 #include <logging/log.hpp>
+#include <timing.h>
 #include <accelerometer/common_structs.hpp>
 
 #include <option/has_local_accelerometer.h>
@@ -991,6 +992,17 @@ static float limit_end_frequency(const float start_frequency, float end_frequenc
 // so double math is emulated in software, and the fitting evaluates these functions
 // hundreds of thousands of times for each axis.
 
+// EXPERIMENT: the fitting of upstream master in double, for an A/B of the time on the printer.
+// M9958 D1 selects it at runtime, M9958 D0 selects the float fitting (the default).
+namespace fit_double {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function" // one wrapper is not used here
+#include "M958_fit_double.inc"
+#pragma GCC diagnostic pop
+} // namespace fit_double
+bool shaper_fit_double = false;
+METRIC_DEF(metric_shaper_fit, "shaper_fit", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+
 static float get_inv_D(const input_shaper::Shaper &shaper) {
     float d = 0.f;
     for (int i = 0; i < shaper.num_pulses; ++i) {
@@ -1193,7 +1205,7 @@ static Shaper_result fit_shaper(const FindBestShaperProgressHook &progress_hook,
     return shaper_result;
 }
 
-static input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
+static input_shaper::AxisConfig find_best_shaper_float(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
     struct Best_score {
         Shaper_result result;
         input_shaper::Type type;
@@ -1231,6 +1243,24 @@ static input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHoo
     };
 }
 
+// EXPERIMENT: all fittings come here. It selects the algorithm and logs the time of each fit.
+static input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
+    const bool use_double = shaper_fit_double;
+    const uint32_t start = ticks_ms();
+    const input_shaper::AxisConfig config = use_double
+        ? fit_double::find_best_shaper(progress_hook, psd, static_cast<fit_double::Action>(std::to_underlying(final_action)), default_config)
+        : find_best_shaper_float(progress_hook, psd, final_action, default_config);
+    const uint32_t ms = ticks_ms() - start;
+    log_info(Marlin, "shaper fit: algo=%s ms=%u points=%u action=%u type=%s freq=%.1f",
+        use_double ? "double" : "float", static_cast<unsigned>(ms), static_cast<unsigned>(psd.size()),
+        static_cast<unsigned>(std::to_underlying(final_action)), input_shaper::to_string(config.type),
+        static_cast<double>(config.frequency));
+    metric_record_custom(&metric_shaper_fit, " d=%ui,ms=%ui,n=%ui,t=%ui,f=%ui", use_double ? 1u : 0u,
+        static_cast<unsigned>(ms), static_cast<unsigned>(psd.size()), static_cast<unsigned>(config.type),
+        static_cast<unsigned>(config.frequency * 10.f));
+    return config;
+}
+
 static input_shaper::AxisConfig find_best_shaper(const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
     const auto progress_hook = [](input_shaper::Type, float) -> Result<void> {
         idle(true);
@@ -1241,6 +1271,27 @@ static input_shaper::AxisConfig find_best_shaper(const Spectrum &psd, const Acti
 
 input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, input_shaper::AxisConfig default_config) {
     return find_best_shaper(progress_hook, psd, Action::find_best_result, default_config);
+}
+
+// EXPERIMENT (M9958 B): run the fitting on fixed test spectra with both algorithms. No motion.
+// The spectra have the size of the M1959 spectrum (30-79 Hz, step 1 Hz): one resonance at 42 Hz
+// and one at 68 Hz (damping 0.08) on a small floor. Each fit logs its time ("shaper fit:").
+void benchmark_fit() {
+    const bool saved = shaper_fit_double;
+    for (const float peak : { 42.f, 68.f }) {
+        FixedLengthSpectrum<50> psd(30.f, 1.f);
+        for (size_t i = 0; i < psd.max_size(); ++i) {
+            const float r = (30.f + static_cast<float>(i)) / peak;
+            const float a = 1.f - r * r;
+            const float b = 2.f * 0.08f * r;
+            psd.put(0.02f + 1.f / (a * a + b * b));
+        }
+        for (const bool use_double : { false, true }) {
+            shaper_fit_double = use_double;
+            find_best_shaper(psd, Action::find_best_result, input_shaper::axis_defaults[X_AXIS]);
+        }
+    }
+    shaper_fit_double = saved;
 }
 
 /**

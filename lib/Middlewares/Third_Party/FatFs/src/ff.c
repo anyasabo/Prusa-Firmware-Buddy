@@ -2520,7 +2520,8 @@ static FRESULT dir_read (
 /* A cache holds 16-bit hashes of all names in one directory: the SFN of each entry and the
 /  LFN of each LFN set that dir_find() can match. dir_find() makes it when it scans the
 /  directory from the start to the end marker. dir_register() adds the new names. A removed
-/  name stays in the cache (it only makes a hash match, then dir_find() scans as usual).
+/  name stays in the cache until the next scan after a hash match gets to the end marker: that
+/  scan makes a new cache (NcNew) with no hashes of removed names.
 /  If no hash of the name to find is in the cache, dir_find() gives FR_NO_FILE with no read.
 /  The hash of an LFN uses each character after ff_wtoupper() and its position, thus two names
 /  that cmp_lfn() finds equal have the same hash. All access is under the volume lock.
@@ -2539,6 +2540,7 @@ typedef struct {
 	WORD	h[NC_MAX];
 } NC_CACHE;
 static NC_CACHE Nc[2];	/* [0]: root directory, [1]: the last other directory */
+static NC_CACHE NcNew;	/* A new cache that a scan after a false match makes (see dir_find()) */
 
 static void nc_drop (void)
 {
@@ -2628,6 +2630,7 @@ static int nc_valid_for (const DIR* dp)	/* 1: the cache is valid for the directo
 /* State of a cache build during one dir_find() scan */
 typedef struct {
 	NC_CACHE*	c;		/* The cache to fill */
+	NC_CACHE*	slot;	/* 0, or the cache that c replaces at the end marker (c is then NcNew) */
 	BYTE	on;			/* 1: building */
 	BYTE	unsafe;		/* 1: an LFN entry that the hash cannot represent was found */
 	BYTE	lfn;		/* 1: in an LFN set that can still match */
@@ -2745,7 +2748,7 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 	/* On the FAT/FAT32 volume */
 #if FF_USE_LFN
 	ord = sum = 0xFF; dp->blk_ofs = 0xFFFFFFFF;	/* Reset LFN sequence */
-	nb.on = 0; nb.c = 0;
+	nb.on = 0; nb.c = 0; nb.slot = 0;
 	if (buddy_fatfs_name_cache) {	/* EXPERIMENT: name cache */
 		NC_CACHE* c = nc_slot(dp);
 
@@ -2756,10 +2759,17 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 				return FR_NO_FILE;	/* No name in the directory has this hash */
 			}
 			buddy_fatfs_stats.nc_maybe++;
+			/* A hash matches. It can be the hash of a deleted name. Make a new cache in NcNew
+			/  during this scan. If the scan gets to the end marker, the name is not there, and
+			/  the new cache (with no hashes of deleted names) replaces the old one. If the scan
+			/  finds the name, the old cache stays. The scan reads the same sectors in both cases. */
+			NcNew.valid = 0; NcNew.fs = fs; NcNew.id = fs->id; NcNew.key = nc_key(dp); NcNew.n = 0;
+			nb.c = &NcNew; nb.slot = c;
 		} else {					/* Make the cache in this scan */
 			c->valid = 0; c->fs = fs; c->id = fs->id; c->key = nc_key(dp); c->n = 0;
-			nb.c = c; nb.on = 1; nb.unsafe = 0; nb.lfn = 0; nb.ord = 0; nb.sum = 0; nb.len = 0; nb.acc = 0;
+			nb.c = c;
 		}
+		nb.on = 1; nb.unsafe = 0; nb.lfn = 0; nb.ord = 0; nb.sum = 0; nb.len = 0; nb.acc = 0;
 	}
 #endif
 	do {
@@ -2778,6 +2788,7 @@ static FRESULT dir_find (	/* FR_OK(0):succeeded, !=0:error */
 				for (o = (UINT)(dp->dptr % SS(fs)) + SZDIRE; o < SS(fs) && fs->win[o] == 0; o += SZDIRE) ;
 				if (o >= SS(fs)) {
 					nb.c->valid = 1;
+					if (nb.slot) *nb.slot = *nb.c;	/* The new cache replaces the old one */
 					buddy_fatfs_stats.nc_builds++;
 				}
 			}

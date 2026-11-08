@@ -436,6 +436,8 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
   uint16_t                     ptr;
   uint8_t                      if_ix = 0U;
   uint8_t                      ep_ix = 0U;
+  uint16_t                     limit;
+  uint32_t                     off;
 
   if (buf == NULL)
   {
@@ -465,11 +467,29 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
     ptr = USB_LEN_CFG_DESC;
     pif = (USBH_InterfaceDescTypeDef *)NULL;
 
+    /* Prusa: parse only the bytes that are in the buffer and in the descriptor.
+       ptr is not the offset of pdesc (it is 9 more), thus use the pointers. */
+    limit = MIN(cfg_desc->wTotalLength, length);
+
     while ((if_ix < USBH_MAX_NUM_INTERFACES) && (ptr < cfg_desc->wTotalLength))
     {
       pdesc = USBH_GetNextDesc((uint8_t *)(void *)pdesc, &ptr);
+      off = (uint32_t)((uint8_t *)(void *)pdesc - buf);
+
+      /* Prusa: stop if the header of the next descriptor is not in the limit */
+      if ((off + USB_LEN_DESC_HDR) > limit)
+      {
+        break;
+      }
+
       if (pdesc->bDescriptorType == USB_DESC_TYPE_INTERFACE)
       {
+        /* Prusa: an interface descriptor that is not fully in the limit is not supported */
+        if ((off + USB_INTERFACE_DESC_SIZE) > limit)
+        {
+          return USBH_NOT_SUPPORTED;
+        }
+
         /* Make sure that the interface descriptor's bLength is equal to USB_INTERFACE_DESC_SIZE */
         if (pdesc->bLength != USB_INTERFACE_DESC_SIZE)
         {
@@ -485,6 +505,15 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
         while ((ep_ix < USBH_MAX_NUM_ENDPOINTS) && (ep_ix < pif->bNumEndpoints) && (ptr < cfg_desc->wTotalLength))
         {
           pdesc = USBH_GetNextDesc((uint8_t *)(void *)pdesc, &ptr);
+          off = (uint32_t)((uint8_t *)(void *)pdesc - buf);
+
+          /* Prusa: stop if the next descriptor is not fully in the limit */
+          if (((off + USB_LEN_DESC_HDR) > limit) ||
+              ((pdesc->bDescriptorType == USB_DESC_TYPE_ENDPOINT) &&
+               ((off + USB_ENDPOINT_DESC_SIZE) > limit)))
+          {
+            break;
+          }
 
           if (pdesc->bDescriptorType == USB_DESC_TYPE_ENDPOINT)
           {

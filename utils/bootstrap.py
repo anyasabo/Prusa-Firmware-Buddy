@@ -52,18 +52,18 @@ dependencies = {
         },
     },
     'cmake': {
-        'version': '3.28.3',
+        'version': '4.4.5',
         'url': {
-            'Linux': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-x86_64.tar.gz',
-            'Linux-aarch64': 'https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/cmake-3.28.3-Linux-aarch64.tar.gz',
-            'Windows': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-windows-x86_64.zip',
-            'Darwin': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-macos-universal.tar.gz',
+            'Linux': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-x86_64.tar.gz',
+            'Linux-aarch64': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-aarch64.tar.gz',
+            'Windows': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-x86_64.zip',
+            'Darwin': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-macos-universal.tar.gz',
         },
         'sha256': {
-            'Linux': '804d231460ab3c8b556a42d2660af4ac7a0e21c98a7f8ee3318a74b4a9a187a6',
-            'Linux-aarch64': '29e1949e598fd84827a13480bdda39a9465e096c242ad146173dc2dd64cffd71',
-            'Windows': 'cac7916f7e1e73a25de857704c94fd5b72ba9fe2f055356b5602d2f960e50e5b',
-            'Darwin': 'd9e2c22fec920a4d1f6b0d0683c035d799475c179c91e41e1a7fbfab610a0305',
+            'Linux': 'ed85135c5a5135b45e50423cb406dea04ca3338da0b8ef3c9ede963559680be0',
+            'Linux-aarch64': '301d5063ab259577c1b57ce5490b1aab9ea5c56dc4c822f73499553dab94925f',
+            'Windows': '326c826486d46a23cf9d5a1c9ee3a567d427bdd02c4a34071937a2a675cff004',
+            'Darwin': '679e77a96b9ef9484cc6c1445255fc4f84206b48a65420efbedf16bdab55fbff',
         },
     },
     'gcc-arm-none-eabi': {

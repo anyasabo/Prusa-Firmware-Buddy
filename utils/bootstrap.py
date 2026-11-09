@@ -37,18 +37,18 @@ running_in_venv = Path(sys.prefix).resolve() == venv_dir.resolve()
 # yapf: disable
 dependencies = {
     'ninja': {
-        'version': '1.10.2',
+        'version': '1.13.2',
         'url': {
-            'Linux': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip',
-            'Linux-aarch64': 'https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/ninja-v1.10.2-linux-aarch64.zip',
-            'Windows': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip',
-            'Darwin': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-mac.zip',
+            'Linux': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip',
+            'Linux-aarch64': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux-aarch64.zip',
+            'Windows': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win.zip',
+            'Darwin': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-mac.zip',
         },
         'sha256': {
-            'Linux': '763464859c7ef2ea3a0a10f4df40d2025d3bb9438fcb1228404640410c0ec22d',
-            'Linux-aarch64': '809e87ca30eec0e57e431be9e072bf90fb22ee42831d04bd23fd426fad970688',
-            'Windows': 'bbde850d247d2737c5764c927d1071cbb1f1957dcabda4a130fa8547c12c695f',
-            'Darwin': '6fa359f491fac7e5185273c6421a000eea6a2f0febf0ac03ac900bd4d80ed2a5',
+            'Linux': '5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6',
+            'Linux-aarch64': 'fd2cacc8050a7f12a16a2e48f9e06fca5c14fc4c2bee2babb67b58be17a607fc',
+            'Windows': '07fc8261b42b20e71d1720b39068c2e14ffcee6396b76fb7a795fb460b78dc65',
+            'Darwin': 'c99048673aa765960a99cf10c6ddb9f1fad506099ff0a0e137ad8960a88f321b',
         },
     },
     'cmake': {

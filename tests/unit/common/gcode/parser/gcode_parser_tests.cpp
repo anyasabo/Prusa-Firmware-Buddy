@@ -113,7 +113,7 @@ TEST_CASE("gcode_parser::gcode_parser::m865_like_command") {
 TEST_CASE("gcode_parser::gcode_parser::unsigned_32bit_options") {
     // LargestInteger is int32_t. The default limits of uint32_t and size_t must not reject values.
     GCodeParser2 p(fail_test_error_callback);
-    REQUIRE(p.parse("M9959 G10 S0 W2147483647"));
+    REQUIRE(p.parse("M123 G10 S0 W2147483647"));
     CHECK(p.option<uint32_t>('G') == 10u);
     CHECK(p.option<uint32_t>('S') == 0u);
     CHECK(p.option<size_t>('W') == 2147483647u);

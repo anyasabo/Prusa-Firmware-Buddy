@@ -22,3 +22,14 @@ add_executable(vector_tests vector_tests.cpp)
 target_include_directories(vector_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src)
 target_link_libraries(vector_tests buddy_utils)
 add_catch_test(vector_tests)
+
+add_executable(
+  thermal_protection_tests
+  ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/module/temperature/heater_watch.cpp
+  ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/module/temperature/thermal_runaway.cpp
+  thermal_protection_tests.cpp
+  )
+target_include_directories(
+  thermal_protection_tests PRIVATE stub_include_thermal ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src
+  )
+add_catch_test(thermal_protection_tests)

@@ -10,7 +10,7 @@
 
 extern "C" {
 volatile uint32_t buddy_phstep_isr_cycles = 0;
-volatile uint32_t buddy_gui_delay_min = 1;
+volatile uint32_t buddy_gui_delay_min = 10; // anya/main: GUI_DELAY_MIN is 10 (gui-idle-sleep)
 volatile uint32_t buddy_phstep_fast = 0;
 volatile uint32_t buddy_phstep_ram = 0;
 volatile uint32_t buddy_phstep_fast_passes = 0;

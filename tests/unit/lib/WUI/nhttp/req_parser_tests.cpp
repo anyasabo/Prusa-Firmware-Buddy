@@ -69,3 +69,32 @@ TEST_CASE("url parser", "[url]") {
         REQUIRE_FALSE(parser.uri_filename(url, std::size(url)));
     }
 }
+
+TEST_CASE("Expect: 100-continue", "[req_parser]") {
+    EmptyServerDefs server_defs;
+    Server server(server_defs);
+    TestRequestParser parser(server);
+
+    const auto feed = [&](const char *request) {
+        for (const char *c = request; *c; c++) {
+            parser.feed(static_cast<uint8_t>(*c));
+        }
+    };
+
+    SECTION("present") {
+        feed("PUT /api/v1/files/usb/a.gcode HTTP/1.1\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n");
+        REQUIRE(parser.expect_continue);
+        REQUIRE(parser.content_length == 5);
+    }
+
+    SECTION("absent") {
+        feed("PUT /api/v1/files/usb/a.gcode HTTP/1.1\r\nContent-Length: 5\r\n\r\n");
+        REQUIRE_FALSE(parser.expect_continue);
+    }
+
+    SECTION("other expectation") {
+        feed("PUT /api/v1/files/usb/a.gcode HTTP/1.1\r\nExpect: something-else\r\nContent-Length: 5\r\n\r\n");
+        REQUIRE_FALSE(parser.expect_continue);
+        REQUIRE(parser.content_length == 5);
+    }
+}

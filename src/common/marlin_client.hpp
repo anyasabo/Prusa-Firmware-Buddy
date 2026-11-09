@@ -103,6 +103,13 @@ using ResetToolMapping = marlin_server::ResetToolMapping;
 
 void print_start(const char *filename, PreviewSkipIfAble skip_preview = PreviewSkipIfAble::no, ResetToolMapping reset_tool_mapping = ResetToolMapping::yes);
 
+/// EXPERIMENT (upload-experiments): like print_start, but don't wait for the
+/// server to take the request (no acknowledgement), and drop it if the request
+/// queue is full instead of waiting. For best-effort requests only (showing the
+/// preview of an uploaded file); is_print_started() isn't meaningful afterwards.
+/// Returns false if the request was dropped.
+bool print_start_no_wait(const char *filename);
+
 // Should only be called after calling marlin_print_start with skip_preview = true
 // to see if it really started. Calling it after a call to marlin_print_start with
 // skip_preview = false will cause an infinit loop!

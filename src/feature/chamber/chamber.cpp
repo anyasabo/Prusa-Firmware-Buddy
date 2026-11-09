@@ -182,7 +182,8 @@ std::optional<Temperature> Chamber::set_target_temperature(std::optional<Tempera
         target_temperature_ = std::min(*target_temperature_, *max_temp);
     }
 
-    METRIC_DEF(metric_chamber_ttemp, "chamber_ttemp", METRIC_VALUE_FLOAT, 1000, METRIC_DISABLED);
+    // No rate limit: the target is recorded only when it changes, and a limit would drop a change.
+    METRIC_DEF(metric_chamber_ttemp, "chamber_ttemp", METRIC_VALUE_FLOAT, 0, METRIC_ENABLED);
     metric_record_float(&metric_chamber_ttemp, target_temperature_.value_or(NAN));
 
     return target_temperature_;

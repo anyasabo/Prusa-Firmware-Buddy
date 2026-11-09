@@ -18,6 +18,7 @@ target_sources(
           M9200.cpp
           M9201.cpp
           M9933.cpp
+          M9959.cpp
           M997.cpp
           M999.cpp
           skippable_gcode.cpp
@@ -25,6 +26,11 @@ target_sources(
 
 if(NOT BOARD STREQUAL "XL_DEV_KIT_XLB")
   target_sources(firmware PRIVATE G26.cpp M862_2_3.cpp M862_5.cpp M862_6.cpp)
+endif()
+
+# EXPERIMENT: M9958 needs M958.cpp, which only printers with an accelerometer build
+if(HAS_REMOTE_ACCELEROMETER OR HAS_LOCAL_ACCELEROMETER)
+  target_sources(firmware PRIVATE M9958.cpp)
 endif()
 
 if(HAS_TRINAMIC)

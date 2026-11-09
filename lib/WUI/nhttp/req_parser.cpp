@@ -61,6 +61,7 @@ RequestParser::RequestParser(const Server &server)
     , print_after_upload(false)
     , overwrite_file(false)
     , create_folder(false)
+    , expect_continue(false)
     // default authentication method when none comes
     , auth_status(DigestAuthParams()) {}
 
@@ -209,6 +210,9 @@ ExecutionControl RequestParser::event(Event event) {
         break;
     case Names::OverwriteFile:
         overwrite_file = true;
+        return ExecutionControl::Continue;
+    case Names::Expect100Continue:
+        expect_continue = true;
         return ExecutionControl::Continue;
     case Names::Body:
         done = true;

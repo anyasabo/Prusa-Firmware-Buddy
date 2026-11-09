@@ -9,8 +9,9 @@
 
 void record_fanctl_metrics() {
     METRIC_DEF(metric, "fan", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
-    METRIC_DEF(fan_print, "print_fan_act", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
-    METRIC_DEF(fan_hbr, "hbr_fan_act", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
+    // No rate limit: UPDATE_PERIOD (987 ms) below already limits them. A limit of 1000 ms dropped every second point.
+    METRIC_DEF(fan_print, "print_fan_act", METRIC_VALUE_INTEGER, 0, METRIC_ENABLED);
+    METRIC_DEF(fan_hbr, "hbr_fan_act", METRIC_VALUE_INTEGER, 0, METRIC_ENABLED);
 #if XL_ENCLOSURE_SUPPORT() // XLBOARD has additional enclosure fan
     METRIC_DEF(fan_enclosure, "hbr_fan_enc", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
 #endif

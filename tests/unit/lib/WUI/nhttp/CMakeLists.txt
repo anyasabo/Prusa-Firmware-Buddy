@@ -8,8 +8,11 @@ add_executable(
   ${CMAKE_CURRENT_SOURCE_DIR}/status_renderer_mock.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/partial_file_mock.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/transfer_mock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/upload_prepare_mock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/upload_experiment_mock.cpp
   # Some handlers are stubbed out.
   ${CMAKE_CURRENT_SOURCE_DIR}/server_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transfer_slot_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/req_parser_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/headers_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/job_command_tests.cpp

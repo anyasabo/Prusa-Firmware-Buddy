@@ -1,3 +1,5 @@
+#include <buddy/rx_stats.h>
+#include <buddy/upload_experiment.hpp>
 #include "server.h"
 #include "splice.h"
 
@@ -152,7 +154,9 @@ void Server::inject_transfer(altcp_pcb *conn, pbuf *data, uint16_t data_offset, 
     // data (too complex and not needed).
     dest->transfer = transfer;
     dest->transfer->server = this;
-    dest->transfer->file()->set_written_callback(TransferSlot::send_segment_written, dest);
+    // The written callback gets set once the file is ready (TransferSlot::step).
+    dest->file_ready = false;
+    dest->finishing = false;
     dest->conn = conn;
     dest->expected_data = expected_data;
     dest->current_pbuf = nullptr;
@@ -170,12 +174,21 @@ void Server::inject_transfer(altcp_pcb *conn, pbuf *data, uint16_t data_offset, 
     transfer_slot.forward_progress();
 }
 
+void Server::kick_transfer() {
+    transfer_slot.forward_progress();
+}
+
 void Server::ConnectionSlot::step(const std::string_view &input, uint8_t *output, size_t out_size) {
     Step s = { 0, 0, handler::Continue() };
+    const uint8_t handler_before = static_cast<uint8_t>(state.index()); // EXPERIMENT
+    const uint32_t step_start = sys_now();
     std::visit([&](auto &phase) {
         phase.step(input, client_closed && input.empty() && output == nullptr, output, out_size, s);
     },
         state);
+    // EXPERIMENT: the handler the step moves to (if any), for the http_blk metric.
+    const uint8_t handler_after = holds_alternative<ConnectionState>(s.next) ? static_cast<uint8_t>(get<ConnectionState>(s.next).index()) : handler_before;
+    upload_experiment::record_http_step(sys_now() - step_start, handler_before, handler_after);
 
     debug_assert(s.read <= input.size());
     debug_assert(s.written <= out_size);
@@ -725,19 +738,49 @@ void Server::TransferSlot::release() {
             // It gets reset to OK in release()
             transfer->result = splice::Result::Timeout;
             transfer->done();
+        } else {
+            // Still preparing the file (no file yet), give up on that.
+            transfer->abort_prepare();
         }
         transfer->release();
     }
     expected_data = 0;
     transfer = nullptr;
-    for (size_t i = 0; i < PbufQueueMax; i++) {
-        pbuf_queue[i].reset();
-    }
-    pbuf_queue_size = 0;
+    file_ready = false;
+    finishing = false;
+    drop_queue(false);
     current_pbuf = 0;
     pbuf_processed = 0;
     response.reset();
     Slot::release();
+}
+
+void Server::TransferSlot::drop_queue(bool give_back) {
+    for (size_t i = 0; give_back && i < pbuf_queue_size; i++) {
+        pbuf *head = pbuf_queue[i].get();
+        if (head != nullptr && conn != nullptr) {
+            size_t unconsumed = head->tot_len;
+            if (i == 0) {
+                // Part of the head chain was already written and recved: the
+                // nodes before current_pbuf and pbuf_processed of it. (Not
+                // started yet: pbuf_processed is the request header part the
+                // connection slot already recved before the handover.)
+                for (pbuf *p = head; current_pbuf != nullptr && p != current_pbuf && p != nullptr; p = p->next) {
+                    unconsumed -= p->len;
+                }
+                unconsumed -= std::min<size_t>(pbuf_processed, unconsumed);
+            }
+            if (unconsumed > 0) {
+                altcp_recved(conn, unconsumed);
+            }
+        }
+    }
+    for (size_t i = 0; i < PbufQueueMax; i++) {
+        pbuf_queue[i].reset();
+    }
+    pbuf_queue_size = 0;
+    current_pbuf = nullptr;
+    pbuf_processed = 0;
 }
 
 bool Server::TransferSlot::want_write() const {
@@ -759,10 +802,43 @@ bool Server::TransferSlot::step() {
         return false;
     }
 
+    if (!file_ready) {
+        switch (transfer->poll_ready()) {
+        case splice::Transfer::Readiness::Waiting:
+            // The pbufs wait in the queue meanwhile; once it or the TCP window
+            // is full, the client waits too (zero window, not a loss).
+            return false;
+        case splice::Transfer::Readiness::Failed:
+            // done() reports why. Don't consume anything more.
+            expected_data = 0;
+            break;
+        case splice::Transfer::Readiness::Ready:
+            transfer->file()->set_written_callback(TransferSlot::send_segment_written, this);
+            break;
+        }
+        file_ready = true;
+        // Re-run with the file in place (or to finish the failed transfer).
+        return true;
+    }
+
     if (expected_data == 0) {
         // Peer closed or we received all the data
-        transfer->file()->set_written_callback(nullptr, nullptr);
+        if (transfer->file()) {
+            transfer->file()->set_written_callback(nullptr, nullptr);
+        }
+        if (!finishing && transfer->result == splice::Result::Ok && transfer->start_finish()) {
+            finishing = true;
+        }
+        if (finishing) {
+            if (transfer->poll_finished() == splice::Transfer::Readiness::Waiting) {
+                // The job wakes us (kick_transfer); the poll callback too.
+                return false;
+            }
+            finishing = false;
+        }
+        const uint32_t done_start = sys_now(); // EXPERIMENT
         auto res = transfer->done();
+        upload_experiment::record_http_step(sys_now() - done_start, 91, 91);
 
         if (res.has_value()) {
             response = res;
@@ -839,7 +915,9 @@ bool Server::TransferSlot::step() {
 
     debug_assert(current_pbuf != nullptr);
     debug_assert(current_pbuf->len > pbuf_processed); // At least little bit of data is left
+    const uint32_t write_start = sys_now(); // EXPERIMENT
     auto [read, result] = transfer->write(static_cast<const uint8_t *>(current_pbuf->payload) + pbuf_processed, current_pbuf->len - pbuf_processed);
+    upload_experiment::record_http_step(sys_now() - write_start, 90, 90);
     if (read != 0) {
         // We move the TCP window at the point of submitting to the USB.
         // Doing it after it was really written would not particularly help
@@ -865,7 +943,11 @@ bool Server::TransferSlot::step() {
 
 bool Server::TransferSlot::take_pbuf(pbuf *data) {
     if (expected_data == 0 && data != nullptr) {
-        // pbuf past end handling
+        // pbuf past end handling (also after a failed transfer, while the
+        // response goes out): keep the window open, see drop_queue.
+        if (conn != nullptr) {
+            altcp_recved(conn, data->tot_len);
+        }
         pbuf_free(data);
         return true;
     }
@@ -899,15 +981,17 @@ bool Server::TransferSlot::take_pbuf(pbuf *data) {
         }
     }
 
-    if (pbuf_queue_size >= PbufQueueMax) {
+    const size_t queue_cap = std::min(PbufQueueMax, upload_experiment::queue_cap); // EXPERIMENT
+    if (pbuf_queue_size >= queue_cap) {
         // Try to make room for the incoming pbuf in the queue.
         // (Further attempts will be done in the step just after this, to submit this pbuf)
         forward_progress();
     }
 
-    if (pbuf_queue_size >= PbufQueueMax) {
+    if (pbuf_queue_size >= queue_cap) {
         // Not enough room in the queue (unlikely, but possible with tiny
         // packets). Refuse the pbuf now and let lwip call us later again with it.
+        buddy_rx_stats.refused++;
         return false;
     }
 
@@ -947,8 +1031,13 @@ void Server::TransferSlot::make_response(ConnectionSlot *slot) {
         if (status == http::Status::Ok) {
             active_slot->state.emplace<printer::FileInfo>(transfer->filepath(), false, /*TODO:: is this correct?*/ false, true, printer::FileInfo::ReqMethod::Get, printer::FileInfo::APIVersion::v1, std::nullopt);
         } else {
-            active_slot->state.emplace<handler::StatusPage>(status, handler::StatusPage::CloseHandling::Close, /*TODO: is this correct?*/ false, std::nullopt, message);
+            // The client may still be sending the body (eg. the upload failed
+            // before it got far): drain it rather than close on it.
+            active_slot->state.emplace<handler::StatusPage>(status, handler::StatusPage::CloseHandling::ErrorClose, transfer->json_errors(), std::nullopt, message);
         }
+        // The rest of the queue is the drained body; give it back to the
+        // window before the connection changes hands (we lose conn below).
+        drop_queue(true);
         altcp_arg(conn, active_slot);
         server->activity(conn, active_slot);
         altcp_setprio(conn, ACTIVE_PRIO);

@@ -1,6 +1,7 @@
 #include <inttypes.h>
 #include <buddy/main.h>
 #include "metric.h"
+#include <buddy/rx_stats.h>
 #include "pbuf_rx.h"
 #include "wui.h"
 #include <lwip/opt.h>
@@ -52,6 +53,9 @@ __ALIGN_BEGIN uint8_t Tx_Buff[ETH_TXBUFNB][ETH_TX_BUF_SIZE] __ALIGN_END; /* Ethe
 
 METRIC_DEF(metric_eth_out, "eth_out", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
 METRIC_DEF(metric_eth_in, "eth_in", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+// Two metrics: custom values are limited to 47 characters (metric.h).
+METRIC_DEF(metric_rxd_eth, "rxd_eth", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+METRIC_DEF(metric_rxd_tcp, "rxd_tcp", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
 
 /* Global Ethernet handle */
 ETH_HandleTypeDef heth;
@@ -135,6 +139,11 @@ void HAL_ETH_MspDeInit(ETH_HandleTypeDef *ethHandle) {
  * @retval None
  */
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
+    // EXPERIMENT: net_lat wake-up latency (first unserviced interrupt).
+    if (buddy_eth_irq_ms == 0) {
+        const uint32_t now = sys_now();
+        buddy_eth_irq_ms = now != 0 ? now : 1;
+    }
     notify_ethernet_data();
 }
 
@@ -345,10 +354,23 @@ static struct pbuf *low_level_input(struct netif *netif) {
     bytes_received_count += len;
     metric_record_custom(&metric_eth_in, " recv=%" PRIu32 "i", bytes_received_count);
 
+    {
+        // DMAMFBOCR is clear-on-read: MFC (bits 0-15) = missed for lack of descriptors,
+        // MFA (bits 17-27) = missed by FIFO overflow.
+        const uint32_t mfbocr = heth.Instance->DMAMFBOCR;
+        buddy_rx_stats.eth_missed += mfbocr & 0xFFFFU;
+        buddy_rx_stats.eth_fifo_ovf += (mfbocr >> 17) & 0x7FFU;
+        const struct buddy_rx_stats *s = &buddy_rx_stats;
+        // a=alloc_fail m=eth_missed o=eth_fifo_ovf | r=refused d=refused_drop t=ooseq_trim c=ooseq_reclaim
+        metric_record_custom(&metric_rxd_eth, " a=%" PRIu32 "i,m=%" PRIu32 "i,o=%" PRIu32 "i", s->alloc_fail, s->eth_missed, s->eth_fifo_ovf);
+        metric_record_custom(&metric_rxd_tcp, " r=%" PRIu32 "i,d=%" PRIu32 "i,t=%" PRIu32 "i,c=%" PRIu32 "i", s->refused, s->refused_drop, s->ooseq_trim, s->ooseq_reclaim);
+    }
+
     if (len > 0) {
         /* We allocate a pbuf chain of pbufs from the Lwip buffer pool */
         p = pbuf_alloc_rx(len);
         if (p == NULL) {
+            buddy_rx_stats.alloc_fail++;
             log_dropped_packet_rx(len);
         }
     }
@@ -403,6 +425,12 @@ static struct pbuf *low_level_input(struct netif *netif) {
 
 void ethernetif_input_once(struct netif *netif) {
     struct pbuf *p;
+    // EXPERIMENT: net_lat, interrupt -> this (network task) reading the frames.
+    const uint32_t irq_ms = buddy_eth_irq_ms;
+    if (irq_ms != 0) {
+        buddy_eth_irq_ms = 0;
+        buddy_net_lat_record(0, sys_now() - irq_ms);
+    }
     do {
         p = low_level_input(netif);
         if (p != NULL) {

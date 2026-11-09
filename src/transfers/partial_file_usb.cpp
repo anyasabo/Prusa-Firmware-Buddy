@@ -7,6 +7,9 @@
 #include <logging/log.hpp>
 
 #include <algorithm>
+#include <common/heap.h>
+#include <cstdlib>
+#include <buddy/upload_experiment.hpp>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -20,14 +23,16 @@ using std::variant;
 static_assert(UsbPartialFile::SECTOR_SIZE == FF_MAX_SS);
 static_assert(UsbPartialFile::SECTOR_SIZE == FF_MIN_SS);
 
-UsbPartialFile::UsbPartialFile(UsbhMscRequest::LunNbr lun, UsbhMscRequest::SectorNbr first_sector, State state, int file_lock)
+UsbPartialFile::UsbPartialFile(UsbhMscRequest::LunNbr lun, UsbhMscRequest::SectorNbr first_sector, State state, int file_lock, void *fatfs, uint16_t mount_id)
     : PartialFile(state)
-    , sector_pool(lun, usb_msc_write_finished_callback, this)
+    , sector_pool(lun, usb_msc_write_finished_callback, this, upload_experiment::usb_sectors_per_write)
     , write_error(false)
     , first_sector_nbr(first_sector)
     , current_sector(nullptr)
     , current_offset(0)
-    , file_lock(file_lock) {
+    , file_lock(file_lock)
+    , fatfs(fatfs)
+    , mount_id(mount_id) {
 }
 
 UsbPartialFile::~UsbPartialFile() {
@@ -58,6 +63,10 @@ static PartialFile::Result build(const char *path, unique_file_ptr file, Partial
 
     state.total_size = f_size(fatfs_file);
 
+    // For the drive_unchanged() check.
+    FATFS *volume = fatfs_file->obj.fs;
+    const uint16_t mount_id = fatfs_file->obj.id;
+
     // get first sector
     auto drive = fatfs_file->obj.fs->pdrv;
     auto lba = fatfs_file->obj.fs->database + fatfs_file->obj.fs->csize * (fatfs_file->obj.sclust - 2);
@@ -77,7 +86,7 @@ static PartialFile::Result build(const char *path, unique_file_ptr file, Partial
         return "Can't lock file in place";
     }
 
-    return std::make_shared<UsbPartialFile>(drive, lba, state, fd);
+    return std::make_shared<UsbPartialFile>(drive, lba, state, fd, volume, mount_id);
 }
 
 PartialFile::Result UsbPartialFile::create(const char *path, unique_file_ptr file, size_t size) {
@@ -118,10 +127,27 @@ size_t UsbPartialFile::get_offset(UsbhMscRequest::SectorNbr sector_nbr) {
     return (sector_nbr - first_sector_nbr) * SECTOR_SIZE;
 }
 
+bool UsbPartialFile::drive_unchanged() const {
+    // The USB host unmounts on disconnect (f_mount(0) in usb_host.cpp, which
+    // clears fs_type) and the next drive gets mounted lazily, which bumps id. So
+    // an unplugged drive fails the first test and a different (or re-plugged)
+    // one the second, without asking the drive or taking any lock. Both are
+    // single aligned loads (no tearing on Cortex-M), read through volatile so
+    // they are re-read every time. A stale "unchanged" answer is possible only
+    // in the window between this check and the write, same as with the lseek
+    // poke this replaces.
+    const volatile FATFS *volume = static_cast<const volatile FATFS *>(fatfs);
+    return volume->fs_type != 0 && volume->id == mount_id;
+}
+
 bool UsbPartialFile::write_current_sector() {
     debug_assert(current_sector != nullptr);
     log_debug(transfers, "Sending sector over USB %" PRIu32 " (%.20s)", current_sector->sector_nbr, current_sector->data);
-    if (lseek(file_lock, 0, SEEK_SET) == -1) {
+    if (upload_experiment::lockfree_drive_check) {
+        if (!drive_unchanged()) {
+            return false;
+        }
+    } else if (lseek(file_lock, 0, SEEK_SET) == -1) {
         // Safety measure. It is possible that between creation of this
         // PartialFile and current call to write_sector, the USB got unplugged
         // and some other got plugged in. This would have severe effects on the
@@ -217,7 +243,8 @@ size_t UsbPartialFile::allowed_write_size() const {
 }
 
 size_t UsbPartialFile::allowed_sectors() const {
-    return SECTORS_PER_WRITE - (current_sector->sector_nbr % SECTORS_PER_WRITE);
+    const size_t sectors_per_write = sector_pool.sectors_per_buffer;
+    return sectors_per_write - (current_sector->sector_nbr % sectors_per_write);
 }
 
 bool UsbPartialFile::advance_written(size_t by) {
@@ -288,7 +315,7 @@ bool UsbPartialFile::sync() {
         if (!copied_sector) {
             return false;
         }
-        memcpy(copied_sector->data, current_sector->data, BUFFER_SIZE);
+        memcpy(copied_sector->data, current_sector->data, sector_pool.sectors_per_buffer * SECTOR_SIZE);
         copied_sector->sector_nbr = current_sector->sector_nbr;
         auto status = write_current_sector();
         if (status) {
@@ -305,16 +332,40 @@ bool UsbPartialFile::sync() {
     return !write_error;
 }
 
-UsbPartialFile::SectorPool::SectorPool(UsbhMscRequest::LunNbr lun, UsbhMscRequestCallback callback, void *callback_param)
+UsbPartialFile::SectorPool::SectorPool(UsbhMscRequest::LunNbr lun, UsbhMscRequestCallback callback, void *callback_param, size_t sectors_per_buffer)
     : semaphore { size, size }
-    , slot_mask(~0u << size) {
+    , slot_mask(~0u << size)
+    , sectors_per_buffer(sectors_per_buffer) {
+    // EXPERIMENT: the buffer size is a runtime choice (upload_experiment::
+    // usb_sectors_per_write); bigger ones may not fit the heap. Plain new /
+    // malloc red-screen on failure (heap.cpp's malloc failed hook), so take the
+    // big ones with malloc_fallible, and only with headroom left for everyone
+    // else; otherwise fall back to the stock size (allocated as before).
+    static constexpr size_t heap_headroom = 16 * 1024;
+    std::array<uint8_t *, size> buffers {};
+    bool ok = sectors_per_buffer > SECTORS_PER_WRITE
+        && heap_bytes_remaining() > size * sectors_per_buffer * SECTOR_SIZE + heap_headroom;
+    for (unsigned i = 0; ok && i < size; ++i) {
+        buffers[i] = static_cast<uint8_t *>(malloc_fallible(sectors_per_buffer * SECTOR_SIZE));
+        ok = buffers[i] != nullptr;
+    }
+    if (!ok) {
+        for (auto &b : buffers) {
+            free(b);
+            b = nullptr;
+        }
+        this->sectors_per_buffer = SECTORS_PER_WRITE;
+        for (unsigned i = 0; i < size; ++i) {
+            buffers[i] = static_cast<uint8_t *>(malloc(BUFFER_SIZE));
+        }
+    }
     for (unsigned i = 0; i < size; ++i) {
         pool[i] = {
             UsbhMscRequest::UsbhMscRequestOperation::Write,
             lun,
             1,
             0,
-            new uint8_t[BUFFER_SIZE],
+            buffers[i],
             USBH_FAIL,
             callback,
             callback_param,
@@ -326,7 +377,7 @@ UsbPartialFile::SectorPool::SectorPool(UsbhMscRequest::LunNbr lun, UsbhMscReques
 UsbPartialFile::SectorPool::~SectorPool() {
     sync(0, true);
     for (unsigned i = 0; i < size; ++i) {
-        delete[] pool[i].data;
+        free(pool[i].data);
     }
 }
 
@@ -340,7 +391,7 @@ UsbhMscRequest *UsbPartialFile::SectorPool::acquire(bool block_waiting) {
     slot_mask |= 1 << slot;
     mutex.unlock();
 
-    memset(pool[slot].data, 0, BUFFER_SIZE);
+    memset(pool[slot].data, 0, sectors_per_buffer * SECTOR_SIZE);
     return pool + slot;
 }
 

@@ -41,11 +41,19 @@ extern "C" {
 #endif
 #define MEMP_NUM_SYS_TIMEOUT 9 + MDNS_EXTRA_TIMEOUTS
 
-#define TCP_MSS        1024
-#define TCP_WND        (8 * TCP_MSS)
-#define TCP_SND_BUF    (2 * TCP_MSS)
-#define LWIP_WND_SCALE 0
-#define TCP_RCV_SCALE  0
+#define TCP_MSS 1024
+// EXPERIMENT (upload-experiments): the compile-time maximum; the window actually
+// advertised is buddy_tcp_wnd() (switch x, 8/12/16 KB, stock 8 KB), used as
+// TCP_WND_MAX (lwip/tcp.h) and for new pcbs (tcp.c). The RX ring (pbuf_rx.cpp)
+// has the stock size (10 MTUs, ~11 KB): x12 and x16 advertise more than it backs.
+#define TCP_WND (16 * TCP_MSS)
+uint32_t buddy_tcp_wnd(void);
+#define BUDDY_TCP_WND_RUNTIME buddy_tcp_wnd()
+// lwIP's default, but from the advertised window (else x8 would update at 4 KB, not 2 KB).
+#define TCP_WND_UPDATE_THRESHOLD ((tcpwnd_size_t)LWIP_MIN((BUDDY_TCP_WND_RUNTIME / 4), (TCP_MSS * 4)))
+#define TCP_SND_BUF              (2 * TCP_MSS)
+#define LWIP_WND_SCALE           0
+#define TCP_RCV_SCALE            0
 // Note: We replaced the use of this pool by our own mechanism.
 #define PBUF_POOL_SIZE                 0
 #define LWIP_DISABLE_TCP_SANITY_CHECKS 1

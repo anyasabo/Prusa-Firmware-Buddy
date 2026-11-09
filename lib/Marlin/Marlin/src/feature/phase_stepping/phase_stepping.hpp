@@ -124,6 +124,11 @@ struct AxisState {
             value = v;
             state.store(State::full, std::memory_order_release);
         }
+        /// EXPERIMENT (M9959 P1): true if the value is full or being updated. The rest fast path
+        /// then does a full pass, which steals the value.
+        bool maybe_full() const {
+            return state.load(std::memory_order_relaxed) != State::empty;
+        }
         /// Have a look at the value without locking/acquiring.
         ///
         /// Used during initialization within the stepper interrupt, no need to
@@ -188,6 +193,15 @@ struct AxisState {
     bool had_interpolation = false;
 
     bool is_slowed_down = true;
+
+    // EXPERIMENT (M9959 P1): rest fast path. rest_valid is true after a full refresh with no
+    // target, speed 0, no stall and no position change. Then the next refreshes give the same
+    // result, and the fast path skips them. rest_skips counts them: a full refresh runs at least
+    // each REST_FULL_REFRESH_EVERY refreshes of the axis. Code that changes the axis state while
+    // active is false clears rest_valid before it sets active again.
+    bool rest_valid = false;
+    uint8_t rest_skips = 0;
+    uint32_t rest_lut_generation = 0; // sum of the generations of the two current tables
     unsigned stalled_for = 0;
     float previous_speed = 0.0f;
 };

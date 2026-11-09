@@ -27,7 +27,9 @@ public:
     /// The size of one write buffer (possibly multiple sectors)
     static constexpr size_t BUFFER_SIZE = SECTOR_SIZE * SECTORS_PER_WRITE;
 
-    UsbPartialFile(UsbhMscRequest::LunNbr drive, UsbhMscRequest::SectorNbr first_sector, State state, int file_lock);
+    /// fatfs/mount_id: the FATFS volume the file lives on and its mount id at
+    /// the time the file was opened (see drive_unchanged()).
+    UsbPartialFile(UsbhMscRequest::LunNbr drive, UsbhMscRequest::SectorNbr first_sector, State state, int file_lock, void *fatfs, uint16_t mount_id);
     ~UsbPartialFile() override;
 
     /// Construct from a file already opened by the PartialFile factory.
@@ -56,7 +58,9 @@ private:
         static constexpr uint32_t size = 2;
         static_assert(size >= 2 && size <= 32);
 
-        SectorPool(UsbhMscRequest::LunNbr lun, UsbhMscRequestCallback callback, void *callback_param1);
+        /// sectors_per_buffer: wanted size of each slot's buffer, in sectors.
+        /// If the heap can't fit that, falls back to SECTORS_PER_WRITE.
+        SectorPool(UsbhMscRequest::LunNbr lun, UsbhMscRequestCallback callback, void *callback_param1, size_t sectors_per_buffer);
         ~SectorPool();
 
         /// Get a free slot; if none is available, waits until one becomes
@@ -83,6 +87,10 @@ private:
         /// One bit per slot from the least significant (1 - acquired/unused, 0 - free)
         uint32_t slot_mask;
         UsbhMscRequest pool[size];
+
+    public:
+        /// Sectors per slot buffer actually allocated.
+        size_t sectors_per_buffer;
     };
 
     SectorPool sector_pool;
@@ -123,6 +131,17 @@ private:
     /// way. (An fd instead of FILE * because it's more lightweight and we
     /// don't actually _use_ it for anything.)
     int file_lock;
+
+    /// The FATFS volume (opaque here, ff.h's FATFS is an anonymous struct) and
+    /// its mount id when the file was opened.
+    void *fatfs;
+    uint16_t mount_id;
+
+    /// Is the volume the file was created on still mounted (and not
+    /// re-mounted, eg. with a different drive)? The same test FatFs's
+    /// validate() does before it takes the volume lock, but without the lock,
+    /// so it never waits (it runs in the tcpip thread).
+    bool drive_unchanged() const;
 
     /// How large (in bytes) write are we going to do now?
     ///

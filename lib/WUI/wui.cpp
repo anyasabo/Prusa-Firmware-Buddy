@@ -601,6 +601,12 @@ public:
     static void run(bool allow_full) {
         task_main(allow_full);
     }
+    static void set_priority(osPriority prio) {
+        NetworkState *state = instance;
+        if (state != nullptr && state->network_task != nullptr) {
+            osThreadSetPriority(state->network_task, prio);
+        }
+    }
     static void notify(NetworkAction action) {
         // Read out of the atomic variable
         NetworkState *state = instance;
@@ -702,6 +708,18 @@ void notify_esp_data() {
     NetworkState::notify(NetworkState::NetworkAction::EspData);
 }
 #endif
+
+extern "C" void buddy_net_priority_raise(bool raised) {
+    // EXPERIMENT (switch y, upload_experiment.cpp); called on the tcpip thread.
+    static bool current = false;
+    if (raised == current) {
+        return;
+    }
+    current = raised;
+    const osPriority prio = raised ? osPriorityNormal : TASK_PRIORITY_TCPIP_THREAD;
+    osThreadSetPriority(osThreadGetId(), prio);
+    NetworkState::set_priority(raised ? osPriorityNormal : TASK_PRIORITY_WUI);
+}
 
 void notify_ethernet_data() {
     NetworkState::notify(NetworkState::NetworkAction::EthData);

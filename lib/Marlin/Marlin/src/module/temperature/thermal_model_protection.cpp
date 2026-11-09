@@ -41,7 +41,7 @@ void ThermalModelProtection::step(float pid_output, float feed_forward) {
 
     // Expected interval is 1000 ms. min_interval_ms set to 100 ms, so it will be visible in samples collected if
     // expected interval doesn't hold.
-    METRIC_DEF(heating_model_discrepancy, "heating_model_discrepancy", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
+    METRIC_DEF(heating_model_discrepancy, "heating_model_discrepancy", METRIC_VALUE_INTEGER, 100, METRIC_ENABLED);
 
     metric_record_integer(&heating_model_discrepancy, static_cast<int>(model_discrepancy));
 

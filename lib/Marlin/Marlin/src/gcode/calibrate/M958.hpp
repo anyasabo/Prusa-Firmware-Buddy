@@ -138,6 +138,12 @@ using FindBestShaperProgressHook = stdext::inplace_function<Result<void>(input_s
 
 input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, input_shaper::AxisConfig default_config);
 
+/// EXPERIMENT: true selects the shaper fitting of upstream master (double), false the float fitting.
+extern bool shaper_fit_double;
+
+/// EXPERIMENT: run the fitting on fixed test spectra with both algorithms and log the times.
+void benchmark_fit();
+
 /// Something that just vibrates.
 ///
 /// Unlike \p measure, this just vibrates. And it doesn't need an accelerometer.

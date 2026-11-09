@@ -12,7 +12,7 @@ extern "C" {
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
 
-#define USBH_MAX_NUM_ENDPOINTS 2
+#define USBH_MAX_NUM_ENDPOINTS 4
 
 #define USBH_MAX_NUM_INTERFACES 2
 

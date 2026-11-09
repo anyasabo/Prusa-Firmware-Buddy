@@ -6,6 +6,7 @@
 #include "usbh_async_diskio.hpp"
 #include "usb_host.h"
 #include <bsod/bsod.h>
+#include <buddy/usb_io_stats.h> // EXPERIMENT
 
 LOG_COMPONENT_DEF(USBHost, logging::Severity::info);
 
@@ -90,6 +91,11 @@ void HAL_HCD_Disconnect_Callback(HCD_HandleTypeDef *hhcd) {
 }
 
 void HAL_HCD_HC_NotifyURBChange_Callback(HCD_HandleTypeDef *hhcd, [[maybe_unused]] uint8_t chnum, [[maybe_unused]] HCD_URBStateTypeDef urb_state) {
+    // EXPERIMENT: usb_io2 (single writer: this ISR)
+    buddy_usb_stats.urb_events++;
+    if (urb_state == URB_NOTREADY) {
+        buddy_usb_stats.urb_notready++;
+    }
     /* To be used with OS to sync URB state with the global state machine */
 #if (USBH_USE_OS == 1)
     USBH_LL_NotifyURBChange(static_cast<USBH_HandleTypeDef *>(hhcd->pData));

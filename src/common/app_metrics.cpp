@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <algorithm>
 #include "app_metrics.h"
 #include "metric.h"
 #include <bsod/bsod.h>
@@ -23,6 +24,7 @@
     #include "advanced_power.hpp"
 #endif // HAS_ADVANCED_POWER()
 #include "timing.h"
+#include <syslog/syslog_transport.hpp>
 #include <stdint.h>
 #include <device/board.h>
 #include "printers.h"
@@ -74,7 +76,9 @@ void RecordRuntimeStats() {
 
     METRIC_DEF(metric_current_filament, "filament", METRIC_VALUE_STRING, 10 * 1007, METRIC_ENABLED);
 
-    metric_record_string(&metric_current_filament, "%s", FilamentType::for_tool(VirtualToolIndex::currently_selected()).parameters().name.data());
+    if (metric_record_is_due(&metric_current_filament)) { // the lookup is too costly for each loop pass
+        metric_record_string(&metric_current_filament, "%s", FilamentType::for_tool(VirtualToolIndex::currently_selected()).parameters().name.data());
+    }
 
     METRIC_DEF(stack, "stack", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED); // Thread stack usage
     constexpr const uint32_t STACK_RUNTIME_RECORD_INTERVAL_MS = 3000;
@@ -82,8 +86,63 @@ void RecordRuntimeStats() {
     if (should_record_stack_runtime.check(ticks_ms())) {
         static TaskStatus_t task_statuses[18] = {};
 
-        int count = uxTaskGetSystemState(task_statuses, std::size(task_statuses), NULL);
+        uint32_t total_run_time = 0;
+        int count = uxTaskGetSystemState(task_statuses, std::size(task_statuses), &total_run_time);
         release_assert(count); // increase task_statuses size if this fails
+
+        // EXPERIMENT (upload-experiments): CPU time of each task since the last record, in
+        // permille of the run-time counter (FreeRTOSConfig.h, the 32-bit DWT cycle counter;
+        // unsigned differences are correct while the interval is shorter than the ~25.6 s wrap),
+        // and the task's current priority. A task that is new since the last record gets no value.
+        // After a gap of more than 20 s (metrics off, Marlin busy) the counter can have wrapped:
+        // skip that record. A value above 1000 (a task handle reused by a new task) is dropped.
+        // The arrays are static: only this task runs this code, and the Marlin stack is tight.
+        METRIC_DEF(task_cpu, "task_cpu", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+        static TaskHandle_t prev_handle[std::size(task_statuses)] = {};
+        static uint32_t prev_counter[std::size(task_statuses)] = {};
+        static uint32_t prev_total = 0;
+        static uint32_t prev_ms = 0;
+        static TaskHandle_t new_handle[std::size(task_statuses)];
+        static uint32_t new_counter[std::size(task_statuses)];
+        // Field t: cumulative CPU ms of the task (a counter: use rate() or increase()). The time
+        // of a skipped record (a gap of more than 20 s) is not added.
+        static uint64_t prev_cum[std::size(task_statuses)] = {};
+        static uint64_t new_cum[std::size(task_statuses)];
+        const uint32_t now_ms = ticks_ms();
+        const uint32_t total_delta = total_run_time - prev_total;
+        const bool have_prev_total = prev_total != 0 && now_ms - prev_ms <= 20000;
+        prev_total = total_run_time;
+        prev_ms = now_ms;
+        std::fill(std::begin(new_handle), std::end(new_handle), nullptr);
+        std::fill(std::begin(new_counter), std::end(new_counter), 0);
+        std::fill(std::begin(new_cum), std::end(new_cum), 0);
+        const uint32_t cycles_per_ms = SystemCoreClock / 1000;
+        for (int idx = 0; idx < count; idx++) {
+            const TaskStatus_t &ts = task_statuses[idx];
+            new_handle[idx] = ts.xHandle;
+            new_counter[idx] = ts.ulRunTimeCounter;
+            for (size_t j = 0; j < std::size(prev_handle); j++) {
+                if (prev_handle[j] == ts.xHandle && ts.xHandle != nullptr) {
+                    new_cum[idx] = prev_cum[j];
+                    if (!have_prev_total || total_delta == 0) {
+                        break;
+                    }
+                    const uint32_t delta = ts.ulRunTimeCounter - prev_counter[j];
+                    const uint32_t permille = static_cast<uint32_t>(static_cast<uint64_t>(delta) * 1000 / total_delta);
+                    if (permille > 1000) {
+                        break;
+                    }
+                    new_cum[idx] += delta;
+                    metric_record_custom(&task_cpu, ",n=%.7s c=%ui,p=%ui,t=%ui", ts.pcTaskName, static_cast<unsigned>(permille), static_cast<unsigned>(ts.uxCurrentPriority),
+                        static_cast<unsigned>(new_cum[idx] / cycles_per_ms));
+                    break;
+                }
+            }
+        }
+        std::copy(std::begin(new_handle), std::end(new_handle), std::begin(prev_handle));
+        std::copy(std::begin(new_counter), std::end(new_counter), std::begin(prev_counter));
+        std::copy(std::begin(new_cum), std::end(new_cum), std::begin(prev_cum));
+
         for (int idx = 0; idx < count; idx++) {
             const char *task_name = task_statuses[idx].pcTaskName;
 
@@ -94,12 +153,34 @@ void RecordRuntimeStats() {
             if (mem_is_heap_allocated(stack_base)) {
                 s = malloc_usable_size((void *)stack_base);
             }
-            metric_record_custom(&stack, ",n=%.7s t=%i,m=%hu", task_name, s, task_statuses[idx].usStackHighWaterMark);
+            // t: stack size in bytes (0 for a static stack), m: free stack low-water mark in words
+            // (kept for old data), b: the same low-water mark in bytes.
+            metric_record_custom(&stack, ",n=%.7s t=%ii,m=%hui,b=%ui", task_name, s, task_statuses[idx].usStackHighWaterMark,
+                static_cast<unsigned>(task_statuses[idx].usStackHighWaterMark * sizeof(StackType_t)));
         }
     }
 
+    /// Cumulative count of UDP datagrams that the syslog transports (metrics and log) dropped.
+    METRIC_DEF(metric_syslog_drop, "syslog_drop", METRIC_VALUE_INTEGER, 1009, METRIC_ENABLED);
+    metric_record_integer(&metric_syslog_drop, static_cast<int>(syslog_dropped_datagrams.load(std::memory_order_relaxed)));
+
     METRIC_DEF(heap, "heap", METRIC_VALUE_CUSTOM, 503, METRIC_ENABLED);
-    metric_record_custom(&heap, " free=%zui,total=%zui", xPortGetFreeHeapSize(), static_cast<size_t>(heap_total_size()));
+    // heap_min: the lowest free heap since boot, for a near miss of "Out of heap memory". The heap is
+    // newlib's malloc, so FreeRTOS's xPortGetMinimumEverFreeHeapSize() does not exist. free: the
+    // lowest value of the samples of heap (each 503 ms), so a short dip between two samples is not
+    // in it. brk: the space that sbrk has not given to malloc yet. newlib-nano never gives space
+    // back to sbrk, so this value is exact and is its own minimum since boot.
+    METRIC_DEF(heap_min, "heap_min", METRIC_VALUE_CUSTOM, 5000, METRIC_ENABLED);
+    static size_t heap_free_min = SIZE_MAX;
+    if (metric_record_is_due(&heap)) { // xPortGetFreeHeapSize() walks the free list (mallinfo)
+        const size_t heap_free = xPortGetFreeHeapSize();
+        heap_free_min = std::min(heap_free_min, heap_free);
+        metric_record_custom(&heap, " free=%zui,total=%zui", heap_free, static_cast<size_t>(heap_total_size()));
+    }
+    if (heap_free_min != SIZE_MAX) {
+        // At most " free=4294967295i,brk=4294967295i": 33 characters.
+        metric_record_custom(&heap_min, " free=%ui,brk=%ui", static_cast<unsigned>(heap_free_min), static_cast<unsigned>(heap_bytes_remaining()));
+    }
 
     // Config store metrics (BFW-7758)
     {
@@ -137,7 +218,7 @@ void RecordMarlinVariables() {
 #endif
 
 #if HAS_TEMP_HEATBREAK
-    METRIC_DEF(heatbreak, "temp_hbr", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED); // float value, tag "n": extruder index, tag "a": is active extruder
+    METRIC_DEF(heatbreak, "temp_hbr", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED); // float value, tag "n": extruder index, tag "a": is active extruder
     static auto heatbreak_should_record = RateLimiter<uint32_t>(1000);
     if (heatbreak_should_record.check(ticks_ms())) {
         for (auto tool : PhysicalToolIndex::all().skip_all_disabled()) {
@@ -148,14 +229,14 @@ void RecordMarlinVariables() {
 
 #if HAS_TEMP_BOARD
     {
-        METRIC_DEF(board, "temp_brd", METRIC_VALUE_FLOAT, 1000 - 9, METRIC_DISABLED);
+        METRIC_DEF(board, "temp_brd", METRIC_VALUE_FLOAT, 1000 - 9, METRIC_ENABLED);
         metric_record_float(&board, sensor_data().boardTemp.load());
     }
 #endif
 
     // These temperature metrics go outside of Marlin and are filtered and converted here
     {
-        METRIC_DEF(mcu, "temp_mcu", METRIC_VALUE_INTEGER, 0, METRIC_DISABLED);
+        METRIC_DEF(mcu, "temp_mcu", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
         metric_record_integer(&mcu, static_cast<int>(sensor_data().MCUTemp.load()));
     }
 
@@ -170,11 +251,11 @@ void RecordMarlinVariables() {
     }
 #endif
 
-    METRIC_DEF(metric_nozzle_pwm, "nozzle_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
+    METRIC_DEF(metric_nozzle_pwm, "nozzle_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
     metric_record_integer(&metric_nozzle_pwm, thermalManager.nozzle_pwm);
 
 #if HAS_LOCAL_BED()
-    METRIC_DEF(metric_bed_pwm, "bed_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
+    METRIC_DEF(metric_bed_pwm, "bed_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
     metric_record_integer(&metric_bed_pwm, thermalManager.bed_pwm);
 #endif
 
@@ -232,14 +313,17 @@ void RecordMarlinVariables() {
     METRIC_DEF(ipos_z, "ipos_z", METRIC_VALUE_INTEGER, 10, METRIC_DISABLED);
     metric_record_integer(&ipos_z, stepper.position_from_startup(AxisEnum::Z_AXIS));
 
-    xyz_pos_t pos;
-    planner.get_axis_position_mm(pos);
     METRIC_DEF(pos_x, "pos_x", METRIC_VALUE_FLOAT, 11, METRIC_DISABLED);
-    metric_record_float(&pos_x, pos[X_AXIS]);
     METRIC_DEF(pos_y, "pos_y", METRIC_VALUE_FLOAT, 11, METRIC_DISABLED);
-    metric_record_float(&pos_y, pos[Y_AXIS]);
     METRIC_DEF(pos_z, "pos_z", METRIC_VALUE_FLOAT, 11, METRIC_DISABLED);
-    metric_record_float(&pos_z, pos[Z_AXIS]);
+    // The metrics are off by default: get the position only if one of them will record.
+    if (metric_record_is_due(&pos_x) || metric_record_is_due(&pos_y) || metric_record_is_due(&pos_z)) {
+        xyz_pos_t pos;
+        planner.get_axis_position_mm(pos);
+        metric_record_float(&pos_x, pos[X_AXIS]);
+        metric_record_float(&pos_y, pos[Y_AXIS]);
+        metric_record_float(&pos_z, pos[Z_AXIS]);
+    }
 
     /// Integer that increases/changes every time a motor stall is detected - meaning the planner has run out of commands.
     /// If this is encountered during printing, it might be a cause of print artefacts
@@ -251,15 +335,19 @@ void RecordMarlinVariables() {
     /// plan_min: minimum nonbusy_movesplanned() observed per window (reset-on-read)
     /// plan_unopt: cumulative blocks consumed before the planner marked them as
     ///             fully optimized (monotonic, consumer computes deltas)
-    METRIC_DEF(metric_planner_block_count, "plan_cnt", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
+    METRIC_DEF(metric_planner_block_count, "plan_cnt", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
     METRIC_DEF(metric_planner_min_depth, "plan_min", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
-    METRIC_DEF(metric_planner_unoptimized, "plan_unopt", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
+    METRIC_DEF(metric_planner_unoptimized, "plan_unopt", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
 
     const uint32_t plan_count = PreciseStepping::planner_block_count.load(std::memory_order_relaxed);
     metric_record_integer(&metric_planner_block_count, plan_count);
 
-    const uint8_t plan_min = PreciseStepping::planner_min_depth.exchange(UINT8_MAX, std::memory_order_relaxed);
-    metric_record_integer(&metric_planner_min_depth, plan_min);
+    // Reset the minimum only when it records. Else each loop pass resets it, and the value covers
+    // one pass, not the window of the metric.
+    if (metric_record_is_due(&metric_planner_min_depth)) {
+        const uint8_t plan_min = PreciseStepping::planner_min_depth.exchange(UINT8_MAX, std::memory_order_relaxed);
+        metric_record_integer(&metric_planner_min_depth, plan_min);
+    }
 
     metric_record_integer(&metric_planner_unoptimized, PreciseStepping::planner_unoptimized_count.load(std::memory_order_relaxed));
 
@@ -418,6 +506,30 @@ void record_ps_debug_events() {
         log_info(Metrics, "Sent %zu phstep debug events", send);
     }
 }
+
+// Cumulative counts of the phase stepping problem events for each axis since boot (see
+// phase_stepping::ProblemCounts). Also outside of a print. Use the increase over time.
+// ps_stalls: Stalled events. ps_stall_its: refreshes of the axis with no target (each axis is
+// refreshed at 20 kHz on the CORE One, thus 50 us each, and at 10 kHz with burst stepping). ps_spd_chgs: SuddenSpeedChange events (more than 20 mm/s).
+// ps_spd_big: SuddenSpeedChange events of more than 100 mm/s.
+METRIC_DEF(ps_stalls, "ps_stalls", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+METRIC_DEF(ps_stall_its, "ps_stall_its", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+METRIC_DEF(ps_spd_chgs, "ps_spd_chgs", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+METRIC_DEF(ps_spd_big, "ps_spd_big", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+
+void record_ps_problem_counts() {
+    using namespace phase_stepping;
+    const auto record = [](metric_t &metric, std::atomic<uint32_t> ProblemCounts::*counter) {
+        // At most " x=4294967295i,y=4294967295i": 28 characters.
+        metric_record_custom(&metric, " x=%ui,y=%ui",
+            static_cast<unsigned>((problem_counts[0].*counter).load(std::memory_order_relaxed)),
+            static_cast<unsigned>((problem_counts[1].*counter).load(std::memory_order_relaxed)));
+    };
+    record(ps_stalls, &ProblemCounts::stalls);
+    record(ps_stall_its, &ProblemCounts::stalled_refreshes);
+    record(ps_spd_chgs, &ProblemCounts::speed_changes);
+    record(ps_spd_big, &ProblemCounts::big_speed_changes);
+}
 #endif
 
 } // namespace
@@ -429,6 +541,7 @@ void buddy::metrics::record() {
 
 #if HAS_PHASE_STEPPING()
     record_ps_debug_events();
+    record_ps_problem_counts();
 #endif
     RecordMarlinVariables();
     RecordRuntimeStats();

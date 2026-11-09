@@ -12,6 +12,8 @@
 #include "metric.h"
 #include <option/has_gearbox_alignment.h>
 #include <option/has_loadcell.h>
+#include <option/has_local_accelerometer.h>
+#include <option/has_remote_accelerometer.h>
 #include <option/has_toolchanger.h>
 #include <option/has_side_leds.h>
 #include <option/has_leds.h>
@@ -388,6 +390,16 @@ bool GcodeSuite::process_parsed_command_custom(bool no_ok) {
         case 9933:
             PrusaGcodeSuite::M9933();
             break;
+
+        case 9959: // EXPERIMENT
+            PrusaGcodeSuite::M9959();
+            break;
+
+#if HAS_LOCAL_ACCELEROMETER() || HAS_REMOTE_ACCELEROMETER()
+        case 9958: // EXPERIMENT
+            PrusaGcodeSuite::M9958();
+            break;
+#endif
 
 #if HAS_CRASH_DETECTION()
         case 9944:

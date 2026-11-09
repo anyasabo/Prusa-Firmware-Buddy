@@ -112,6 +112,10 @@ typedef struct {
     /// Is it an error message?
     bool error;
 
+    /// For a METRIC_VALUE_EVENT metric: value_int is the cumulative count of its events since boot
+    /// (sent as the field n). The metric task makes these points; metric_record_* never does.
+    bool event_count;
+
     union {
         /// Float value (if metric.type == METRIC_VALUE_FLOAT)
         float value_float;

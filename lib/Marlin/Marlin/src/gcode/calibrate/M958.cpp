@@ -29,6 +29,7 @@
 
 #include <config_store/store_instance.hpp>
 #include <logging/log.hpp>
+#include <timing.h>
 #include <accelerometer/common_structs.hpp>
 
 #include <option/has_local_accelerometer.h>
@@ -987,12 +988,27 @@ static float limit_end_frequency(const float start_frequency, float end_frequenc
     return end_frequency;
 }
 
-static double get_inv_D(const input_shaper::Shaper &shaper) {
-    double d = 0.;
+// The shaper fitting below uses float on purpose. The MCU FPU is single precision only,
+// so double math is emulated in software, and the fitting evaluates these functions
+// hundreds of thousands of times for each axis.
+
+// EXPERIMENT: the fitting of upstream master in double, for an A/B of the time on the printer.
+// M9958 D1 selects it at runtime, M9958 D0 selects the float fitting (the default).
+namespace fit_double {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function" // one wrapper is not used here
+#include "M958_fit_double.inc"
+#pragma GCC diagnostic pop
+} // namespace fit_double
+bool shaper_fit_double = false;
+METRIC_DEF(metric_shaper_fit, "shaper_fit", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+
+static float get_inv_D(const input_shaper::Shaper &shaper) {
+    float d = 0.f;
     for (int i = 0; i < shaper.num_pulses; ++i) {
-        d += static_cast<double>(shaper.a[i]);
+        d += shaper.a[i];
     }
-    return 1. / d;
+    return 1.f / d;
 }
 
 /**
@@ -1001,26 +1017,26 @@ static double get_inv_D(const input_shaper::Shaper &shaper) {
  * called _estimate_shaper in klipper source
  *
  * @param shaper
+ * @param inv_D get_inv_D(shaper)
  * @param system_damping_ratio
  * @param frequency
  * @return Vibration reduction for system with system_damping_ratio at frequency.
  */
-static double vibration_reduction(const input_shaper::Shaper &shaper, float system_damping_ratio, float frequency) {
-    const double inv_D = get_inv_D(shaper);
-    const double omega = 2. * std::numbers::pi_v<double> * static_cast<double>(frequency);
-    const double damping = static_cast<double>(system_damping_ratio) * omega;
-    const double omega_d = omega * sqrt(1. - sq(static_cast<double>(system_damping_ratio)));
+static float vibration_reduction(const input_shaper::Shaper &shaper, float inv_D, float system_damping_ratio, float frequency) {
+    const float omega = 2.f * std::numbers::pi_v<float> * frequency;
+    const float damping = system_damping_ratio * omega;
+    const float omega_d = omega * std::sqrt(1.f - sq(system_damping_ratio));
+    const float t_last = shaper.t[shaper.num_pulses - 1];
 
-    double s = 0.;
-    double c = 0.;
+    float s = 0.f;
+    float c = 0.f;
 
     for (int i = 0; i < shaper.num_pulses; ++i) {
-        const double t_i = static_cast<double>(shaper.t[i]);
-        const double w = shaper.a[i] * exp(-damping * (static_cast<double>(shaper.t[shaper.num_pulses - 1]) - t_i));
-        s += w * sin(omega_d * t_i);
-        c += w * cos(omega_d * t_i);
+        const float w = shaper.a[i] * std::exp(-damping * (t_last - shaper.t[i]));
+        s += w * std::sin(omega_d * shaper.t[i]);
+        c += w * std::cos(omega_d * shaper.t[i]);
     }
-    return (sqrt(sq(s) + sq(c)) * inv_D);
+    return std::sqrt(sq(s) + sq(c)) * inv_D;
 }
 
 /**
@@ -1035,13 +1051,14 @@ static double vibration_reduction(const input_shaper::Shaper &shaper, float syst
  * @return remaining vibrations
  */
 static float remaining_vibrations(const input_shaper::Shaper &shaper, float system_damping_ratio, const Spectrum &psd, float default_vibration_reduction) {
+    const float inv_D = get_inv_D(shaper);
     float vibr_threshold = psd.max() / default_vibration_reduction;
     float remaining_vibrations_sum = 0.f;
     float all_vibrations_sum = 0.f;
     for (size_t i = 0; i < psd.size(); ++i) {
         const FrequencyGain fg = psd.get(i);
         all_vibrations_sum += max(fg.gain, 0.f);
-        const float vibration = max(fg.gain * static_cast<float>(vibration_reduction(shaper, system_damping_ratio, fg.frequency)) - vibr_threshold, 0.f);
+        const float vibration = max(fg.gain * vibration_reduction(shaper, inv_D, system_damping_ratio, fg.frequency) - vibr_threshold, 0.f);
         remaining_vibrations_sum += vibration;
     }
     return (remaining_vibrations_sum / all_vibrations_sum);
@@ -1060,30 +1077,30 @@ static float smoothing(const input_shaper::Shaper &shaper) {
     constexpr float scv = 5.f;
     constexpr float half_accel = accel / 2.f;
 
-    const double inv_D = get_inv_D(shaper);
+    const float inv_D = get_inv_D(shaper);
 
-    double ts = 0.;
+    float ts = 0.f;
     for (int i = 0; i < shaper.num_pulses; ++i) {
-        ts += static_cast<double>(shaper.a[i] * shaper.t[i]);
+        ts += shaper.a[i] * shaper.t[i];
     }
     ts *= inv_D;
 
-    double offset_90 = 0.;
-    double offset_180 = 0.;
+    float offset_90 = 0.f;
+    float offset_180 = 0.f;
 
     for (int i = 0; i < shaper.num_pulses; ++i) {
-        const double t_i = static_cast<double>(shaper.t[i]);
-        const double a_i = static_cast<double>(shaper.a[i]);
+        const float t_i = shaper.t[i];
+        const float a_i = shaper.a[i];
         if (t_i >= ts) {
             /// Calculate offset for one of the axes
             offset_90 += a_i * (scv + half_accel * (t_i - ts)) * (t_i - ts);
         }
         offset_180 += a_i * half_accel * sq(t_i - ts);
     }
-    offset_90 *= (inv_D * sqrt(2.));
+    offset_90 *= inv_D * std::numbers::sqrt2_v<float>;
     offset_180 *= inv_D;
 
-    return static_cast<float>(max(offset_90, offset_180));
+    return max(offset_90, offset_180);
 }
 
 namespace {
@@ -1147,9 +1164,6 @@ static Shaper_result fit_shaper(const FindBestShaperProgressHook &progress_hook,
                 if (vibrations > shaper_vibrations) {
                     shaper_vibrations = vibrations;
                 }
-                if (!progress_hook(type, progress_ratio).has_value()) {
-                    return {};
-                }
             }
             /// todo max_accel = self.find_shaper_max_accel(shaper) (not needed to fit filter)
 
@@ -1191,7 +1205,7 @@ static Shaper_result fit_shaper(const FindBestShaperProgressHook &progress_hook,
     return shaper_result;
 }
 
-static input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
+static input_shaper::AxisConfig find_best_shaper_float(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
     struct Best_score {
         Shaper_result result;
         input_shaper::Type type;
@@ -1229,6 +1243,24 @@ static input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHoo
     };
 }
 
+// EXPERIMENT: all fittings come here. It selects the algorithm and logs the time of each fit.
+static input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
+    const bool use_double = shaper_fit_double;
+    const uint32_t start = ticks_ms();
+    const input_shaper::AxisConfig config = use_double
+        ? fit_double::find_best_shaper(progress_hook, psd, static_cast<fit_double::Action>(std::to_underlying(final_action)), default_config)
+        : find_best_shaper_float(progress_hook, psd, final_action, default_config);
+    const uint32_t ms = ticks_ms() - start;
+    log_info(Marlin, "shaper fit: algo=%s ms=%u points=%u action=%u type=%s freq=%.1f",
+        use_double ? "double" : "float", static_cast<unsigned>(ms), static_cast<unsigned>(psd.size()),
+        static_cast<unsigned>(std::to_underlying(final_action)), input_shaper::to_string(config.type),
+        static_cast<double>(config.frequency));
+    metric_record_custom(&metric_shaper_fit, " d=%ui,ms=%ui,n=%ui,t=%ui,f=%ui", use_double ? 1u : 0u,
+        static_cast<unsigned>(ms), static_cast<unsigned>(psd.size()), static_cast<unsigned>(config.type),
+        static_cast<unsigned>(config.frequency * 10.f));
+    return config;
+}
+
 static input_shaper::AxisConfig find_best_shaper(const Spectrum &psd, const Action final_action, input_shaper::AxisConfig default_config) {
     const auto progress_hook = [](input_shaper::Type, float) -> Result<void> {
         idle(true);
@@ -1239,6 +1271,27 @@ static input_shaper::AxisConfig find_best_shaper(const Spectrum &psd, const Acti
 
 input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &progress_hook, const Spectrum &psd, input_shaper::AxisConfig default_config) {
     return find_best_shaper(progress_hook, psd, Action::find_best_result, default_config);
+}
+
+// EXPERIMENT (M9958 B): run the fitting on fixed test spectra with both algorithms. No motion.
+// The spectra have the size of the M1959 spectrum (30-79 Hz, step 1 Hz): one resonance at 42 Hz
+// and one at 68 Hz (damping 0.08) on a small floor. Each fit logs its time ("shaper fit:").
+void benchmark_fit() {
+    const bool saved = shaper_fit_double;
+    for (const float peak : { 42.f, 68.f }) {
+        FixedLengthSpectrum<50> psd(30.f, 1.f);
+        for (size_t i = 0; i < psd.max_size(); ++i) {
+            const float r = (30.f + static_cast<float>(i)) / peak;
+            const float a = 1.f - r * r;
+            const float b = 2.f * 0.08f * r;
+            psd.put(0.02f + 1.f / (a * a + b * b));
+        }
+        for (const bool use_double : { false, true }) {
+            shaper_fit_double = use_double;
+            find_best_shaper(psd, Action::find_best_result, input_shaper::axis_defaults[X_AXIS]);
+        }
+    }
+    shaper_fit_double = saved;
 }
 
 /**

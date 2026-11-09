@@ -1,7 +1,14 @@
+#include <buddy/rx_stats.h>
+#include <buddy/upload_experiment.hpp>
 #include "ooseq_limit.hpp"
 
 #include <lwip/tcp.h>
 #include <lwip/priv/tcp_priv.h>
+#ifndef OOSEQ_LIMIT_OVERRIDABLE
+    #include <lwip/tcpip.h>
+#endif
+
+#include <atomic>
 
 // Intention behind the limits.
 //
@@ -70,18 +77,113 @@ OoseqUsage other_pcbs_usage(const struct tcp_pcb *exclude) {
     return usage;
 }
 
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+// Host tests only: lets a test run the real lwIP input path with other caps.
+ooseq_limit::Limits active_limits = ooseq_limit::DEFAULT_LIMITS;
+uint32_t hook_calls = 0;
+    #define COUNT_HOOK_CALL() (++hook_calls)
+#else
+    #define COUNT_HOOK_CALL() ((void)0)
+// EXPERIMENT: mutable so upload_experiment::apply_from_path can switch fix A
+// (on by default on this branch).
+ooseq_limit::Limits active_limits = ooseq_limit::FIX_A_LIMITS;
+#endif
+
+// Set while a reclaim is queued on the tcpip thread, so a burst of allocation
+// failures queues it once.
+std::atomic<bool> reclaim_pending = false;
+
+void reclaim_callback(void *) {
+    reclaim_pending = false;
+    buddy_ooseq_reclaim();
+}
+
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+ooseq_limit::ReclaimPoster reclaim_poster = nullptr;
+err_t post_reclaim() {
+    return reclaim_poster ? reclaim_poster(reclaim_callback) : ERR_IF;
+}
+#else
+err_t post_reclaim() {
+    return tcpip_try_callback(reclaim_callback, nullptr);
+}
+#endif
+
 } // namespace
+
+#ifdef OOSEQ_LIMIT_OVERRIDABLE
+namespace ooseq_limit {
+void set_reclaim_poster_for_test(ReclaimPoster poster) {
+    reclaim_poster = poster;
+    reclaim_pending = false;
+}
+void set_limits_for_test(const Limits &limits) {
+    active_limits = limits;
+}
+uint32_t hook_calls_for_test() {
+    return hook_calls;
+}
+} // namespace ooseq_limit
+#endif
 
 extern "C" {
 
 uint32_t buddy_ooseq_bytes_limit(const struct tcp_pcb *pcb) {
+    COUNT_HOOK_CALL();
     const OoseqUsage usage = other_pcbs_usage(pcb);
-    return ooseq_limit::compute_bytes_limit(is_inbound(pcb), usage.all_bytes, usage.inbound_bytes);
+    return ooseq_limit::compute_bytes_limit(is_inbound(pcb), usage.all_bytes, usage.inbound_bytes, active_limits);
 }
 
 uint16_t buddy_ooseq_pbufs_limit(const struct tcp_pcb *pcb) {
+    COUNT_HOOK_CALL();
     const OoseqUsage usage = other_pcbs_usage(pcb);
-    return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs);
+    return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs, active_limits);
+}
+
+// Fix C: give out-of-order data back when the RX ring runs dry.
+//
+// Must run on the tcpip thread (core lock held); buddy_ooseq_reclaim_request()
+// schedules it there. Frees the ooseq queues of inbound pcbs first and
+// only touches outbound (Connect) pcbs if no inbound pcb held anything.
+// tcp_free_ooseq() also clears the pcb's SACK list (lwIP 2.1.2, tcp.c), so the
+// next ACK stops advertising data we no longer hold.
+//
+// Returns the number of payload bytes released.
+uint32_t buddy_ooseq_reclaim(void) {
+    uint32_t freed = 0;
+    for (int pass = 0; pass < 2 && freed == 0; pass++) {
+        const bool want_inbound = pass == 0;
+        for (struct tcp_pcb *pcb = tcp_active_pcbs; pcb != nullptr; pcb = pcb->next) {
+            if (is_inbound(pcb) != want_inbound || pcb->ooseq == nullptr) {
+                continue;
+            }
+            for (const struct tcp_seg *seg = pcb->ooseq; seg != nullptr; seg = seg->next) {
+                freed += seg->p->tot_len;
+            }
+            tcp_free_ooseq(pcb);
+        }
+    }
+    if (freed) {
+        buddy_rx_stats.ooseq_reclaim++;
+    }
+    return freed;
+}
+
+// Called by pbuf_alloc_rx() when the RX ring is full, from the network or ESP
+// task (not from an ISR). Queues buddy_ooseq_reclaim() on the tcpip thread,
+// once until it has run; if the tcpip mailbox is full, the next failure retries.
+void buddy_ooseq_reclaim_request(void) {
+    if (reclaim_pending.exchange(true)) {
+        return;
+    }
+    if (post_reclaim() != ERR_OK) {
+        reclaim_pending = false;
+    }
 }
 
 } // extern "C"
+
+// EXPERIMENT: see buddy/upload_experiment.hpp.
+void ooseq_limit::set_inbound_fix_a(bool on) {
+    active_limits = on ? ooseq_limit::FIX_A_LIMITS : ooseq_limit::DEFAULT_LIMITS;
+}

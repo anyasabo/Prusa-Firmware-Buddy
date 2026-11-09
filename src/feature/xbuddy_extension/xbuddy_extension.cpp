@@ -178,7 +178,7 @@ void XBuddyExtension::step() {
     } // else -> comm not working, we'll set it next time (instead of setting
       // them to wrong value, keep them at what they are now).
 
-    METRIC_DEF(xbe_fan, "xbe_fan", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
+    METRIC_DEF(xbe_fan, "xbe_fan", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     static auto fan_should_record = RateLimiter<uint32_t>(1000);
     if (fan_should_record.check(ticks_ms())) {
         for (int fan = 0; fan < 3; ++fan) {

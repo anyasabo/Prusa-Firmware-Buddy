@@ -1,4 +1,5 @@
 #include "DialogHandler.hpp"
+#include <buddy/cpu_prof.h> // EXPERIMENT
 #include "display.hpp"
 #include "gui_time.hpp"
 #include "gui.hpp"
@@ -257,13 +258,27 @@ void gui_run(void) {
     // BFW-6193
     Screens::Access()->Loop();
 
+    // EXPERIMENT (cpu_prof.h): CPU time of each part of the loop.
+    cpu_prof::set_task_to_current();
+
     // TODO make some kind of registration
     while (1) {
-        gui::TickLoop();
-
-        Screens::Access()->Loop();
-        DialogHandler::Access().Loop();
-
-        gui_loop();
+        {
+            cpu_prof::Scope s(cpu_prof::Section::tick);
+            gui::TickLoop();
+        }
+        {
+            cpu_prof::Scope s(cpu_prof::Section::screens);
+            Screens::Access()->Loop();
+        }
+        {
+            cpu_prof::Scope s(cpu_prof::Section::dialog);
+            DialogHandler::Access().Loop();
+        }
+        {
+            cpu_prof::Scope s(cpu_prof::Section::gui_loop); // the sleep in it is not CPU time
+            gui_loop();
+        }
+        cpu_prof::loop_done();
     }
 }

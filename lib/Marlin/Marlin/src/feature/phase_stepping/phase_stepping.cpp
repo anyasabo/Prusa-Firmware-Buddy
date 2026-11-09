@@ -1,6 +1,7 @@
 #include "phase_stepping.hpp"
 #include "calibration_hooks.hpp"
 #include "debug_util.hpp"
+#include <buddy/cpu_prof.h> // EXPERIMENT
 
 #if HAS_BURST_STEPPING()
     // #error dead code found by automatic analyses (see BFW-5461)
@@ -37,6 +38,8 @@ using namespace phase_stepping::opts;
 using namespace buddy::hw;
 
 AtomicCircularQueue<ProblemEvents, uint16_t, 32> phase_stepping::debug_events_queue {};
+std::array<ProblemCounts, 2> phase_stepping::problem_counts {};
+static_assert(opts::SUPPORTED_AXIS_COUNT <= std::tuple_size_v<decltype(problem_counts)>);
 
 // Max rounding "adjustment" for jump_to_position(origin=true).
 //
@@ -144,6 +147,7 @@ static void init_step_generator_internal(
     axis_state.initial_count_position = Stepper::get_axis_steps(AxisEnum(axis)) - initial_steps_made;
     axis_state.initial_count_position_from_startup = Stepper::get_axis_steps_from_startup(AxisEnum(axis)) - initial_steps_made;
 
+    axis_state.rest_valid = false; // EXPERIMENT
     axis_state.active.store(true, std::memory_order_seq_cst);
 }
 
@@ -443,6 +447,7 @@ void phase_stepping::jump_to_position(AxisEnum axis, float pos, bool set_origin)
             bsod("phase-jump axis=%d delta=%d", static_cast<int>(axis), delta);
         }
     }
+    axis_state.rest_valid = false; // EXPERIMENT
     axis_state.active.store(was_active, std::memory_order_seq_cst);
 }
 
@@ -510,6 +515,7 @@ static void enable_phase_stepping(AxisEnum axis_num) {
 
     axis_state.missed_tx_cnt = 0;
     axis_state.enabled = true;
+    axis_state.rest_valid = false; // EXPERIMENT
     axis_state.active.store(true, std::memory_order_seq_cst);
     axis_state.is_slowed_down = true;
 
@@ -649,6 +655,7 @@ void phase_stepping::clear_targets() {
             axis_state.pending_targets.dequeue();
         }
 
+        axis_state.rest_valid = false; // EXPERIMENT
         axis_state.active.store(was_active, std::memory_order_seq_cst);
     }
 }
@@ -730,6 +737,37 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
         return;
     }
 
+#if !HAS_BURST_STEPPING()
+    // EXPERIMENT (M9959 P1): rest fast path. After a full refresh at rest (see rest_valid), the
+    // result stays the same while nothing changes: no target in any of the three places, the same
+    // current tables, and no external change (that code clears rest_valid). Then skip the refresh,
+    // but do a full one at least each REST_FULL_REFRESH_EVERY refreshes of the axis (1 ms).
+    // A skipped refresh sends nothing, so it needs no SPI transaction and cannot miss one.
+    static constexpr uint8_t REST_FULL_REFRESH_EVERY = 20;
+    if (buddy_phstep_fast && axis_state.rest_valid
+        && axis_state.rest_skips < REST_FULL_REFRESH_EVERY - 1
+        && !axis_state.has_current_target
+        && axis_state.pending_targets.isEmpty()
+        && !axis_state.next_target.maybe_full()
+        && axis_state.forward_current.generation.load(std::memory_order_acquire) + axis_state.backward_current.generation.load(std::memory_order_acquire) == axis_state.rest_lut_generation) {
+        ++axis_state.rest_skips;
+        ++buddy_phstep_fast_passes;
+        axis_state.missed_tx_cnt = 0;
+        axis_state.last_timer_tick = last_timer_tick;
+        return;
+    }
+    axis_state.rest_valid = false;
+    axis_state.rest_skips = 0;
+    const uint32_t lut_generation = axis_state.forward_current.generation.load(std::memory_order_acquire) + axis_state.backward_current.generation.load(std::memory_order_acquire);
+    const float position_before = axis_state.last_position;
+#endif
+    uint32_t prof_t = DWT->CYCCNT; // EXPERIMENT: cycles of the parts of a full refresh
+    const auto prof_mark = [&prof_t](int part) {
+        const uint32_t t = DWT->CYCCNT;
+        buddy_phstep_part_cycles[part] = buddy_phstep_part_cycles[part] + (t - prof_t);
+        prof_t = t;
+    };
+
     [[maybe_unused]] const auto axis_index = axis_state.axis_index;
     [[maybe_unused]] const auto axis_enum = AxisEnum(axis_state.axis_index);
 
@@ -787,7 +825,14 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
             axis_state.current_target = *current_target;
             axis_state.has_current_target = true;
 
-            if (__builtin_fabsf(current_target->start_v - axis_state.previous_speed) > speed_diff_threshold) {
+            const float speed_diff = __builtin_fabsf(current_target->start_v - axis_state.previous_speed);
+            if (speed_diff > speed_diff_threshold) {
+                // Count before the enqueue: a full queue drops the event, not the count.
+                ProblemCounts &counts = problem_counts[axis_index];
+                ProblemCounts::add(counts.speed_changes);
+                if (speed_diff > ProblemCounts::big_speed_change) {
+                    ProblemCounts::add(counts.big_speed_changes);
+                }
                 [[maybe_unused]] const auto res = debug_events_queue.enqueue(SuddenSpeedChange { .timestamp = now, .axis = axis_index ? 'Y' : 'X', .original_speed = axis_state.previous_speed, .new_speed = current_target->start_v });
             }
 
@@ -798,6 +843,9 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
                 axis_state.is_slowed_down = __builtin_fabsf(end_speed) < 2; // if < 2 we slowed down
             }
             if (axis_state.stalled_for != 0) {
+                ProblemCounts &counts = problem_counts[axis_index];
+                ProblemCounts::add(counts.stalls);
+                ProblemCounts::add(counts.stalled_refreshes, axis_state.stalled_for);
                 [[maybe_unused]] const auto res = debug_events_queue.enqueue(Stalled {
                     .timestamp = now,
                     .axis = axis_index ? 'Y' : 'X',
@@ -824,6 +872,9 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
         }
     }
 
+    ++buddy_phstep_full_passes; // EXPERIMENT: only the full refreshes that do not stop early
+    prof_mark(0); // part 0: checks, SPI lock, targets
+
     float speed, position;
     if (axis_state.has_current_target) {
         axis_position(axis_state, move_epoch, speed, position);
@@ -845,6 +896,7 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
 
     int new_phase = pos_to_phase(axis_enum, physical_position);
     debug_assert(phase_difference(axis_state.last_phase, new_phase) < 256);
+    prof_mark(1); // part 1: position, phase
 
 #if HAS_BURST_STEPPING()
     // #error dead code found by automatic analyses (see BFW-5461)
@@ -860,6 +912,7 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     int c_adj = current_adjustment(axis_index, mm_to_rev(axis_enum, physical_speed));
     new_currents.a = new_currents.a * c_adj / 255;
     new_currents.b = new_currents.b * c_adj / 255;
+    prof_mark(2); // part 2: currents (table, correction, adjustment)
     if (new_currents != axis_state.last_currents) {
         spi::set_xdirect(axis_index, new_currents);
         axis_state.last_currents = new_currents;
@@ -886,9 +939,19 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     axis_state.last_phase = new_phase;
     axis_state.missed_tx_cnt = 0;
     axis_state.last_timer_tick = last_timer_tick;
+#if !HAS_BURST_STEPPING()
+    // EXPERIMENT (M9959 P1): at rest, the next refreshes give this same result.
+    axis_state.rest_lut_generation = lut_generation;
+    axis_state.rest_valid = !axis_state.has_current_target && speed == 0.f && axis_state.is_slowed_down
+        && axis_state.stalled_for == 0 && position == position_before;
+#endif
+    prof_mark(3); // part 3: send, step counters
 }
 
-FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
+// EXPERIMENT (M9959 R1): the body is one inline function. The stock wrapper runs it from flash, and
+// a second wrapper runs the same code from RAM (.RamFunc, copied at startup). The function is
+// larger than the ART cache of the flash (1 KB). The A/B test shows which copy is faster.
+static FORCE_INLINE FORCE_OFAST void handle_periodic_refresh_impl() {
     // This routine is extremely time sensitive and it should be as fast as
     // possible.
     //
@@ -934,6 +997,14 @@ FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
         motor_serial_lock_clear_isr_starved();
     }
 #endif
+}
+
+FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
+    handle_periodic_refresh_impl();
+}
+
+__attribute__((section(".RamFunc"), noinline)) FORCE_OFAST static void handle_periodic_refresh_ram() {
+    handle_periodic_refresh_impl();
 }
 
 bool phase_stepping::any_axis_enabled() {
@@ -1079,8 +1150,14 @@ extern "C" void PHSTEP_TIMER_ISR_HANDLER(void) {
     // - we don't use HAL handler: HAL_TIM_IRQHandler(&htim13) as it takes 3 µs
     // - we avoid indirect access to peripheral registers via handle as it takes
     //   0.4 µs
+    const uint32_t start_cycles = DWT->CYCCNT; // EXPERIMENT: cpu_prof.h (a few cycles each call)
     TIM13->SR &= ~TIM_FLAG_UPDATE;
-    phase_stepping::handle_periodic_refresh();
+    if (buddy_phstep_ram) { // EXPERIMENT (M9959 R1)
+        handle_periodic_refresh_ram();
+    } else {
+        phase_stepping::handle_periodic_refresh();
+    }
+    buddy_phstep_isr_cycles = buddy_phstep_isr_cycles + (DWT->CYCCNT - start_cycles);
 }
 
 // For the same reason as the ISR handler above, we include the

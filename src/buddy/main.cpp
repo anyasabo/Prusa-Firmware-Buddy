@@ -732,6 +732,11 @@ static void enable_segger_sysview() {
 
 extern "C" void __libc_init_array(void);
 
+// EXPERIMENT (upload-experiments): FreeRTOS run-time stats counter (FreeRTOSConfig.h).
+extern "C" uint32_t buddy_run_time_counter(void) {
+    return DWT->CYCCNT;
+}
+
 namespace {
 /// The entrypoint of the startup task
 ///

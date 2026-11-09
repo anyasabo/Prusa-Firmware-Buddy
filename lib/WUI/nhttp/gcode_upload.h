@@ -55,14 +55,19 @@ namespace printer {
         // A way how to reconstruct the name of the temporary file.
         size_t file_idx;
         bool filename_checked;
-
-        Result check_filename(const char *filename) const;
+        // Answer "Expect: 100-continue" before reading the body.
+        bool send_continue = false;
+        // The temp file is not created yet; the name check and the file
+        // creation run on the async job worker once the body starts (see
+        // PutTransfer::start_prepare), so the tcpip thread never waits on the
+        // USB drive for them.
+        bool async_prepare = false;
 
         GcodeUpload(PutParams &&uploader, transfers::Monitor::Slot &&slot, bool json_errors, size_t length, size_t upload_idx, transfers::PartialFile::Ptr &&file, UploadedNotify *uploaded);
 
     public:
         bool want_read() const { return size_rest > 0; }
-        bool want_write() const { return false; }
+        bool want_write() const { return send_continue; }
         void step(std::string_view input, bool terminated_by_client, uint8_t *output, size_t output_size, handler::Step &out);
         using UploadResult = std::variant<handler::StatusPage, GcodeUpload>;
         static UploadResult start(const handler::RequestParser &parser, UploadedNotify *uploaded, bool json_errors, PutParams &&uploadParams);

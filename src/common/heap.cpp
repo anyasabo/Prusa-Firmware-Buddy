@@ -92,6 +92,35 @@ extern "C" uint32_t heap_total_size() {
     return heap_end() - heap_start;
 }
 
+extern "C" uint32_t heap_malloc_free() {
+    return mallinfo().fordblks;
+}
+
+// newlib-nano's free list (nano-mallocr.c). Its mallinfo() fills only arena,
+// uordblks and fordblks, so the walk is done here, like nano's mallinfo does it.
+namespace {
+struct NanoChunk {
+    long size; // the whole chunk, with its header
+    NanoChunk *next;
+};
+} // namespace
+extern "C" NanoChunk *__malloc_free_list;
+
+extern "C" void heap_malloc_chunks(uint32_t *free_chunks, uint32_t *largest_chunk) {
+    uint32_t count = 0;
+    uint32_t largest = 0;
+    __malloc_lock(_REENT);
+    for (const NanoChunk *c = __malloc_free_list; c != nullptr; c = c->next) {
+        count++;
+        if (c->size > 0 && static_cast<uint32_t>(c->size) > largest) {
+            largest = static_cast<uint32_t>(c->size);
+        }
+    }
+    __malloc_unlock(_REENT);
+    *free_chunks = count;
+    *largest_chunk = largest;
+}
+
 extern "C" uint32_t heap_bytes_remaining() {
     return heap_total_size() - (current_heap_end() - heap_start);
 }

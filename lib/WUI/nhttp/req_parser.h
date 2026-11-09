@@ -93,6 +93,13 @@ public:
     bool print_after_upload : 1;
     bool overwrite_file : 1;
     bool create_folder : 1;
+    /// The client sent "Expect: 100-continue" and waits for a "100 Continue"
+    /// before sending the body (RFC 9110, 10.1.1).
+    bool expect_continue : 1;
+
+    bool http_1_1_or_newer() const {
+        return version_major > 1 || (version_major == 1 && version_minor >= 1);
+    }
 
 private:
     struct DigestAuthParams {

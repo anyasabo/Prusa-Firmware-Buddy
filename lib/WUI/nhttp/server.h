@@ -293,7 +293,12 @@ private:
 
     class TransferSlot : public Slot {
     public:
-        static constexpr size_t PbufQueueMax = 8;
+        // One entry per segment, but the TCP window counts bytes: fit a full
+        // window of 512 B segments (macOS PMTU black-hole fallback) + the EOF.
+        // Smaller segments wouldn't fit the RX pbuf ring anyway (#5591).
+        static constexpr size_t PbufQueueMax = 33; // EXPERIMENT: 16 KB window of 512 B segments
+        static_assert(PbufQueueMax >= TCP_WND / 512 + 1);
+
         // Queue of pbufs to process/write into the file.
         //
         // The 0 index is the oldest one (being processed right now), we append
@@ -320,6 +325,18 @@ private:
         size_t expected_data = 0;
 
         splice::Transfer *transfer = nullptr;
+        // The transfer's file exists and has our written callback (see
+        // splice::Transfer::poll_ready). Until then, incoming pbufs just queue
+        // up and the TCP window closes on its own.
+        bool file_ready = false;
+        // The transfer is finishing off the tcpip thread (start_finish).
+        bool finishing = false;
+        // Free the queued pbufs. With give_back, return their not yet consumed
+        // bytes to the TCP window first: otherwise the window stays shrunk by
+        // them and closing with it not fully open makes lwip send RST, which a
+        // client still sending sees instead of our response. Only with a live
+        // conn (not from release(), which also runs after lwip freed the pcb).
+        void drop_queue(bool give_back);
         std::optional<std::tuple<http::Status, const char *>> response;
 
         virtual void release() override;
@@ -443,6 +460,10 @@ public:
     }
 
     void inject_transfer(altcp_pcb *conn, pbuf *data, uint16_t data_offset, splice::Transfer *transfer, size_t expected_data);
+
+    /// Make the transfer slot re-check its transfer (eg. its file became ready).
+    /// Must be called in the tcpip thread.
+    void kick_transfer();
 };
 
 } // namespace nhttp

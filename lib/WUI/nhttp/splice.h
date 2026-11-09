@@ -57,6 +57,29 @@ namespace splice {
         //
         // Will make sure that all previous writes were processed.
         virtual std::optional<std::tuple<http::Status, const char *>> done() = 0;
+        // The file may not exist yet when the transfer starts (it can be
+        // prepared asynchronously, off the tcpip thread). Called in the tcpip
+        // thread by the transfer slot until it returns something other than
+        // Waiting; file() is valid only after Ready. Failed means the transfer
+        // can't go on; done() then reports why.
+        enum class Readiness {
+            Ready,
+            Waiting,
+            Failed,
+        };
+        virtual Readiness poll_ready() { return Readiness::Ready; }
+        // The transfer slot gives up on a transfer that was not Ready yet (eg.
+        // the connection timed out). Called in the tcpip thread.
+        virtual void abort_prepare() {}
+        // Called once all the data arrived (and nothing failed so far), before
+        // done(), in the tcpip thread. May start finishing the transfer (eg.
+        // closing and renaming the file) off the tcpip thread; returns true if
+        // it did. The slot then waits for poll_finished() to return Ready
+        // before calling done().
+        virtual bool start_finish() { return false; }
+        virtual Readiness poll_finished() { return Readiness::Ready; }
+        // Should an error response (from done()) be JSON?
+        virtual bool json_errors() const { return false; }
         // Report progress - more data was written (incremental, not total).
         //
         // Can return false to abort the transfer.

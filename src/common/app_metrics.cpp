@@ -165,8 +165,21 @@ void RecordRuntimeStats() {
     metric_record_integer(&metric_syslog_drop, static_cast<int>(syslog_dropped_datagrams.load(std::memory_order_relaxed)));
 
     METRIC_DEF(heap, "heap", METRIC_VALUE_CUSTOM, 503, METRIC_ENABLED);
+    // heap_min: the lowest free heap since boot, for a near miss of "Out of heap memory". The heap is
+    // newlib's malloc, so FreeRTOS's xPortGetMinimumEverFreeHeapSize() does not exist. free: the
+    // lowest value of the samples of heap (each 503 ms), so a short dip between two samples is not
+    // in it. brk: the space that sbrk has not given to malloc yet. newlib-nano never gives space
+    // back to sbrk, so this value is exact and is its own minimum since boot.
+    METRIC_DEF(heap_min, "heap_min", METRIC_VALUE_CUSTOM, 5000, METRIC_ENABLED);
+    static size_t heap_free_min = SIZE_MAX;
     if (metric_record_is_due(&heap)) { // xPortGetFreeHeapSize() walks the free list (mallinfo)
-        metric_record_custom(&heap, " free=%zui,total=%zui", xPortGetFreeHeapSize(), static_cast<size_t>(heap_total_size()));
+        const size_t heap_free = xPortGetFreeHeapSize();
+        heap_free_min = std::min(heap_free_min, heap_free);
+        metric_record_custom(&heap, " free=%zui,total=%zui", heap_free, static_cast<size_t>(heap_total_size()));
+    }
+    if (heap_free_min != SIZE_MAX) {
+        // At most " free=4294967295i,brk=4294967295i": 33 characters.
+        metric_record_custom(&heap_min, " free=%ui,brk=%ui", static_cast<unsigned>(heap_free_min), static_cast<unsigned>(heap_bytes_remaining()));
     }
 
     // Config store metrics (BFW-7758)

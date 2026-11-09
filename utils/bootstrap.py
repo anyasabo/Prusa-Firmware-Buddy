@@ -8,6 +8,7 @@
 #       them if they are not.
 #
 # pylint: disable=line-too-long
+import hashlib
 import os
 import platform
 import shutil
@@ -43,6 +44,12 @@ dependencies = {
             'Windows': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip',
             'Darwin': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-mac.zip',
         },
+        'sha256': {
+            'Linux': '763464859c7ef2ea3a0a10f4df40d2025d3bb9438fcb1228404640410c0ec22d',
+            'Linux-aarch64': '809e87ca30eec0e57e431be9e072bf90fb22ee42831d04bd23fd426fad970688',
+            'Windows': 'bbde850d247d2737c5764c927d1071cbb1f1957dcabda4a130fa8547c12c695f',
+            'Darwin': '6fa359f491fac7e5185273c6421a000eea6a2f0febf0ac03ac900bd4d80ed2a5',
+        },
     },
     'cmake': {
         'version': '3.28.3',
@@ -52,6 +59,12 @@ dependencies = {
             'Windows': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-windows-x86_64.zip',
             'Darwin': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-macos-universal.tar.gz',
         },
+        'sha256': {
+            'Linux': '804d231460ab3c8b556a42d2660af4ac7a0e21c98a7f8ee3318a74b4a9a187a6',
+            'Linux-aarch64': '29e1949e598fd84827a13480bdda39a9465e096c242ad146173dc2dd64cffd71',
+            'Windows': 'cac7916f7e1e73a25de857704c94fd5b72ba9fe2f055356b5602d2f960e50e5b',
+            'Darwin': 'd9e2c22fec920a4d1f6b0d0683c035d799475c179c91e41e1a7fbfab610a0305',
+        },
     },
     'gcc-arm-none-eabi': {
         'version': '13.3.1',
@@ -60,7 +73,13 @@ dependencies = {
             'Linux-aarch64': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-aarch64-arm-none-eabi.tar.xz',
             'Windows': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi.zip',
             'Darwin': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-darwin-x86_64-arm-none-eabi.tar.xz',
-        }
+        },
+        'sha256': {
+            'Linux': '95c011cee430e64dd6087c75c800f04b9c49832cc1000127a92a97f9c8d83af4',
+            'Linux-aarch64': 'c8824bffd057afce2259f7618254e840715f33523a3d4e4294f471208f976764',
+            'Windows': 'e46fda043c0ce83582bc8db4b3ef85f77f4beb7333344c2f4193c17e1167a095',
+            'Darwin': '1ab00742d1ed0926e6f227df39d767f8efab46f5250505c29cb81f548222d794',
+        },
     },
     'clang-format': {
         'version': '16-83817c2f',
@@ -249,8 +268,20 @@ def extract_archive(filename: Path, directory: Path):
             extract_zip(obj, directory)
 
 
-def download_and_unzip(url: str, directory: Path):
-    """Download a compressed file and extract it at `directory`."""
+def verify_sha256(filename: Path, expected: str):
+    """Raise an error and remove `filename` if its SHA-256 is not `expected`."""
+    digest = hashlib.sha256()
+    with open(filename, 'rb') as file:
+        for chunk in iter(lambda: file.read(1 << 20), b''):
+            digest.update(chunk)
+    if digest.hexdigest() != expected.lower():
+        os.remove(filename)
+        raise RuntimeError(f'SHA-256 mismatch for {filename.name}: '
+                           f'expected {expected}, got {digest.hexdigest()}')
+
+
+def download_and_unzip(url: str, directory: Path, sha256=None):
+    """Download a compressed file, check its SHA-256 (if given) and extract it at `directory`."""
     extract_dir = directory.with_suffix('.temp')
     shutil.rmtree(directory, ignore_errors=True)
     shutil.rmtree(extract_dir, ignore_errors=True)
@@ -263,6 +294,8 @@ def download_and_unzip(url: str, directory: Path):
     filename = Path(dependencies_dir) / file
 
     download_url(url=url, filename=filename)
+    if sha256 is not None:
+        verify_sha256(filename, sha256)
 
     print('done')
     print('Extracting ' + file, end=" ")
@@ -324,14 +357,20 @@ def install_dependency(dependency):
                                                       specs['version'])
     url = specs.get('url', None)
     files = specs.get('files', None)
+    sha256 = specs.get('sha256', None)
     if url is not None:
         if isinstance(url, dict):
             full_description = f'{platform.system()}-{platform.machine()}'
             if full_description not in url:
-                url = url[platform.system()]
+                key = platform.system()
             else:
-                url = url[full_description]
-        download_and_unzip(url=url, directory=installation_directory)
+                key = full_description
+            url = url[key]
+            if isinstance(sha256, dict):
+                sha256 = sha256[key]
+        download_and_unzip(url=url,
+                           directory=installation_directory,
+                           sha256=sha256)
     elif files is not None:
         os.mkdir(installation_directory)
         for file in files:

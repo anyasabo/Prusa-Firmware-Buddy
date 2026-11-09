@@ -11,6 +11,10 @@
 extern "C" {
 volatile uint32_t buddy_phstep_isr_cycles = 0;
 volatile uint32_t buddy_gui_delay_min = 1;
+volatile uint32_t buddy_phstep_fast = 0;
+volatile uint32_t buddy_phstep_fast_passes = 0;
+volatile uint32_t buddy_phstep_full_passes = 0;
+volatile uint32_t buddy_phstep_part_cycles[4] = {};
 }
 
 namespace {
@@ -23,6 +27,20 @@ uint64_t loops = 0;
 uint64_t phstep_cycles = 0; // cumulative cycles of the phase stepping interrupt
 uint32_t last_phstep = 0;
 uint32_t last_report_ms = 0;
+
+// 64-bit sums of the 32-bit phase stepping counters: [0] fast passes, [1] full passes, [2..5] parts.
+std::array<uint64_t, 6> phstep_sums {};
+std::array<uint32_t, 6> phstep_last {};
+uint32_t phstep_read(size_t i) {
+    switch (i) {
+    case 0:
+        return buddy_phstep_fast_passes;
+    case 1:
+        return buddy_phstep_full_passes;
+    default:
+        return buddy_phstep_part_cycles[i - 2];
+    }
+}
 
 uint32_t to_ms(uint64_t cycles) {
     return static_cast<uint32_t>(cycles / (SystemCoreClock / 1000)); // wraps after 49 days
@@ -74,6 +92,11 @@ void fold() {
     const uint32_t p = buddy_phstep_isr_cycles;
     phstep_cycles += p - last_phstep;
     last_phstep = p;
+    for (size_t i = 0; i < phstep_sums.size(); ++i) {
+        const uint32_t v = phstep_read(i);
+        phstep_sums[i] += v - phstep_last[i];
+        phstep_last[i] = v;
+    }
 }
 
 void loop_done() {
@@ -97,6 +120,12 @@ void loop_done() {
     metric_record_custom(&metric_gui_prof3, " o=%ui,c=%ui,p=%ui", static_cast<unsigned>(ms(opt)), static_cast<unsigned>(to_ms(task_cycles)), static_cast<unsigned>(to_ms(phstep_cycles)));
     METRIC_DEF(metric_gui_min, "gui_min", METRIC_VALUE_INTEGER, 0, METRIC_ENABLED);
     metric_record_integer(&metric_gui_min, static_cast<int>(buddy_gui_delay_min));
+    // Phase stepping refresh: e fast path on (M9959 P), f and u thousands of skipped and full
+    // refreshes, a..d ms of CPU time of the 4 parts of the full refreshes (cumulative, use rate()).
+    METRIC_DEF(metric_phstep_prof, "phstep_prof", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    metric_record_custom(&metric_phstep_prof, " e=%ui,f=%ui,u=%ui,a=%ui,b=%ui,c=%ui,d=%ui", static_cast<unsigned>(buddy_phstep_fast),
+        static_cast<unsigned>(phstep_sums[0] / 1000), static_cast<unsigned>(phstep_sums[1] / 1000),
+        static_cast<unsigned>(to_ms(phstep_sums[2])), static_cast<unsigned>(to_ms(phstep_sums[3])), static_cast<unsigned>(to_ms(phstep_sums[4])), static_cast<unsigned>(to_ms(phstep_sums[5])));
 }
 
 } // namespace cpu_prof

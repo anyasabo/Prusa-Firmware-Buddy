@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 
+#include <atomic>
 #include <bitset>
 #include <cstdint>
 
@@ -66,7 +67,12 @@ public:
     void modify_correction_table(F f) {
         f(_spectrum);
         _update_phase_shift();
+        generation.store(generation.load(std::memory_order_relaxed) + 1, std::memory_order_release);
     }
+
+    /// EXPERIMENT (M9959 P1): changes after each change of the table. The rest fast path of the
+    /// phase stepping refresh compares it, and does a full refresh after a change.
+    std::atomic<uint32_t> generation = 0;
 
     CoilCurrents get_current(int idx) const;
     int get_phase_shift(int idx) const;

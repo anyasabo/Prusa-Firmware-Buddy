@@ -145,6 +145,7 @@ static void init_step_generator_internal(
     axis_state.initial_count_position = Stepper::get_axis_steps(AxisEnum(axis)) - initial_steps_made;
     axis_state.initial_count_position_from_startup = Stepper::get_axis_steps_from_startup(AxisEnum(axis)) - initial_steps_made;
 
+    axis_state.rest_valid = false; // EXPERIMENT
     axis_state.active.store(true, std::memory_order_seq_cst);
 }
 
@@ -444,6 +445,7 @@ void phase_stepping::jump_to_position(AxisEnum axis, float pos, bool set_origin)
             bsod("phase-jump axis=%d delta=%d", static_cast<int>(axis), delta);
         }
     }
+    axis_state.rest_valid = false; // EXPERIMENT
     axis_state.active.store(was_active, std::memory_order_seq_cst);
 }
 
@@ -511,6 +513,7 @@ static void enable_phase_stepping(AxisEnum axis_num) {
 
     axis_state.missed_tx_cnt = 0;
     axis_state.enabled = true;
+    axis_state.rest_valid = false; // EXPERIMENT
     axis_state.active.store(true, std::memory_order_seq_cst);
     axis_state.is_slowed_down = true;
 
@@ -650,6 +653,7 @@ void phase_stepping::clear_targets() {
             axis_state.pending_targets.dequeue();
         }
 
+        axis_state.rest_valid = false; // EXPERIMENT
         axis_state.active.store(was_active, std::memory_order_seq_cst);
     }
 }
@@ -730,6 +734,38 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     if (!axis_state.active.load(std::memory_order_acquire)) {
         return;
     }
+
+#if !HAS_BURST_STEPPING()
+    // EXPERIMENT (M9959 P1): rest fast path. After a full refresh at rest (see rest_valid), the
+    // result stays the same while nothing changes: no target in any of the three places, the same
+    // current tables, and no external change (that code clears rest_valid). Then skip the refresh,
+    // but do a full one at least each REST_FULL_REFRESH_EVERY refreshes of the axis (1 ms).
+    // A skipped refresh sends nothing, so it needs no SPI transaction and cannot miss one.
+    static constexpr uint8_t REST_FULL_REFRESH_EVERY = 20;
+    if (buddy_phstep_fast && axis_state.rest_valid
+        && axis_state.rest_skips < REST_FULL_REFRESH_EVERY - 1
+        && !axis_state.has_current_target
+        && axis_state.pending_targets.isEmpty()
+        && !axis_state.next_target.maybe_full()
+        && axis_state.forward_current.generation.load(std::memory_order_acquire) + axis_state.backward_current.generation.load(std::memory_order_acquire) == axis_state.rest_lut_generation) {
+        ++axis_state.rest_skips;
+        ++buddy_phstep_fast_passes;
+        axis_state.missed_tx_cnt = 0;
+        axis_state.last_timer_tick = last_timer_tick;
+        return;
+    }
+    axis_state.rest_valid = false;
+    axis_state.rest_skips = 0;
+    const uint32_t lut_generation = axis_state.forward_current.generation.load(std::memory_order_acquire) + axis_state.backward_current.generation.load(std::memory_order_acquire);
+    const float position_before = axis_state.last_position;
+#endif
+    ++buddy_phstep_full_passes;
+    uint32_t prof_t = DWT->CYCCNT; // EXPERIMENT: cycles of the parts of a full refresh
+    const auto prof_mark = [&prof_t](int part) {
+        const uint32_t t = DWT->CYCCNT;
+        buddy_phstep_part_cycles[part] = buddy_phstep_part_cycles[part] + (t - prof_t);
+        prof_t = t;
+    };
 
     [[maybe_unused]] const auto axis_index = axis_state.axis_index;
     [[maybe_unused]] const auto axis_enum = AxisEnum(axis_state.axis_index);
@@ -825,6 +861,8 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
         }
     }
 
+    prof_mark(0); // part 0: checks, SPI lock, targets
+
     float speed, position;
     if (axis_state.has_current_target) {
         axis_position(axis_state, move_epoch, speed, position);
@@ -846,6 +884,7 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
 
     int new_phase = pos_to_phase(axis_enum, physical_position);
     debug_assert(phase_difference(axis_state.last_phase, new_phase) < 256);
+    prof_mark(1); // part 1: position, phase
 
 #if HAS_BURST_STEPPING()
     // #error dead code found by automatic analyses (see BFW-5461)
@@ -861,6 +900,7 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     int c_adj = current_adjustment(axis_index, mm_to_rev(axis_enum, physical_speed));
     new_currents.a = new_currents.a * c_adj / 255;
     new_currents.b = new_currents.b * c_adj / 255;
+    prof_mark(2); // part 2: currents (table, correction, adjustment)
     if (new_currents != axis_state.last_currents) {
         spi::set_xdirect(axis_index, new_currents);
         axis_state.last_currents = new_currents;
@@ -887,6 +927,13 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     axis_state.last_phase = new_phase;
     axis_state.missed_tx_cnt = 0;
     axis_state.last_timer_tick = last_timer_tick;
+#if !HAS_BURST_STEPPING()
+    // EXPERIMENT (M9959 P1): at rest, the next refreshes give this same result.
+    axis_state.rest_lut_generation = lut_generation;
+    axis_state.rest_valid = !axis_state.has_current_target && speed == 0.f && axis_state.is_slowed_down
+        && axis_state.stalled_for == 0 && position == position_before;
+#endif
+    prof_mark(3); // part 3: send, step counters
 }
 
 FORCE_OFAST void phase_stepping::handle_periodic_refresh() {

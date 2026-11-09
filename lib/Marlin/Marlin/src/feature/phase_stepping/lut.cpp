@@ -76,6 +76,7 @@ int phase_stepping::normalize_motor_phase(int phase) {
 void CorrectedCurrentLut::clear() {
     _spectrum.fill({});
     _phase_shift.fill({});
+    generation.store(generation.load(std::memory_order_relaxed) + 1, std::memory_order_release); // EXPERIMENT
 }
 
 void CorrectedCurrentLut::_update_phase_shift() {

@@ -40,6 +40,8 @@ def build(variant: str, build_dir: Path):
         prefix_map_flags(str(project_dir), '/project')
     ])
 
+    # CMake 4 refuses cmake_minimum_required() below 3.5. The ESP8266 RTOS SDK has such
+    # projects (components/mbedtls). CMake 3.x ignores CMAKE_POLICY_VERSION_MINIMUM.
     env = dict(os.environ,
                BUILD_DIR=str(build_dir),
                SDKCONFIG=str(project_dir / f'{variant}.sdkconfig'),
@@ -48,7 +50,8 @@ def build(variant: str, build_dir: Path):
                ASMFLAGS=prefix_map,
                SOURCE_DATE_EPOCH='0',
                PYTHONHASHSEED='0',
-               PYTHONWARNINGS='ignore')
+               PYTHONWARNINGS='ignore',
+               CMAKE_POLICY_VERSION_MINIMUM='3.5')
     subprocess.run([
         'bash', '-c',
         '. "$IDF_PATH/export.sh" > /dev/null && exec idf.py -B "$BUILD_DIR" '

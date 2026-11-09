@@ -57,7 +57,11 @@ constexpr Rect16 GuiDefaults::RectScreenNoFoot;
 constexpr Rect16 GuiDefaults::RectScreenNoHeader;
 constexpr Rect16 GuiDefaults::RectFooter;
 
-static const constexpr uint32_t GUI_DELAY_MIN = 1;
+// The minimum sleep of the GUI loop, for a pass without a redraw. With 1 ms, the loop ran at 1 kHz at
+// idle. The display task used 28 % of the CPU (10 % with 10 ms). The tcpip thread has a lower
+// priority, and idle uploads were 45 % slower than during a print. 10 ms adds a maximum of 10 ms to
+// the input latency, which is less than one frame (GUI_DELAY_REDRAW).
+static const constexpr uint32_t GUI_DELAY_MIN = 10;
 static const constexpr uint32_t GUI_DELAY_MAX = 10;
 static const constexpr uint8_t GUI_DELAY_LOOP = 100;
 static const constexpr uint32_t GUI_DELAY_REDRAW = 40; // 40 ms => 25 fps

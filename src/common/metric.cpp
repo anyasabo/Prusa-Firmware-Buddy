@@ -52,7 +52,7 @@ static std::atomic<uint16_t> dropped_points_count = 0;
 // The cumulative count of each event metric since boot. An event point (v=T) can be lost (the rate
 // limit, a full queue, UDP), and a count sent again at a fixed interval cannot. The metric task
 // sends each count as the field n (for example "probe_start n=5i") every event_count_interval_ms,
-// also when it is 0.
+// also when it is 0, and also when the metric is off.
 static constexpr size_t max_event_metrics = 16;
 static constexpr uint32_t event_count_interval_ms = 10'000;
 static metric_t *event_metrics[max_event_metrics];
@@ -70,10 +70,8 @@ static void count_event(const metric_t *metric) {
 
 static void send_event_counts() {
     for (size_t i = 0; i < event_metrics_count; i++) {
+        // Also when the metric is off: the count costs one point each interval, not one each event.
         metric_t *metric = event_metrics[i];
-        if (!metric->enabled) {
-            continue;
-        }
         metric_point_t point {};
         point.metric = metric;
         point.timestamp = ticks_us();

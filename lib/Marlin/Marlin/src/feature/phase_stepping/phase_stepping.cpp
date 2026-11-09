@@ -38,6 +38,8 @@ using namespace phase_stepping::opts;
 using namespace buddy::hw;
 
 AtomicCircularQueue<ProblemEvents, uint16_t, 32> phase_stepping::debug_events_queue {};
+std::array<ProblemCounts, 2> phase_stepping::problem_counts {};
+static_assert(opts::SUPPORTED_AXIS_COUNT <= std::tuple_size_v<decltype(problem_counts)>);
 
 // Max rounding "adjustment" for jump_to_position(origin=true).
 //
@@ -823,7 +825,14 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
             axis_state.current_target = *current_target;
             axis_state.has_current_target = true;
 
-            if (__builtin_fabsf(current_target->start_v - axis_state.previous_speed) > speed_diff_threshold) {
+            const float speed_diff = __builtin_fabsf(current_target->start_v - axis_state.previous_speed);
+            if (speed_diff > speed_diff_threshold) {
+                // Count before the enqueue: a full queue drops the event, not the count.
+                ProblemCounts &counts = problem_counts[axis_index];
+                ProblemCounts::add(counts.speed_changes);
+                if (speed_diff > ProblemCounts::big_speed_change) {
+                    ProblemCounts::add(counts.big_speed_changes);
+                }
                 [[maybe_unused]] const auto res = debug_events_queue.enqueue(SuddenSpeedChange { .timestamp = now, .axis = axis_index ? 'Y' : 'X', .original_speed = axis_state.previous_speed, .new_speed = current_target->start_v });
             }
 
@@ -834,6 +843,9 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
                 axis_state.is_slowed_down = __builtin_fabsf(end_speed) < 2; // if < 2 we slowed down
             }
             if (axis_state.stalled_for != 0) {
+                ProblemCounts &counts = problem_counts[axis_index];
+                ProblemCounts::add(counts.stalls);
+                ProblemCounts::add(counts.stalled_refreshes, axis_state.stalled_for);
                 [[maybe_unused]] const auto res = debug_events_queue.enqueue(Stalled {
                     .timestamp = now,
                     .axis = axis_index ? 'Y' : 'X',

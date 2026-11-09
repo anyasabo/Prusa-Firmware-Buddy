@@ -493,6 +493,30 @@ void record_ps_debug_events() {
         log_info(Metrics, "Sent %zu phstep debug events", send);
     }
 }
+
+// Cumulative counts of the phase stepping problem events for each axis since boot (see
+// phase_stepping::ProblemCounts). Also outside of a print. Use the increase over time.
+// ps_stalls: Stalled events. ps_stall_its: refreshes of the axis with no target (each axis is
+// refreshed at 20 kHz on the CORE One, thus 50 us each, and at 10 kHz with burst stepping). ps_spd_chgs: SuddenSpeedChange events (more than 20 mm/s).
+// ps_spd_big: SuddenSpeedChange events of more than 100 mm/s.
+METRIC_DEF(ps_stalls, "ps_stalls", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+METRIC_DEF(ps_stall_its, "ps_stall_its", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+METRIC_DEF(ps_spd_chgs, "ps_spd_chgs", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+METRIC_DEF(ps_spd_big, "ps_spd_big", METRIC_VALUE_CUSTOM, 10'000, METRIC_ENABLED);
+
+void record_ps_problem_counts() {
+    using namespace phase_stepping;
+    const auto record = [](metric_t &metric, std::atomic<uint32_t> ProblemCounts::*counter) {
+        // At most " x=4294967295i,y=4294967295i": 28 characters.
+        metric_record_custom(&metric, " x=%ui,y=%ui",
+            static_cast<unsigned>((problem_counts[0].*counter).load(std::memory_order_relaxed)),
+            static_cast<unsigned>((problem_counts[1].*counter).load(std::memory_order_relaxed)));
+    };
+    record(ps_stalls, &ProblemCounts::stalls);
+    record(ps_stall_its, &ProblemCounts::stalled_refreshes);
+    record(ps_spd_chgs, &ProblemCounts::speed_changes);
+    record(ps_spd_big, &ProblemCounts::big_speed_changes);
+}
 #endif
 
 } // namespace
@@ -504,6 +528,7 @@ void buddy::metrics::record() {
 
 #if HAS_PHASE_STEPPING()
     record_ps_debug_events();
+    record_ps_problem_counts();
 #endif
     RecordMarlinVariables();
     RecordRuntimeStats();

@@ -21,7 +21,8 @@ extern volatile uint32_t buddy_gui_delay_min;
 
 /// Phase stepping rest fast path: 0 = stock (off), 1 = on. M9959 P sets it.
 extern volatile uint32_t buddy_phstep_fast;
-/// Refreshes of one axis that the fast path skipped, and full refreshes (wrap; the ISR adds).
+/// Refreshes of one axis that the fast path skipped, and full refreshes that did not stop early
+/// (wrap; the ISR adds).
 extern volatile uint32_t buddy_phstep_fast_passes;
 extern volatile uint32_t buddy_phstep_full_passes;
 /// Cycles of the 4 parts of a full refresh (wrap; the ISR adds). See refresh_axis().

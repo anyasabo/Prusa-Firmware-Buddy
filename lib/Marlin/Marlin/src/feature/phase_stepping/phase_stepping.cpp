@@ -759,7 +759,6 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     const uint32_t lut_generation = axis_state.forward_current.generation.load(std::memory_order_acquire) + axis_state.backward_current.generation.load(std::memory_order_acquire);
     const float position_before = axis_state.last_position;
 #endif
-    ++buddy_phstep_full_passes;
     uint32_t prof_t = DWT->CYCCNT; // EXPERIMENT: cycles of the parts of a full refresh
     const auto prof_mark = [&prof_t](int part) {
         const uint32_t t = DWT->CYCCNT;
@@ -861,6 +860,7 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
         }
     }
 
+    ++buddy_phstep_full_passes; // EXPERIMENT: only the full refreshes that do not stop early
     prof_mark(0); // part 0: checks, SPI lock, targets
 
     float speed, position;

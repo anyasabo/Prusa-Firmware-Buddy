@@ -205,7 +205,7 @@ void RecordMarlinVariables() {
 #endif
 
 #if HAS_TEMP_HEATBREAK
-    METRIC_DEF(heatbreak, "temp_hbr", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED); // float value, tag "n": extruder index, tag "a": is active extruder
+    METRIC_DEF(heatbreak, "temp_hbr", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED); // float value, tag "n": extruder index, tag "a": is active extruder
     static auto heatbreak_should_record = RateLimiter<uint32_t>(1000);
     if (heatbreak_should_record.check(ticks_ms())) {
         for (auto tool : PhysicalToolIndex::all().skip_all_disabled()) {
@@ -216,14 +216,14 @@ void RecordMarlinVariables() {
 
 #if HAS_TEMP_BOARD
     {
-        METRIC_DEF(board, "temp_brd", METRIC_VALUE_FLOAT, 1000 - 9, METRIC_DISABLED);
+        METRIC_DEF(board, "temp_brd", METRIC_VALUE_FLOAT, 1000 - 9, METRIC_ENABLED);
         metric_record_float(&board, sensor_data().boardTemp.load());
     }
 #endif
 
     // These temperature metrics go outside of Marlin and are filtered and converted here
     {
-        METRIC_DEF(mcu, "temp_mcu", METRIC_VALUE_INTEGER, 0, METRIC_DISABLED);
+        METRIC_DEF(mcu, "temp_mcu", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
         metric_record_integer(&mcu, static_cast<int>(sensor_data().MCUTemp.load()));
     }
 
@@ -238,11 +238,11 @@ void RecordMarlinVariables() {
     }
 #endif
 
-    METRIC_DEF(metric_nozzle_pwm, "nozzle_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
+    METRIC_DEF(metric_nozzle_pwm, "nozzle_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
     metric_record_integer(&metric_nozzle_pwm, thermalManager.nozzle_pwm);
 
 #if HAS_LOCAL_BED()
-    METRIC_DEF(metric_bed_pwm, "bed_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_DISABLED);
+    METRIC_DEF(metric_bed_pwm, "bed_pwm", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
     metric_record_integer(&metric_bed_pwm, thermalManager.bed_pwm);
 #endif
 
@@ -322,9 +322,9 @@ void RecordMarlinVariables() {
     /// plan_min: minimum nonbusy_movesplanned() observed per window (reset-on-read)
     /// plan_unopt: cumulative blocks consumed before the planner marked them as
     ///             fully optimized (monotonic, consumer computes deltas)
-    METRIC_DEF(metric_planner_block_count, "plan_cnt", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
+    METRIC_DEF(metric_planner_block_count, "plan_cnt", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
     METRIC_DEF(metric_planner_min_depth, "plan_min", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
-    METRIC_DEF(metric_planner_unoptimized, "plan_unopt", METRIC_VALUE_INTEGER, 100, METRIC_DISABLED);
+    METRIC_DEF(metric_planner_unoptimized, "plan_unopt", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
 
     const uint32_t plan_count = PreciseStepping::planner_block_count.load(std::memory_order_relaxed);
     metric_record_integer(&metric_planner_block_count, plan_count);

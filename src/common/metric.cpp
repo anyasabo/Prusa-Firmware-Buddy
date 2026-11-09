@@ -14,6 +14,10 @@
 #include <printers.h>
 #include <bsod/bsod.h>
 
+// The definitions of the C functions below, not the checking macros of metric_custom_format.hpp.
+#undef metric_record_custom
+#undef metric_record_custom_at_time
+
 static_assert(sizeof(metric_t) == 12);
 
 extern metric_t __start_metric_definitions[]

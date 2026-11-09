@@ -204,3 +204,9 @@ bool metric_record_is_due(metric_t *metric);
 #ifdef __cplusplus
 }
 #endif //__cplusplus
+
+#ifdef __cplusplus
+    // In C++, metric_record_custom() and metric_record_custom_at_time() check at compile time that
+    // the value always fits.
+    #include "metric_custom_format.hpp"
+#endif //__cplusplus

@@ -1,4 +1,4 @@
-Test build for one fix: **input shaper fitting in `float`** (branch `input-shaper-float-fit` on upstream 9.0.0). Nothing else changed.
+Test build for one fix: **input shaper fitting in `float`** (branch `input-shaper-float-fit-pr` on upstream 9.0.0). Nothing else changed.
 
 The fitting used `double`, which the MCU emulates in software. In `float`, the "computing" step of the input shaper calibration is 9.2 times faster, with the same result.
 

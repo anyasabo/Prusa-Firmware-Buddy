@@ -12,7 +12,7 @@ Each fix has its own branch and an upstream pull request or a draft.
   protected again.
 - **Print fan** (`fanctl-pwm-on-int16`): the RPM below 20 % speed is correct, so no false print fan
   errors with PC and other filaments at low fan speeds.
-- **Input shaper calibration** (`input-shaper-float-fit`): the "computing" step is 9 times faster.
+- **Input shaper calibration** (`input-shaper-float-fit-pr`): the "computing" step is 9 times faster.
 - **Bed fan PWM** (`bed-fan-lerp-clamp`), **G-code parser** (`gcode-parser-unsigned-limits`) and
   **6 metric fixes** (`metric-fixes`).
 - FatFs R0.16 and the USB host library 3.5.5, with their CVE fixes.

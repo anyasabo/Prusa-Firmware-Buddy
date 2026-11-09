@@ -185,6 +185,13 @@ Temperature thermalManager;
     .min_temp_diff = WATCH_BED_TEMP_INCREASE + TEMP_BED_HYSTERESIS + 1,
   };
 
+  #if HAS_THERMALLY_PROTECTED_BED
+  // The heating watch stops at min_temp_diff under the target, and the thermal runaway protection
+  // arms at THERMAL_PROTECTION_BED_HYSTERESIS under it. The two ranges must overlap.
+  static_assert(watch_bed_config.min_temp_diff <= THERMAL_PROTECTION_BED_HYSTERESIS,
+    "The heating watch and the thermal runaway protection of the bed must overlap");
+  #endif
+
   HeaterWatch watch_bed { watch_bed_config };
   #endif
   #if DISABLED(PIDTEMPBED)

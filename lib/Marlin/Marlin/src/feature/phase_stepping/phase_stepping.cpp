@@ -936,7 +936,10 @@ static FORCE_INLINE FORCE_OFAST void refresh_axis(
     prof_mark(3); // part 3: send, step counters
 }
 
-FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
+// EXPERIMENT (M9959 R1): the body is one inline function. The stock wrapper runs it from flash, and
+// a second wrapper runs the same code from RAM (.RamFunc, copied at startup). The function is
+// larger than the ART cache of the flash (1 KB). The A/B test shows which copy is faster.
+static FORCE_INLINE FORCE_OFAST void handle_periodic_refresh_impl() {
     // This routine is extremely time sensitive and it should be as fast as
     // possible.
     //
@@ -982,6 +985,14 @@ FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
         motor_serial_lock_clear_isr_starved();
     }
 #endif
+}
+
+FORCE_OFAST void phase_stepping::handle_periodic_refresh() {
+    handle_periodic_refresh_impl();
+}
+
+__attribute__((section(".RamFunc"), noinline)) FORCE_OFAST static void handle_periodic_refresh_ram() {
+    handle_periodic_refresh_impl();
 }
 
 bool phase_stepping::any_axis_enabled() {
@@ -1129,7 +1140,11 @@ extern "C" void PHSTEP_TIMER_ISR_HANDLER(void) {
     //   0.4 µs
     const uint32_t start_cycles = DWT->CYCCNT; // EXPERIMENT: cpu_prof.h (a few cycles each call)
     TIM13->SR &= ~TIM_FLAG_UPDATE;
-    phase_stepping::handle_periodic_refresh();
+    if (buddy_phstep_ram) { // EXPERIMENT (M9959 R1)
+        handle_periodic_refresh_ram();
+    } else {
+        phase_stepping::handle_periodic_refresh();
+    }
     buddy_phstep_isr_cycles = buddy_phstep_isr_cycles + (DWT->CYCCNT - start_cycles);
 }
 

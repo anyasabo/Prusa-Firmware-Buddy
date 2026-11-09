@@ -12,6 +12,7 @@ extern "C" {
 volatile uint32_t buddy_phstep_isr_cycles = 0;
 volatile uint32_t buddy_gui_delay_min = 1;
 volatile uint32_t buddy_phstep_fast = 0;
+volatile uint32_t buddy_phstep_ram = 0;
 volatile uint32_t buddy_phstep_fast_passes = 0;
 volatile uint32_t buddy_phstep_full_passes = 0;
 volatile uint32_t buddy_phstep_part_cycles[4] = {};
@@ -121,11 +122,11 @@ void loop_done() {
     METRIC_DEF(metric_gui_min, "gui_min", METRIC_VALUE_INTEGER, 0, METRIC_ENABLED);
     metric_record_integer(&metric_gui_min, static_cast<int>(buddy_gui_delay_min));
     // Phase stepping refresh, cumulative (use rate()). The text of one custom metric must fit in
-    // 47 characters, thus 3 metrics. phstep_prof: e fast path on (M9959 P), f and u thousands of
+    // 47 characters, thus 3 metrics. phstep_prof: e = P + 2 * R (the M9959 switches), f and u thousands of
     // skipped and complete full refreshes. phstep_prof2 and phstep_prof3: a..d ms of CPU time of
     // the 4 parts of the complete full refreshes.
     METRIC_DEF(metric_phstep_prof, "phstep_prof", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
-    metric_record_custom(&metric_phstep_prof, " e=%ui,f=%ui,u=%ui", static_cast<unsigned>(buddy_phstep_fast),
+    metric_record_custom(&metric_phstep_prof, " e=%ui,f=%ui,u=%ui", static_cast<unsigned>(buddy_phstep_fast + 2 * buddy_phstep_ram),
         static_cast<unsigned>(phstep_sums[0] / 1000), static_cast<unsigned>(phstep_sums[1] / 1000));
     METRIC_DEF(metric_phstep_prof2, "phstep_prof2", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
     metric_record_custom(&metric_phstep_prof2, " a=%ui,b=%ui", static_cast<unsigned>(to_ms(phstep_sums[2])), static_cast<unsigned>(to_ms(phstep_sums[3])));

@@ -12,7 +12,7 @@ LOG_COMPONENT_REF(Marlin);
  *
  *#### Usage
  *
- *    M9959 [ G ] [ P ]
+ *    M9959 [ G ] [ P ] [ R ]
  *
  *#### Parameters
  *
@@ -21,6 +21,7 @@ LOG_COMPONENT_REF(Marlin);
  *         restart. The metrics gui_prof, gui_prof2, gui_prof3 and gui_min show the effect.
  * - `P` - Phase stepping rest fast path: 0 = stock (boot value), 1 = skip the refresh of an axis at
  *         rest, with a full refresh each 1 ms. The metric phstep_prof shows the effect.
+ * - `R` - Phase stepping ISR body: 0 = from flash (stock, boot value), 1 = the same code from RAM.
  */
 void PrusaGcodeSuite::M9959() {
     GCodeParser2 p;
@@ -33,5 +34,9 @@ void PrusaGcodeSuite::M9959() {
     if (const auto ph = p.option<uint32_t>('P')) {
         buddy_phstep_fast = *ph ? 1 : 0;
     }
-    log_info(Marlin, "M9959: gui_delay_min=%u ms, phstep_fast=%u", static_cast<unsigned>(buddy_gui_delay_min), static_cast<unsigned>(buddy_phstep_fast));
+    if (const auto r = p.option<uint32_t>('R')) {
+        buddy_phstep_ram = *r ? 1 : 0;
+    }
+    log_info(Marlin, "M9959: gui_delay_min=%u ms, phstep_fast=%u, phstep_ram=%u", static_cast<unsigned>(buddy_gui_delay_min), static_cast<unsigned>(buddy_phstep_fast),
+        static_cast<unsigned>(buddy_phstep_ram));
 }

@@ -29,7 +29,7 @@ Ideally use absolute paths.
 
 ```bash
 puncover \
---gcc_tools_base Prusa-Firmware-Buddy/.dependencies/gcc-arm-none-eabi-15.3.1/bin/arm-none-eabi- \
+--gcc_tools_base Prusa-Firmware-Buddy/.dependencies/gcc-arm-none-eabi-16.2.0/bin/arm-none-eabi- \
 --elf       Prusa-Firmware-Buddy/build/mini_release_boot/firmware \
 --build_dir Prusa-Firmware-Buddy/build/mini_release_boot \
 --src_root  Prusa-Firmware-Buddy

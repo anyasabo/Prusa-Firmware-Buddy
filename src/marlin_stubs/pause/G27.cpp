@@ -116,7 +116,7 @@ void GcodeSuite::G27() {
         parking_position = mapi::get_parking_position(mapi::ParkPosition::park);
     }
 
-    parser.store_option_if_present('R', args.retract_distance_mm);
+    (void)parser.store_option_if_present('R', args.retract_distance_mm);
 
     float arg_feedrate;
     if (parser.store_option_if_present('V', arg_feedrate)) {

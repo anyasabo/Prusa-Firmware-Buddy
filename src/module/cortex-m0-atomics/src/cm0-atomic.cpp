@@ -21,7 +21,7 @@ public:
 };
 
 template <auto op, typename T>
-inline T atomic_op(volatile void *memv, T val, [[maybe_unused]] int model) [[gnu::always_inline]] {
+[[gnu::always_inline]] inline T atomic_op(volatile void *memv, T val, [[maybe_unused]] int model) {
     auto &mem = *static_cast<volatile T *>(memv);
     CriticalSection cs;
     const T r = mem;
@@ -44,8 +44,8 @@ constexpr auto op_cmpxchg = [](auto &mem, auto &expected, auto desired) -> bool 
 };
 
 template <auto op, typename T>
-inline bool atomic_op(
-    volatile void *memv, void *expectedv, T desired, [[maybe_unused]] int success_model, [[maybe_unused]] int failure_model) [[gnu::always_inline]] {
+[[gnu::always_inline]] inline bool atomic_op(
+    volatile void *memv, void *expectedv, T desired, [[maybe_unused]] int success_model, [[maybe_unused]] int failure_model) {
     auto &mem = *static_cast<volatile T *>(memv);
     auto &expected = *static_cast<T *>(expectedv);
     CriticalSection cs;

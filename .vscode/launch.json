@@ -12,7 +12,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "openOCDPreConfigLaunchCommands": [
                 "set bbf_over_debugger_path ${command:cmake.buildDirectory}/firmware.bbf"
@@ -67,7 +67,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "openOCDPreConfigLaunchCommands": [
                 "set bbf_over_debugger_path ${command:cmake.buildDirectory}/firmware.bbf"
@@ -110,7 +110,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "openOCDPreConfigLaunchCommands": [
                 "set bbf_over_debugger_path ${command:cmake.buildDirectory}/firmware.bbf"
@@ -160,7 +160,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/dwarf.cfg",
@@ -198,7 +198,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/dwarf.cfg",
@@ -232,7 +232,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/modularbed.cfg",
@@ -253,7 +253,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/modularbed.cfg",
@@ -270,7 +270,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/anfc.cfg",
@@ -322,7 +322,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/anfc.cfg",
             ],
@@ -375,7 +375,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "postLaunchCommands": [
                 "set $pc = &Reset_Handler"
@@ -413,7 +413,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/xbuddy_extension.cfg",
@@ -453,7 +453,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "postLaunchCommands": [
                 "set $pc = &Reset_Handler"
@@ -490,7 +490,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/anfc.cfg",
             ],
@@ -512,7 +512,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "postLaunchCommands": [
                 "set $pc = &Reset_Handler"
@@ -551,7 +551,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/tool_offset_sensor.cfg",
@@ -572,7 +572,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/htcontroller.cfg",
@@ -606,7 +606,7 @@
             "request": "attach",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-15.3.1/bin",
+            "armToolchainPath": "${workspaceRoot}/.dependencies/gcc-arm-none-eabi-16.2.0/bin",
             "gdbPath": "gdb-multiarch",
             "configFiles": [
                 "${workspaceRoot}/utils/debug/htcontroller.cfg",

@@ -67,19 +67,30 @@ dependencies = {
         },
     },
     'gcc-arm-none-eabi': {
-        'version': '15.3.1',
-        'url': {
-            'Linux': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-x86_64-arm-none-eabi.tar.xz',
-            'Linux-aarch64': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-aarch64-arm-none-eabi.tar.xz',
-            'Windows': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-mingw-w64-i686-arm-none-eabi.zip',
-            'Darwin': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-darwin-arm64-arm-none-eabi.tar.xz',
+        # Fork only: GCC 16.2 from the Arch Linux packages (arm-none-eabi-gcc 16.2.0-1,
+        # arm-none-eabi-binutils 2.47-1, arm-none-eabi-newlib 4.6.0.20260123-1), copied
+        # unchanged to a release of the fork. The packages are unpacked into one prefix.
+        # Host: Linux x86_64 with GLIBC 2.38 or newer, and libisl23, libmpc3, libmpfr6,
+        # libgmp10, zlib1g and libzstd1 (Ubuntu package names). objdump and readelf also need
+        # libdebuginfod1t64 (the build does not use them).
+        'version': '16.2.0',
+        'archives': {
+            'Linux-x86_64': [
+                {
+                    'url': 'https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/download/toolchain-arm-none-eabi-gcc-16.2.0-arch.1/arm-none-eabi-gcc-16.2.0-1-x86_64.pkg.tar.zst',
+                    'sha256': 'b3fca2319f030bafe17873b4cbcaef3d643043a99f18317cc2793bcaf563b702',
+                },
+                {
+                    'url': 'https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/download/toolchain-arm-none-eabi-gcc-16.2.0-arch.1/arm-none-eabi-binutils-2.47-1-x86_64.pkg.tar.zst',
+                    'sha256': 'b494d4e01cc35c4bcef8522c28d32a9b086460f1037eaaa7a046f2c378d0d7d1',
+                },
+                {
+                    'url': 'https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/download/toolchain-arm-none-eabi-gcc-16.2.0-arch.1/arm-none-eabi-newlib-4.6.0.20260123-1-any.pkg.tar.zst',
+                    'sha256': '52a414b03ef9a641b0d1e2009e093998954cbe95196cfac7649e47f97e23eda3',
+                },
+            ],
         },
-        'sha256': {
-            'Linux': '463df9665c246fa13bab2102115bbf83440661b6eb70b44f3dfd4712ca30037a',
-            'Linux-aarch64': 'a0dc18893171d39dec82fd8d57eeab3da836fd3df4b61978db3eccbf4a6bb948',
-            'Windows': '93bfdac2fc5f8ed86db08689ca23fc18603efda299afd61b50f346494da6bc19',
-            'Darwin': 'f011e4832046155f06408dda6b252b21b139a8159c8529802227371f06656c60',
-        },
+        'strip_prefix': 'usr',
     },
     'clang-format': {
         'version': '16-83817c2f',
@@ -280,6 +291,72 @@ def verify_sha256(filename: Path, expected: str):
                            f'expected {expected}, got {digest.hexdigest()}')
 
 
+def open_zstd(filename: Path):
+    """Open a .zst file for reading, decompressed."""
+    try:
+        from compression import zstd  # Python 3.14 and newer
+        return zstd.open(filename, 'rb')
+    except ImportError:
+        pass
+    try:
+        import zstandard
+        return zstandard.ZstdDecompressor().stream_reader(open(filename, 'rb'))
+    except ImportError:
+        pass
+    if shutil.which('zstd'):
+        command = ['zstd', '-dc', str(filename)]
+    else:
+        # bootstrap() installs the pip packages (with zstandard) into the venv before the
+        # dependencies, but this script can run with another interpreter.
+        command = [
+            str(venv_bin_dir / 'python'), '-c',
+            'import sys, zstandard; zstandard.ZstdDecompressor().copy_stream('
+            'open(sys.argv[1], "rb"), sys.stdout.buffer)',
+            str(filename)
+        ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    return process.stdout
+
+
+def install_archives(archives, directory: Path, strip_prefix=None):
+    """Download, check and unpack several archives into one `directory`.
+
+    Each archive is a dict with 'url' and 'sha256'. Members that start with a
+    dot (package metadata such as .PKGINFO) are skipped. `strip_prefix` is removed
+    from the start of each member path (for example 'usr' of a Linux package).
+    """
+    shutil.rmtree(directory, ignore_errors=True)
+    temp_directory = directory.with_suffix('.temp')
+    shutil.rmtree(temp_directory, ignore_errors=True)
+    temp_directory.mkdir(parents=True)
+    for archive in archives:
+        file = Path(urlparse(archive['url']).path).name
+        filename = Path(dependencies_dir) / file
+        print('Downloading ' + file, end=' ')
+        download_url(url=archive['url'], filename=filename)
+        verify_sha256(filename, archive['sha256'])
+        print('done')
+        print('Extracting ' + file, end=' ')
+        if file.endswith('.zst'):
+            fileobj = open_zstd(filename)
+            with tarfile.open(fileobj=fileobj, mode='r|') as tar:
+                for member in tar:
+                    if member.name.startswith('.'):
+                        continue
+                    if hasattr(tarfile, 'tar_filter'):
+                        tar.extract(member, temp_directory, filter='tar')
+                    else:
+                        tar.extract(member, temp_directory)
+            fileobj.close()
+        else:
+            extract_archive(filename, temp_directory)
+        os.remove(filename)
+        print('done')
+    source = temp_directory / strip_prefix if strip_prefix else temp_directory
+    shutil.move(str(source), str(directory))
+    shutil.rmtree(temp_directory, ignore_errors=True)
+
+
 def download_and_unzip(url: str, directory: Path, sha256=None):
     """Download a compressed file, check its SHA-256 (if given) and extract it at `directory`."""
     extract_dir = directory.with_suffix('.temp')
@@ -358,7 +435,15 @@ def install_dependency(dependency):
     url = specs.get('url', None)
     files = specs.get('files', None)
     sha256 = specs.get('sha256', None)
-    if url is not None:
+    archives = specs.get('archives', None)
+    if archives is not None:
+        key = f'{platform.system()}-{platform.machine()}'
+        if key not in archives:
+            raise RuntimeError(
+                f'{dependency} {specs["version"]} is not available for {key}')
+        install_archives(archives[key], installation_directory,
+                         specs.get('strip_prefix', None))
+    elif url is not None:
         if isinstance(url, dict):
             full_description = f'{platform.system()}-{platform.machine()}'
             if full_description not in url:

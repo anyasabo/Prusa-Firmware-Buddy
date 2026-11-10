@@ -13,13 +13,17 @@ struct InplaceAnyRTTI {
     Base *(*base_cast)(void *);
 };
 
+/// One RTTI object for each type. A variable template, not a static variable in the consteval
+/// function: clang does not give such a static variable a single address at runtime.
+template <typename T, typename Base>
+inline constexpr InplaceAnyRTTI<Base> inplace_any_rtti_v {
+    .destructor = [](void *data) { std::destroy_at<T>(reinterpret_cast<T *>(data)); },
+    .base_cast = [](void *data) { return static_cast<Base *>(reinterpret_cast<T *>(data)); },
+};
+
 template <typename T, typename Base = void>
 static consteval const InplaceAnyRTTI<Base> *inplace_any_rtti() {
-    static constexpr InplaceAnyRTTI<Base> result {
-        .destructor = [](void *data) { std::destroy_at<T>(reinterpret_cast<T *>(data)); },
-        .base_cast = [](void *data) { return static_cast<Base *>(reinterpret_cast<T *>(data)); },
-    };
-    return &result;
+    return &inplace_any_rtti_v<T, Base>;
 }
 
 // Sanity check that we're really creating unique pointer for each type

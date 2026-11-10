@@ -17,12 +17,13 @@ case "$label" in *[!A-Za-z0-9.-]*) echo "LABEL: only A-Z a-z 0-9 . -" >&2; exit 
 
 cd "$src"
 build=$(git rev-list --count HEAD)
-jobs=$(command -v build-jobs >/dev/null && build-jobs || nproc)
+jobs=$(build-jobs 2>/dev/null || nproc)
 py=python3
 [ -x .venv/bin/python ] && py=.venv/bin/python
 "$py" utils/build.py --preset coreonel --build-type release --bootloader yes \
     --version-suffix "+$build.$label" --version-suffix-short "+$build" --no-build
-ninja=$(ls -d .dependencies/ninja-*/ninja 2>/dev/null | head -1)
+# The ninja that CMake configured. With two ninja versions in .dependencies, a glob can find the other one.
+ninja=$(sed -n 's/^CMAKE_MAKE_PROGRAM:[A-Z]*=//p' build/coreonel_release_boot/CMakeCache.txt)
 "${ninja:-ninja}" -C build/coreonel_release_boot -j "$jobs"
 
 out="$here/build/package"

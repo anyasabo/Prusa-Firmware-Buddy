@@ -23,7 +23,6 @@
  * it no longer fits and leave the rest for later.
  */
 
-#include <cstdbool>
 #include <cstdlib>
 #include <string_view>
 

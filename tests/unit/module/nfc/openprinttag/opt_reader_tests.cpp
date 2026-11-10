@@ -138,10 +138,12 @@ std::ostream &operator<<(std::ostream &os, const OPTReader::WriteReport &report)
 }
 } // namespace std
 
+namespace std {
 template <typename A>
-bool std::operator==(const std::span<A> &a, const std::ranges::range auto &b) {
+bool operator==(const std::span<A> &a, const std::ranges::range auto &b) {
     return std::ranges::equal(a, b);
 }
+} // namespace std
 
 void save_tag_data(const std::string_view &filename, const ByteString &data) {
     std::ofstream f;

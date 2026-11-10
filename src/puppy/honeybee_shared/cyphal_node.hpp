@@ -436,7 +436,7 @@ public:
         // Initialize registers, components and ports for the child app
         app_init();
 
-        if constexpr (this->has_pnp) {
+        if constexpr (detail::OptionalPnP<node_id>::has_pnp) {
             this->pnp.start(); // Start PnP process
         } else {
             cyphal_task.set_node_id(node_id); // Set fixed node ID
@@ -457,7 +457,7 @@ public:
         while (true) {
             int64_t now = get_timestamp_us(); ///< Get time only once per loop
 
-            if constexpr (this->has_pnp) {
+            if constexpr (detail::OptionalPnP<node_id>::has_pnp) {
                 // If anonymous, handle only PnP
                 if (cyphal_task.is_anonymous()) {
                     this->pnp.loop_tx();

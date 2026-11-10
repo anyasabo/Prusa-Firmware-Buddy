@@ -244,7 +244,22 @@ public:
         // reset and restart DMA
         // TODO: this is specific to STM32F4
         DMA_HandleTypeDef &dma_handle = *adc_handle.DMA_Handle;
-        __HAL_DMA_CLEAR_FLAG(&dma_handle, (DMA_FLAG_HTIF0_4 | DMA_FLAG_TCIF0_4));
+        // Same as __HAL_DMA_CLEAR_FLAG(&dma_handle, DMA_FLAG_HTIF0_4 | DMA_FLAG_TCIF0_4), but with
+        // statements: in C++, the conditional expression of the macro has a volatile result, and
+        // GCC 15 warns that its conversion to void does not access the register.
+        {
+            constexpr uint32_t clear_flags = DMA_FLAG_HTIF0_4 | DMA_FLAG_TCIF0_4;
+            const uint32_t instance = reinterpret_cast<uint32_t>(dma_handle.Instance);
+            if (instance > reinterpret_cast<uint32_t>(DMA2_Stream3)) {
+                DMA2->HIFCR = clear_flags;
+            } else if (instance > reinterpret_cast<uint32_t>(DMA1_Stream7)) {
+                DMA2->LIFCR = clear_flags;
+            } else if (instance > reinterpret_cast<uint32_t>(DMA1_Stream3)) {
+                DMA1->HIFCR = clear_flags;
+            } else {
+                DMA1->LIFCR = clear_flags;
+            }
+        }
         dma_handle.State = HAL_DMA_STATE_READY;
         __HAL_DMA_ENABLE(&dma_handle);
 

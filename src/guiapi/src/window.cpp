@@ -3,6 +3,7 @@
 #include "window.hpp"
 #include "gui_invalidate.hpp"
 #include <algorithm> // std::find
+#include <bit>
 #include "ScreenHandler.hpp"
 #include "display.hpp"
 #include "marlin_client.hpp"
@@ -467,7 +468,7 @@ window_aligned_t::window_aligned_t(window_t *parent, Rect16 rect, win_type_t typ
 }
 
 Align_t window_aligned_t::GetAlignment() const {
-    return (Align_t &)(flags.class_specific.align_data); // retype to Align_t reference, to avoid using private ctor
+    return std::bit_cast<Align_t>(flags.class_specific.align_data); // retype to Align_t, to avoid using private ctor
 }
 
 void window_aligned_t::SetAlignment(Align_t alignment) {

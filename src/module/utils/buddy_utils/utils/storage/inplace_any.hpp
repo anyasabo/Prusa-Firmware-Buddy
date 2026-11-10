@@ -15,7 +15,7 @@ struct InplaceAnyRTTI {
 
 /// One RTTI object for each type. A variable template, not a static constexpr variable in the
 /// consteval function: clang emits such a variable without its initializer (all zero bytes,
-/// llvm/llvm-project#92690), so the pointers in it are null at runtime.
+/// llvm/llvm-project#82994), so the pointers in it are null at runtime.
 template <typename T, typename Base>
 inline constexpr InplaceAnyRTTI<Base> inplace_any_rtti_v {
     .destructor = [](void *data) { std::destroy_at<T>(reinterpret_cast<T *>(data)); },

@@ -67,18 +67,18 @@ dependencies = {
         },
     },
     'gcc-arm-none-eabi': {
-        'version': '13.3.1',
+        'version': '15.3.1',
         'url': {
-            'Linux': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz',
-            'Linux-aarch64': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-aarch64-arm-none-eabi.tar.xz',
-            'Windows': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi.zip',
-            'Darwin': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-darwin-x86_64-arm-none-eabi.tar.xz',
+            'Linux': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-x86_64-arm-none-eabi.tar.xz',
+            'Linux-aarch64': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-aarch64-arm-none-eabi.tar.xz',
+            'Windows': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-mingw-w64-i686-arm-none-eabi.zip',
+            'Darwin': 'https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-darwin-arm64-arm-none-eabi.tar.xz',
         },
         'sha256': {
-            'Linux': '95c011cee430e64dd6087c75c800f04b9c49832cc1000127a92a97f9c8d83af4',
-            'Linux-aarch64': 'c8824bffd057afce2259f7618254e840715f33523a3d4e4294f471208f976764',
-            'Windows': 'e46fda043c0ce83582bc8db4b3ef85f77f4beb7333344c2f4193c17e1167a095',
-            'Darwin': '1ab00742d1ed0926e6f227df39d767f8efab46f5250505c29cb81f548222d794',
+            'Linux': '463df9665c246fa13bab2102115bbf83440661b6eb70b44f3dfd4712ca30037a',
+            'Linux-aarch64': 'a0dc18893171d39dec82fd8d57eeab3da836fd3df4b61978db3eccbf4a6bb948',
+            'Windows': '93bfdac2fc5f8ed86db08689ca23fc18603efda299afd61b50f346494da6bc19',
+            'Darwin': 'f011e4832046155f06408dda6b252b21b139a8159c8529802227371f06656c60',
         },
     },
     'clang-format': {

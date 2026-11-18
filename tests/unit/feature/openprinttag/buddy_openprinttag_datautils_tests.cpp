@@ -315,6 +315,49 @@ TEST_CASE("buddy::openprinttag::data_utils::FilamentParametersInfo") {
         CHECK_FALSE(info.is_missing<&FilamentTypeParameters::nozzle_temperature>());
     }
 
+    SECTION("Temperatures that do not fit the parameter are ignored") {
+        // The tag stores the temperatures as CBOR integers (int64), the parameters are int16_t and
+        // uint8_t. Out-of-range values must not wrap into plausible ones (65746 would wrap to 210 °C).
+        stub_data = StubData {
+            stub_field<MainField::material_type>(MaterialType::PETG),
+                stub_field<MainField::min_print_temperature>(230),
+                stub_field<MainField::max_print_temperature>(65786), // would wrap to 250
+                stub_field<MainField::min_bed_temperature>(65616), // would wrap to 80
+                stub_field<MainField::max_bed_temperature>(65616),
+                stub_field<MainField::preheat_temperature>(65716), // would wrap to 180
+#if HAS_CHAMBER_API()
+                stub_field<MainField::chamber_temperature>(300), // would wrap to 44
+                stub_field<MainField::min_chamber_temperature>(-1), // would wrap to 255
+                stub_field<MainField::max_chamber_temperature>(60),
+#endif
+        };
+
+        MultiReadFieldRequest<FilamentParametersInfo::Requirements {}> req { tool_tag };
+        req.issue();
+
+        FilamentParametersInfo info { req, tag_uid };
+
+        // A rejected value keeps the value of the base preset, as a missing value does
+        const auto preset = FilamentType { PresetFilamentType::PETG }.parameters();
+
+        // Only the valid minimum is used, not the average with the wrapped maximum
+        CHECK(info.parameters.nozzle_temperature == 230);
+        CHECK_FALSE(info.is_missing<&FilamentTypeParameters::nozzle_temperature>());
+
+        CHECK(info.is_missing<&FilamentTypeParameters::heatbed_temperature>());
+        CHECK(info.parameters.heatbed_temperature == preset.heatbed_temperature);
+
+        CHECK(info.is_missing<&FilamentTypeParameters::nozzle_preheat_temperature>());
+        CHECK(info.parameters.nozzle_preheat_temperature == preset.nozzle_preheat_temperature);
+
+#if HAS_CHAMBER_API()
+        CHECK(info.is_missing<&FilamentTypeParameters::chamber_target_temperature>());
+        CHECK(info.parameters.chamber_target_temperature == preset.chamber_target_temperature);
+        CHECK(info.parameters.chamber_min_temperature == preset.chamber_min_temperature);
+        CHECK(info.parameters.chamber_max_temperature == 60);
+#endif
+    }
+
     SECTION("Flexible materials logic (Shore Hardness)") {
         // Soft materals should not retract
 

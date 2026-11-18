@@ -3,6 +3,9 @@
 #include <numbers>
 #include <cinttypes>
 #include <algorithm>
+#include <optional>
+#include <type_traits>
+#include <utility>
 
 #include <uuid/uuid_constexpr.hpp>
 #include <mbedtls/sha1.h>
@@ -10,6 +13,31 @@
 #include <option/has_chamber_filtration_api.h>
 
 namespace buddy::openprinttag {
+
+namespace {
+    /// The value type of a parameter: T for T and for std::optional<T>
+    template <typename T>
+    struct ParameterValue {
+        using type = T;
+    };
+    template <typename T>
+    struct ParameterValue<std::optional<T>> {
+        using type = T;
+    };
+
+    /// Whether a tag value fits into the parameter without a change of value.
+    /// The tag stores integers as int64. A value out of range would wrap into another value
+    /// (for example 65746 °C into 210 °C), so such a value is treated as missing.
+    template <typename Parameter, typename Value>
+    constexpr bool fits_parameter(const Value &value) {
+        using Target = typename ParameterValue<Parameter>::type;
+        if constexpr (std::is_integral_v<Value> && std::is_integral_v<Target> && !std::is_same_v<Target, bool>) {
+            return std::in_range<Target>(value);
+        } else {
+            return true;
+        }
+    }
+} // namespace
 
 AmountsInfo::AmountsInfo(const RequestRef &req) {
     if (!req.are_results_valid()) {
@@ -184,7 +212,8 @@ FilamentParametersInfo::FilamentParametersInfo(const RequestRef &req, const TagU
     };
 
     const auto load_to = [&]<auto field, auto Params::*mem_ptr>() {
-        if (auto val = req.result<field>()) {
+        using Parameter = std::remove_cvref_t<decltype(std::declval<Params &>().*mem_ptr)>;
+        if (auto val = req.result<field>(); val && fits_parameter<Parameter>(*val)) {
             set.operator()<mem_ptr>(*val);
         }
     };
@@ -267,11 +296,11 @@ FilamentParametersInfo::FilamentParametersInfo(const RequestRef &req, const TagU
     // Nozzle temp
     {
         stdext::inplace_vector<int16_t, 2> nozzle_temps;
-        if (auto val = req.result<MainField::min_print_temperature>()) {
-            nozzle_temps.push_back(*val);
+        if (auto val = req.result<MainField::min_print_temperature>(); val && fits_parameter<int16_t>(*val)) {
+            nozzle_temps.push_back(static_cast<int16_t>(*val));
         }
-        if (auto val = req.result<MainField::max_print_temperature>()) {
-            nozzle_temps.push_back(*val);
+        if (auto val = req.result<MainField::max_print_temperature>(); val && fits_parameter<int16_t>(*val)) {
+            nozzle_temps.push_back(static_cast<int16_t>(*val));
         }
 
         if (!nozzle_temps.empty()) {
@@ -284,11 +313,11 @@ FilamentParametersInfo::FilamentParametersInfo(const RequestRef &req, const TagU
     // Bed temp
     {
         stdext::inplace_vector<int16_t, 2> bed_temps;
-        if (auto val = req.result<MainField::min_bed_temperature>()) {
-            bed_temps.push_back(*val);
+        if (auto val = req.result<MainField::min_bed_temperature>(); val && fits_parameter<int16_t>(*val)) {
+            bed_temps.push_back(static_cast<int16_t>(*val));
         }
-        if (auto val = req.result<MainField::max_bed_temperature>()) {
-            bed_temps.push_back(*val);
+        if (auto val = req.result<MainField::max_bed_temperature>(); val && fits_parameter<int16_t>(*val)) {
+            bed_temps.push_back(static_cast<int16_t>(*val));
         }
 
         if (!bed_temps.empty()) {

@@ -10,6 +10,7 @@
 #include "../pressure_advance/pressure_advance.hpp"
 #include "../phase_stepping/phase_stepping.hpp"
 #include "internal.hpp"
+#include "resync.hpp"
 
 #include "../../module/planner.h"
 #include "../../module/stepper.h"
@@ -700,7 +701,7 @@ uint16_t PreciseStepping::process_one_step_event_from_queue() {
     // negative -> speed up by this us
     //
     // In stepper ticks.
-    int16_t compensate = 0;
+    int32_t compensate = 0;
 
     if (const step_event_u16_t *step_event = get_current_step_event(); step_event != nullptr) {
         if (current_step_shall_resync()) {
@@ -715,9 +716,7 @@ uint16_t PreciseStepping::process_one_step_event_from_queue() {
                 // primitive for that.
                 const uint32_t absolute_time_now = ticks_us() - step_generator_state.initial_time;
                 // now is higher -> we are late -> we need to speed up
-                compensate = absolute_time_expected - absolute_time_now;
-                // We want have us, want ticks.
-                compensate *= STEPPER_TIMER_TICKS_PER_US;
+                compensate = precise_stepping::resync::drift_ticks(absolute_time_expected, absolute_time_now, STEPPER_TIMER_TICKS_PER_US);
             }
         }
         const StepEventFlag_t step_flags = step_event->flags;
@@ -808,14 +807,9 @@ uint16_t PreciseStepping::process_one_step_event_from_queue() {
             if (compensate != 0) {
                 // When we have eg. 150 ticks to next time, we want to limit
                 // the speed up the event only up to that 150 ticks -> we want
-                // -150.
-                const int16_t low = -1 * std::min(ticks_to_next_isr, STEPPER_ISR_PERIOD_IN_TICKS);
-                // Damn C++ and overload resolving, doesn't want to find clamp with our types :-(. And damn C++ "type promotion".
-                //
-                // Well, don't go below 0 with the ticks_to_next_isr. If we need to
-                // speed up by more, something will be left for next time.
-                compensate = std::clamp(compensate, low, static_cast<int16_t>(STEPPER_ISR_PERIOD_IN_TICKS));
-                ticks_to_next_isr += compensate;
+                // -150. Well, don't go below 0 with the ticks_to_next_isr. If we
+                // need to speed up by more, something will be left for next time.
+                ticks_to_next_isr += precise_stepping::resync::step_correction(compensate, ticks_to_next_isr, STEPPER_ISR_PERIOD_IN_TICKS);
             }
         } else if ((step_flags & STEP_EVENT_FLAG_END_OF_MOTION) == false) {
             ++step_ev_miss;

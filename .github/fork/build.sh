@@ -31,5 +31,5 @@ mkdir -p "$out"
 cp build/coreonel_release_boot/firmware.bbf "$out/COREONEL_$label.bbf"
 cp build/coreonel_release_boot/firmware "$out/COREONEL_$label.elf"
 (cd "$out" && sha256sum "COREONEL_$label.bbf" "COREONEL_$label.elf" > "SHA256SUMS-$label.txt")
-strings build/coreonel_release_boot/firmware | grep -m1 -E "^9\.[0-9]+\.[0-9]+\+$build\." || true
+strings build/coreonel_release_boot/firmware | grep -m1 -E "^[0-9]+\.[0-9]+\.[0-9]+\+$build\." || true
 cat "$out/SHA256SUMS-$label.txt"

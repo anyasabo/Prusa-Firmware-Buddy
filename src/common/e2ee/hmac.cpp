@@ -96,6 +96,8 @@ CheckResult check_hmac_and_crc(FILE *file, BlockHeader header, e2ee::SymmetricCi
     if (check_hmac) {
         uint8_t computed_hmac[e2ee::HMAC_SIZE];
         hmac.finish(computed_hmac, sizeof(computed_hmac));
+        // read_block_header() checked that the block end fits in the file positions
+        // (block_end_position()), so this sum does not wrap
         size_t hmac_pos = header.get_position() + header.get_size() + bgcode::core::block_payload_size(header) - info.num_of_hmacs * e2ee::HMAC_SIZE + info.hmac_index * e2ee::HMAC_SIZE;
         if (fseek(file, hmac_pos, SEEK_SET) != 0) {
             return CheckResult::ERROR;

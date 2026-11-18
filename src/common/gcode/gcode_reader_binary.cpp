@@ -93,7 +93,8 @@ IGcodeReader::Result_t PrusaPackGcodeReader::read_block_header(BlockHeader &bloc
         // want it to result in out of range, so post-processing check to make
         // distinction from really damaged file.
 
-        if (range_valid(block_start, block_start + block_header.get_size() + block_content_size(file_header, block_header))) {
+        const long block_end = bgcode::core::block_end_position(file_header, block_header);
+        if (block_end < 0 || range_valid(block_start, block_end)) {
             return Result_t::RESULT_CORRUPT;
         } else {
             return Result_t::RESULT_OUT_OF_RANGE;
@@ -104,7 +105,12 @@ IGcodeReader::Result_t PrusaPackGcodeReader::read_block_header(BlockHeader &bloc
     }
 
     // now check if also block content is in valid range
-    if (!range_valid(block_start, block_start + block_header.get_size() + block_content_size(file_header, block_header))) {
+    const long block_end = bgcode::core::block_end_position(file_header, block_header);
+    if (block_end < 0) {
+        // The block size does not fit in the file positions
+        return Result_t::RESULT_CORRUPT;
+    }
+    if (!range_valid(block_start, block_end)) {
         return Result_t::RESULT_OUT_OF_RANGE;
     }
 
@@ -167,7 +173,7 @@ std::variant<std::monostate, BlockHeader, PrusaPackGcodeReader::Result_t> PrusaP
 
         // move to next block header
         if (skip_block(*file, file_header, block_header) != bgcode::core::EResult::Success) {
-            // The skip block fails on read errors only.
+            // A read error, or a block size that read_block_header() did not reject.
             return Result_t::RESULT_ERROR;
         }
     }

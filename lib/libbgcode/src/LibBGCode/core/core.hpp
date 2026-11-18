@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <climits>
+#include <limits>
 #include <array>
 #include <vector>
 #include <string>
@@ -231,6 +232,23 @@ extern BGCODE_CORE_EXPORT size_t checksum_size(EChecksumType type);
 
 // Returns the size of the content (parameters + data + checksum) of the block with the given header, in bytes.
 extern BGCODE_CORE_EXPORT size_t block_content_size(const FileHeader& file_header, const BlockHeader& block_header);
+
+// Returns the file position after the block (header and content), or -1 if it does not fit in a long.
+// The sizes come from the file. On a 32-bit target, size_t and long are 32 bits: a block size near
+// 4 GiB wrapped, and the next position could be the block itself or an earlier block.
+extern BGCODE_CORE_EXPORT long block_end_position(const FileHeader& file_header, const BlockHeader& block_header);
+
+namespace detail {
+// position + size, or -1 if position is negative or the sum does not fit in Offset.
+// A template on the offset type, so that a test can check the 32-bit case on a 64-bit host.
+template <typename Offset>
+constexpr Offset checked_end_position(Offset position, uint64_t size)
+{
+    if (position < 0 || size > static_cast<uint64_t>(std::numeric_limits<Offset>::max()) - static_cast<uint64_t>(position))
+        return -1;
+    return static_cast<Offset>(static_cast<uint64_t>(position) + size);
+}
+} // namespace detail
 
 // Highest version of the binary format supported by this library instance
 extern BGCODE_CORE_EXPORT uint32_t bgcode_version() noexcept;

@@ -3,6 +3,7 @@
 
 #include <utility_extensions.hpp>
 
+using bgcode::core::block_end_position;
 using bgcode::core::BlockHeader;
 using bgcode::core::EBlockType;
 using bgcode::core::EChecksumType;
@@ -46,7 +47,7 @@ const char *BlockSequenceValidator::metadata_found(FileHeader file_header, Block
     if (have_gcode_block || have_identity_block || have_key_block) {
         return metadata_not_beggining;
     }
-    last_metadata_pos_end = block_header.get_position() + (long)block_header.get_size() + (long)block_content_size(file_header, block_header);
+    last_metadata_pos_end = block_end_position(file_header, block_header);
     return nullptr;
 }
 
@@ -55,13 +56,13 @@ const char *BlockSequenceValidator::identity_block_found(FileHeader file_header,
         return additional_data;
     }
     have_identity_block = true;
-    identity_pos_end = block_header.get_position() + (long)block_header.get_size() + (long)block_content_size(file_header, block_header);
+    identity_pos_end = block_end_position(file_header, block_header);
     return nullptr;
 }
 
 const char *BlockSequenceValidator::key_block_found(FileHeader file_header, BlockHeader block_header) {
     num_of_key_blocks++;
-    key_block_pos_end = block_header.get_position() + (long)block_header.get_size() + (long)block_content_size(file_header, block_header);
+    key_block_pos_end = block_end_position(file_header, block_header);
     if (have_key_block) {
         return nullptr;
     }

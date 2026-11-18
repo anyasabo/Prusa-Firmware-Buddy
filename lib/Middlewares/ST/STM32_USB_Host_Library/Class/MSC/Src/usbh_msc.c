@@ -831,6 +831,15 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
     return  USBH_FAIL;
   }
 
+  /* Prusa: the callers give USBH_MSC_BLOCK_SIZE bytes of buffer for each block. The transfer is
+     length * block_size bytes, with the block size that the device reports in READ CAPACITY. A
+     larger block size makes the device write past the buffer (or read past it on a write).
+     USBH_NOT_SUPPORTED, not USBH_FAIL: the caller does not restart the USB for it. */
+  if (MSC_Handle->unit[lun].capacity.block_size != USBH_MSC_BLOCK_SIZE)
+  {
+    return USBH_NOT_SUPPORTED;
+  }
+
   MSC_Handle->state = MSC_READ;
   MSC_Handle->unit[lun].state = MSC_READ;
   MSC_Handle->rw_lun = lun;
@@ -908,6 +917,15 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
       (MSC_Handle->state != MSC_IDLE)
   ) {
     return  USBH_FAIL;
+  }
+
+  /* Prusa: the callers give USBH_MSC_BLOCK_SIZE bytes of buffer for each block. The transfer is
+     length * block_size bytes, with the block size that the device reports in READ CAPACITY. A
+     larger block size makes the device write past the buffer (or read past it on a write).
+     USBH_NOT_SUPPORTED, not USBH_FAIL: the caller does not restart the USB for it. */
+  if (MSC_Handle->unit[lun].capacity.block_size != USBH_MSC_BLOCK_SIZE)
+  {
+    return USBH_NOT_SUPPORTED;
   }
 
   MSC_Handle->state = MSC_WRITE;

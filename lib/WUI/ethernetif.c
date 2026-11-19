@@ -417,7 +417,7 @@ static struct pbuf *low_level_input(struct netif *netif) {
 // links descriptor N-1 back to descriptor 0, and low_level_input follows those
 // links, so a ring of N uses only the first N entries.
 static uint8_t rx_desc_active = ETH_RXBUFNB;
-_Static_assert(ETH_RXBUFNB <= 10, "upload_switches::RX_DESC_MAX must be ETH_RXBUFNB");
+_Static_assert(ETH_RXBUFNB <= 10, "ETH_RXBUFNB must not exceed upload_switches::RX_DESC_MAX (10)");
 
 // A write to a MAC or DMA register must be followed by a read-back and a wait of
 // at least four TX_CLK/RX_CLK cycles, as the HAL does (errata). 1 ms, like the HAL.
@@ -432,7 +432,8 @@ static void eth_reg_write(__IO uint32_t *reg, uint32_t value) {
 
 // Runs on the network task, which is the only reader of the RX ring
 // (low_level_input), and only when the ring is empty (after the read loop in
-// ethernetif_input_once), so no received frame is lost.
+// ethernetif_input_once). Frames that arrive during the change (a few ms) are
+// lost and not counted. Thus change the switches with a small upload first.
 static void apply_rx_desc_switch(struct netif *netif) {
     uint32_t want = upload_switch_rx_desc;
     if (want < 2) {

@@ -16,9 +16,9 @@ LOG_COMPONENT_REF(Marlin);
  *
  *#### Parameters
  *
- * - `G` - Minimum sleep in ms (1 to 10) when the screen has nothing to redraw. 1 is stock: the GUI
- *         loop then runs at about 1 kHz at idle. The value stays until the next M9959 G or a
- *         restart. The metrics gui_prof, gui_prof2, gui_prof3 and gui_min show the effect.
+ * - `G` - Minimum sleep in ms when the screen has nothing to redraw. On anya/main it is fixed at 10
+ *         (gui-idle-sleep), so G has no effect. The metrics gui_prof, gui_prof2, gui_prof3 and
+ *         gui_min show the GUI loop.
  * - `P` - Phase stepping rest fast path: 0 = stock (boot value), 1 = skip the refresh of an axis at
  *         rest, with a full refresh each 1 ms. The metric phstep_prof shows the effect.
  * - `R` - Phase stepping ISR body: 0 = from flash (stock, boot value), 1 = the same code from RAM.

@@ -4,7 +4,7 @@
 # this script takes the tree as an argument.
 #
 # Usage: .github/fork/build.sh SRC_DIR LABEL
-#   LABEL goes into the version after the build number: 9.0.0+<build>.<LABEL> (for example anya.1).
+#   LABEL goes into the version after the build number: 8.0.2+<build>.<LABEL> (for example anya.2).
 #   The version stays the upstream version, so the printer and Connect compare versions as usual.
 # Output: build/package/COREONEL_<LABEL>.bbf and .elf (in this tree), and SHA256SUMS-<LABEL>.txt.
 # On nasty: run it under the devspace lock (flock /workspaces/prusa/.heavy.lock).

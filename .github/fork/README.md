@@ -18,17 +18,19 @@ When the upload fixes get clean topic branches, they replace the merge of `metri
 One script builds `anya/main` or any topic branch worktree (a topic branch has no fork files):
 
 ```sh
-flock /workspaces/prusa/.heavy.lock .github/fork/build.sh . anya.1
+flock /workspaces/prusa/.heavy.lock .github/fork/build.sh . anya.2
 flock /workspaces/prusa/.heavy.lock .github/fork/build.sh ../Prusa-Firmware-Buddy-eth pr.eth-rx-descriptors.1
 ```
 
-The output is in `build/package/` of this tree. The version stays upstream (9.0.0). The label goes
-after the build number: `9.0.0+<commits>.anya.1`.
+The output is in `build/package/` of this tree. The version stays upstream (8.0.2 since upstream
+master dropped the 9.0.0 bump on 2026-11-16). The label goes after the build number:
+`8.0.2+<commits>.anya.2`. The builds up to `anya.1` were 9.0.0, so the bootloader sees `anya.2` as
+older: press the knob on the bootloader screen to flash it.
 
 ## Release
 
-1. Tag the commit that was built, and push the tag: `v9.0.0-anya.1` for `anya/main`,
-   `v9.0.0-pr.<branch>.1` for a topic branch.
+1. Tag the commit that was built, and push the tag: `v8.0.2-anya.<n>` for `anya/main`,
+   `v8.0.2-pr.<branch>.<n>` for a topic branch. Older tags are `v9.0.0-…`.
 2. `.github/fork/upload-release.sh TAG LABEL NOTES_FILE`. Notes: `RELEASE_NOTES.md` for `anya/main`,
    `notes/<branch>.md` for a topic branch. Each release is a pre-release.
 

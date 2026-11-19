@@ -31,10 +31,17 @@
 // * Inbound connections (PrusaLink, multiple connection, possibly created by
 //   an attacker).
 //
-// We give significantly more room to the Connect case.
+// We give more room to the Connect case: a larger per-connection limit, and
+// the inbound share never takes the whole global budget. An inbound
+// connection can still keep a few full-size segments, so that an upload can
+// recover from a lost frame with SACK.
 //
 // Note that nothing from here is run or consulted for in-sequence packets at
 // all.
+
+// The byte cap must let an inbound pcb fill its segment cap with full-size
+// segments. Else it cannot keep even one segment of a normal upload.
+static_assert(ooseq_limit::INBOUND_PCB_BYTES >= ooseq_limit::INBOUND_PCB_SEGS * TCP_MSS);
 
 namespace {
 
@@ -85,7 +92,7 @@ uint32_t hook_calls = 0;
 #else
     #define COUNT_HOOK_CALL() ((void)0)
 // EXPERIMENT: mutable so upload_experiment::apply_from_path can switch fix A
-// (on by default on this branch).
+// (on by default: it is the default of #5598).
 ooseq_limit::Limits active_limits = ooseq_limit::FIX_A_LIMITS;
 #endif
 
@@ -185,5 +192,5 @@ void buddy_ooseq_reclaim_request(void) {
 
 // EXPERIMENT: see buddy/upload_experiment.hpp.
 void ooseq_limit::set_inbound_fix_a(bool on) {
-    active_limits = on ? ooseq_limit::FIX_A_LIMITS : ooseq_limit::DEFAULT_LIMITS;
+    active_limits = on ? ooseq_limit::FIX_A_LIMITS : ooseq_limit::STOCK_LIMITS;
 }

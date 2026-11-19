@@ -9,7 +9,7 @@
 /// lwIP includes) so it can be exercised by a host unit test.
 namespace ooseq_limit {
 
-/// The full set of caps. The defaults are the shipped values; tests (and
+/// The full set of caps. The defaults are the values of #5598; tests (and
 /// experiments) can evaluate other sets through the `limits` parameter of the
 /// compute_* functions below.
 struct Limits {
@@ -17,29 +17,32 @@ struct Limits {
     // pinned ring ~= global_bytes + global_segs * per-frame overhead; keep it well
     // under the ring size in pbuf_rx.cpp.
     uint32_t global_bytes = 4096;
-    uint32_t inbound_share_bytes = 1024;
-    uint32_t inbound_pcb_bytes = 512;
+    // An inbound pcb (eg. a PrusaLink upload) must be able to keep some full-size
+    // (TCP_MSS) segments. With less than one, it keeps no out-of-order data and
+    // sends no SACK, so each lost frame makes the sender resend all data after it.
+    // ooseq_limit.cpp checks the limit against TCP_MSS.
+    uint32_t inbound_share_bytes = 3072;
+    uint32_t inbound_pcb_bytes = 3072;
     uint32_t outbound_pcb_bytes = 4096;
 
     // tcp_seg count budget (protects the shared MEMP_NUM_TCP_SEG pool).
     uint16_t global_segs = 5;
-    uint16_t inbound_share_segs = 2;
-    uint16_t inbound_pcb_segs = 1;
+    uint16_t inbound_share_segs = 3;
+    uint16_t inbound_pcb_segs = 3;
     uint16_t outbound_pcb_segs = 4;
 };
 
 inline constexpr Limits DEFAULT_LIMITS {};
 
-/// EXPERIMENT (upload-experiments branch): "fix A", let one inbound pcb (eg. a
-/// PrusaLink upload) keep 3 out-of-order segments, so it can SACK and recover
-/// from a loss without a timeout. Global caps unchanged, so the worst-case ring
-/// pinning (the PFB-012 / BFW-9380 concern) stays as shipped.
-inline constexpr Limits FIX_A_LIMITS = [] {
+/// EXPERIMENT: "fix A" is the default now (#5598). The upload switch a0 selects
+/// the stock 8.0.2 inbound caps for an A/B test.
+inline constexpr Limits FIX_A_LIMITS = DEFAULT_LIMITS;
+inline constexpr Limits STOCK_LIMITS = [] {
     Limits l;
-    l.inbound_share_bytes = 3072;
-    l.inbound_pcb_bytes = 3072;
-    l.inbound_share_segs = 3;
-    l.inbound_pcb_segs = 3;
+    l.inbound_share_bytes = 1024;
+    l.inbound_pcb_bytes = 512;
+    l.inbound_share_segs = 2;
+    l.inbound_pcb_segs = 1;
     return l;
 }();
 
@@ -52,6 +55,13 @@ inline constexpr uint16_t GLOBAL_SEGS = DEFAULT_LIMITS.global_segs;
 inline constexpr uint16_t INBOUND_SHARE_SEGS = DEFAULT_LIMITS.inbound_share_segs;
 inline constexpr uint16_t INBOUND_PCB_SEGS = DEFAULT_LIMITS.inbound_pcb_segs;
 inline constexpr uint16_t OUTBOUND_PCB_SEGS = DEFAULT_LIMITS.outbound_pcb_segs;
+
+// The share never takes the whole global budget, so an outbound pcb (Connect)
+// always has room.
+static_assert(INBOUND_SHARE_BYTES >= INBOUND_PCB_BYTES);
+static_assert(INBOUND_SHARE_SEGS >= INBOUND_PCB_SEGS);
+static_assert(GLOBAL_BYTES > INBOUND_SHARE_BYTES);
+static_assert(GLOBAL_SEGS > INBOUND_SHARE_SEGS);
 
 namespace detail {
     template <typename T>

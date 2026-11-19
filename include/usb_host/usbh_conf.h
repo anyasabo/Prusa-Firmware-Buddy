@@ -38,6 +38,11 @@ extern "C" {
 
 #define USBH_MSC_TRANSFER_SIZE 512
 
+/* The block size of a mass storage device that the firmware supports. The buffers of FatFs
+   (FF_MAX_SS) and of the transfers have this size for each block. USBH_MSC_Read() and
+   USBH_MSC_Write() refuse a device with another block size. */
+#define USBH_MSC_BLOCK_SIZE 512U
+
 #define USBH_MSC_IO_TIMEOUT (25 * 1000)
 
 #define MAX_SUPPORTED_LUN 1

@@ -152,7 +152,7 @@ void MX_USB_HOST_Init(void) {
     }
 }
 
-void USBH_UserProcess([[maybe_unused]] USBH_HandleTypeDef *phost, uint8_t id) {
+void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {
     // don't detect device at startup when ticks_ms() overflows (every ~50 days)
     if (media_on_startup_detection_timeout != 0 && ticks_ms() >= media_on_startup_detection_timeout) {
         media_on_startup_detection_timeout = 0;
@@ -167,6 +167,13 @@ void USBH_UserProcess([[maybe_unused]] USBH_HandleTypeDef *phost, uint8_t id) {
         break;
 
     case HOST_USER_CLASS_ACTIVE: {
+        // USBH_MSC_Read() and USBH_MSC_Write() refuse a drive with another block size, so do not
+        // mount it: each access would fail
+        if (MSC_LUNTypeDef info; USBH_MSC_GetLUNInfo(phost, 0, &info) != USBH_OK || info.capacity.block_size != USBH_MSC_BLOCK_SIZE) {
+            USBH_ErrLog("USB drive not mounted: block size not supported");
+            break;
+        }
+
         FRESULT result = f_mount(&USBHFatFS, (TCHAR const *)USBHPath, 0);
         if (result != FR_OK) {
             break;

@@ -22,6 +22,8 @@ using Mutex = freertos::Mutex;
 using Lock = std::unique_lock<Mutex>;
 
 static const uint16_t USB_DEFAULT_BLOCK_SIZE = FF_MIN_SS;
+// USBH_MSC_Read() and USBH_MSC_Write() accept only devices with this block size
+static_assert(FF_MIN_SS == USBH_MSC_BLOCK_SIZE && FF_MAX_SS == USBH_MSC_BLOCK_SIZE);
 static DWORD scratch[FF_MAX_SS / 4];
 
 extern USBH_HandleTypeDef hUsbHostHS;
@@ -144,7 +146,9 @@ static void USBH_MSC_WorkerTask(void const *) {
                     buddy_usb_stats.errors++;
                 }
             }
-            if (request->result != USBH_OK) {
+            // A restart of the USB does not help a device that is not supported (for example
+            // its block size): it would fail again at each access after the restart.
+            if (request->result != USBH_OK && request->result != USBH_NOT_SUPPORTED) {
                 usbh_power_cycle::io_error();
             }
             if (request->callback) {
@@ -261,7 +265,7 @@ DRESULT USBH_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count) {
         while (count--) {
             memcpy(scratch, &buff[count * FF_MAX_SS], FF_MAX_SS);
             status = USBH_exec(UsbhMscRequest::UsbhMscRequestOperation::Write, lun, (BYTE *)scratch, sector + count, 1);
-            if (status == USBH_FAIL) {
+            if (status != USBH_OK) {
                 break;
             }
         }

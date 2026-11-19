@@ -79,6 +79,7 @@ void espif_notify_flash_result(enum FlashResult result);
 
 #ifdef __cplusplus
 
+    #include <optional>
     #include <span>
 
 enum class EspFwState {

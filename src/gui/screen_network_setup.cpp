@@ -233,8 +233,10 @@ protected:
             return;
         }
 
-        std::array<char, config_store_ns::wifi_max_ssid_len + 1> ssid;
-        bool needs_password;
+        // Zeroed: the SSID has no terminating zero if it is 32 bytes long, and on an error
+        // get_ap_info() writes nothing
+        std::array<char, config_store_ns::wifi_max_ssid_len + 1> ssid {};
+        bool needs_password = false;
         const auto ap_info_result = espif::scan::get_ap_info(wifi_index, std::bit_cast<std::span<uint8_t>>(std::span<const char>(ssid)), needs_password);
 
         auto &item = variant.emplace<MI_WIFI>(wifi_index, ssid.data(), needs_password);

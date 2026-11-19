@@ -1,6 +1,7 @@
 #include "espif.h"
 
 #include <algorithm>
+#include <variant>
 #include <array>
 #include <bit>
 #include <cstring>
@@ -141,7 +142,8 @@ static struct __attribute__((packed)) {
 };
 
 struct APInfo {
-    std::span<uint8_t> ssid;
+    // A copy, not a pointer to the caller's buffer: a reply can arrive after get_ap_info() returned.
+    std::array<uint8_t, config_store_ns::wifi_max_ssid_len> ssid;
     uint8_t ap_index;
     bool requires_password;
 };
@@ -550,12 +552,15 @@ uint8_t espif::scan::get_ap_count() {
     debug_assert(index < ::scan.ap_count);
     debug_assert(buffer.size() >= config_store_ns::wifi_max_ssid_len);
     std::lock_guard lock(ScanData::get_ap_info_mutex);
-    ::scan.result.ssid = buffer;
+
+    // Drop a reply to an earlier call that came after its timeout
+    APInfo info {};
+    while (ScanData::ap_info_queue.try_receive(info, 0)) {
+    }
 
     int tries = 4;
 
     err_t last_error = ERR_OK;
-    APInfo info {};
     while (tries >= 0) {
         --tries;
         const auto err = espif_tx_raw(MSG_SCAN_AP_GET, index, nullptr);
@@ -566,7 +571,7 @@ uint8_t espif::scan::get_ap_count() {
         }
 
         // There can be some old data in the queue if we just didn't make the timeout
-        if (ScanData::ap_info_queue.try_receive(info, ScanData::SYNC_EVENT_TIMEOUT) && info.ap_index == index && info.ssid.data() == buffer.data()) {
+        if (ScanData::ap_info_queue.try_receive(info, ScanData::SYNC_EVENT_TIMEOUT) && info.ap_index == index) {
             last_error = ERR_OK;
             break;
         } else {
@@ -577,6 +582,7 @@ uint8_t espif::scan::get_ap_count() {
     if (last_error != ERR_OK) {
         return last_error;
     }
+    std::copy_n(info.ssid.begin(), std::min(buffer.size(), info.ssid.size()), buffer.begin());
     needs_password = info.requires_password;
     return ERR_OK;
 }
@@ -586,7 +592,9 @@ static void process_scan_ap_count(uint8_t ap_count) {
 }
 
 static void process_scan_ssid() {
-    ScanData::ap_info_queue.send(::scan.result);
+    // This runs in the network task. A reply that nobody waits for (it came after the timeout of
+    // get_ap_info()) must not block it, so drop the reply if the queue is full.
+    (void)ScanData::ap_info_queue.try_send(::scan.result, 0);
 }
 
 static void uart_input(uint8_t *data, size_t size, struct netif *netif) {

@@ -575,9 +575,30 @@ BGCODE_CORE_EXPORT size_t block_parameters_size(EBlockType type)
     return 0;
 }
 
+// The content size (parameters, payload and checksum) in 64 bits: in size_t, it wraps on a 32-bit target.
+static uint64_t block_content_size_u64(const FileHeader& file_header, const BlockHeader& block_header)
+{
+    const uint64_t payload = ((ECompressionType)block_header.compression == ECompressionType::None) ?
+        block_header.uncompressed_size : block_header.compressed_size;
+    return block_parameters_size((EBlockType)block_header.type) + payload + checksum_size((EChecksumType)file_header.checksum_type);
+}
+
+BGCODE_CORE_EXPORT long block_end_position(const FileHeader& file_header, const BlockHeader& block_header)
+{
+    return detail::checked_end_position<long>(block_header.get_position(),
+        static_cast<uint64_t>(block_header.get_size()) + block_content_size_u64(file_header, block_header));
+}
+
 BGCODE_CORE_EXPORT EResult skip_block_content(FILE& file, const FileHeader& file_header, const BlockHeader& block_header)
 {
-    if (fseek(&file, (long)block_content_size(file_header, block_header), SEEK_CUR) != 0) {
+    const long position = ftell(&file);
+    if (position < 0)
+        return EResult::ReadError;
+    const long end = detail::checked_end_position<long>(position, block_content_size_u64(file_header, block_header));
+    if (end < 0) {
+        return EResult::BlockTooLarge;
+    }
+    if (fseek(&file, end, SEEK_SET) != 0) {
         return EResult::ReadError;
     }
     return ferror(&file) ? EResult::ReadError : EResult::Success;
@@ -585,7 +606,11 @@ BGCODE_CORE_EXPORT EResult skip_block_content(FILE& file, const FileHeader& file
 
 BGCODE_CORE_EXPORT EResult skip_block(FILE& file, const FileHeader& file_header, const BlockHeader& block_header)
 {
-    if (fseek(&file, block_header.get_position() + (long)block_header.get_size() + (long)block_content_size(file_header, block_header), SEEK_SET) != 0) {
+    const long end = block_end_position(file_header, block_header);
+    if (end < 0) {
+        return EResult::BlockTooLarge;
+    }
+    if (fseek(&file, end, SEEK_SET) != 0) {
         return EResult::ReadError;
     }
     return ferror(&file) ? EResult::ReadError : EResult::Success;

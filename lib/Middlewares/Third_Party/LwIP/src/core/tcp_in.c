@@ -53,6 +53,7 @@
 #include "lwip/memp.h"
 #include "lwip/inet_chksum.h"
 #include "lwip/stats.h"
+#include <buddy/rx_stats.h>
 #include "lwip/ip6.h"
 #include "lwip/ip6_addr.h"
 #if LWIP_ND6_TCP_REACHABILITY_HINTS
@@ -429,6 +430,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
           and drop the data segment */
           tcp_send_empty_ack(pcb);
         }
+        buddy_rx_stats.refused_drop++;
         TCP_STATS_INC(tcp.drop);
         MIB2_STATS_INC(mib2.tcpinerrs);
         goto aborted;
@@ -1852,6 +1854,7 @@ tcp_receive(struct tcp_pcb *pcb)
               }
 #endif /* LWIP_TCP_SACK_OUT */
               /* too much ooseq data, dump this and everything after it */
+              buddy_rx_stats.ooseq_trim++;
               tcp_segs_free(next);
               if (prev == NULL) {
                 /* first ooseq segment is too much, dump the whole queue */

@@ -1,5 +1,7 @@
 #include "ooseq_limit.hpp"
 
+#include <buddy/upload_switches.h>
+
 #include <lwip/tcp.h>
 #include <lwip/priv/tcp_priv.h>
 
@@ -81,14 +83,33 @@ OoseqUsage other_pcbs_usage(const struct tcp_pcb *exclude) {
 
 extern "C" {
 
+// EXPERIMENT: with the switch a0 (upload_switches.hpp), an inbound pcb gets the
+// stock 8.0.2 caps: 512 B / 1 segment for each pcb, 1024 B / 2 segments for all
+// inbound pcbs. These are lower than the fixed caps, and the global budget is
+// the same, so the min of both gives exactly the stock formula.
+constexpr uint32_t STOCK_INBOUND_SHARE_BYTES = 1024;
+constexpr uint32_t STOCK_INBOUND_PCB_BYTES = 512;
+constexpr uint16_t STOCK_INBOUND_SHARE_SEGS = 2;
+constexpr uint16_t STOCK_INBOUND_PCB_SEGS = 1;
+static_assert(STOCK_INBOUND_SHARE_BYTES <= ooseq_limit::INBOUND_SHARE_BYTES && STOCK_INBOUND_PCB_BYTES <= ooseq_limit::INBOUND_PCB_BYTES);
+static_assert(STOCK_INBOUND_SHARE_SEGS <= ooseq_limit::INBOUND_SHARE_SEGS && STOCK_INBOUND_PCB_SEGS <= ooseq_limit::INBOUND_PCB_SEGS);
+
 uint32_t buddy_ooseq_bytes_limit(const struct tcp_pcb *pcb) {
     const OoseqUsage usage = other_pcbs_usage(pcb);
-    return ooseq_limit::compute_bytes_limit(is_inbound(pcb), usage.all_bytes, usage.inbound_bytes);
+    const uint32_t limit = ooseq_limit::compute_bytes_limit(is_inbound(pcb), usage.all_bytes, usage.inbound_bytes);
+    if (is_inbound(pcb) && !upload_switch_ooseq_fix) {
+        return std::min({ limit, STOCK_INBOUND_PCB_BYTES, ooseq_limit::detail::room(STOCK_INBOUND_SHARE_BYTES, usage.inbound_bytes) });
+    }
+    return limit;
 }
 
 uint16_t buddy_ooseq_pbufs_limit(const struct tcp_pcb *pcb) {
     const OoseqUsage usage = other_pcbs_usage(pcb);
-    return ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs);
+    const uint16_t limit = ooseq_limit::compute_segs_limit(is_inbound(pcb), usage.all_segs, usage.inbound_segs);
+    if (is_inbound(pcb) && !upload_switch_ooseq_fix) {
+        return std::min({ limit, STOCK_INBOUND_PCB_SEGS, ooseq_limit::detail::room(STOCK_INBOUND_SHARE_SEGS, usage.inbound_segs) });
+    }
+    return limit;
 }
 
 } // extern "C"

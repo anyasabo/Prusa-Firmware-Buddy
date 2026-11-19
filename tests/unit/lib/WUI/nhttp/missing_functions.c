@@ -121,3 +121,10 @@ void *malloc_fallible(size_t size) {
 int mbedtls_hardware_poll([[maybe_unused]] void *Data, unsigned char *Output, size_t Len, size_t *oLen) {
     return 42;
 }
+
+// EXPERIMENT (branch upload-switches): the queue cap switch at its boot value,
+// the fix (upload_switches.hpp). The real definition is in lib/WUI/upload_switches.cpp.
+volatile uint8_t upload_switch_queue_cap = 17;
+void upload_switches_apply_from_path(const char *path) {
+    (void)path;
+}

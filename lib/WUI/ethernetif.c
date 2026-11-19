@@ -1,6 +1,8 @@
 #include <inttypes.h>
 #include <buddy/main.h>
 #include "metric.h"
+#include <buddy/rx_stats.h>
+#include <buddy/upload_switches.h>
 #include "pbuf_rx.h"
 #include "wui.h"
 #include <lwip/opt.h>
@@ -52,6 +54,14 @@ __ALIGN_BEGIN uint8_t Tx_Buff[ETH_TXBUFNB][ETH_TX_BUF_SIZE] __ALIGN_END; /* Ethe
 
 METRIC_DEF(metric_eth_out, "eth_out", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
 METRIC_DEF(metric_eth_in, "eth_in", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+// EXPERIMENT: drop counters (rx_stats.h). Two metrics, because a custom value has
+// a maximum of 47 characters (metric.h).
+METRIC_DEF(metric_rxd_eth, "rxd_eth", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+METRIC_DEF(metric_rxd_tcp, "rxd_tcp", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+// EXPERIMENT: the RX descriptor count in use, recorded after each change.
+METRIC_DEF(metric_rxd_n, "rxd_n", METRIC_VALUE_INTEGER, 0, METRIC_ENABLED);
+// EXPERIMENT: the descriptors in use and the switches, once a second.
+METRIC_DEF(metric_upx, "upx", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
 
 /* Global Ethernet handle */
 ETH_HandleTypeDef heth;
@@ -349,6 +359,7 @@ static struct pbuf *low_level_input(struct netif *netif) {
         /* We allocate a pbuf chain of pbufs from the Lwip buffer pool */
         p = pbuf_alloc_rx(len);
         if (p == NULL) {
+            buddy_rx_stats.alloc_fail++;
             log_dropped_packet_rx(len);
         }
     }
@@ -401,6 +412,97 @@ static struct pbuf *low_level_input(struct netif *netif) {
     return p;
 }
 
+// EXPERIMENT: the RX descriptor count is a runtime switch (upload_switches.hpp).
+// The arrays keep ETH_RXBUFNB entries. In chain mode, HAL_ETH_DMARxDescListInit
+// links descriptor N-1 back to descriptor 0, and low_level_input follows those
+// links, so a ring of N uses only the first N entries.
+static uint8_t rx_desc_active = ETH_RXBUFNB;
+_Static_assert(ETH_RXBUFNB <= 10, "upload_switches::RX_DESC_MAX must be ETH_RXBUFNB");
+
+// A write to a MAC or DMA register must be followed by a read-back and a wait of
+// at least four TX_CLK/RX_CLK cycles, as the HAL does (errata). 1 ms, like the HAL.
+static void eth_reg_write(__IO uint32_t *reg, uint32_t value) {
+    *reg = value;
+    const uint32_t readback = *reg;
+    for (__IO uint32_t delay = SystemCoreClock / 8U / 1000U; delay > 0; delay--) {
+        __NOP();
+    }
+    *reg = readback;
+}
+
+// Runs on the network task, which is the only reader of the RX ring
+// (low_level_input), and only when the ring is empty (after the read loop in
+// ethernetif_input_once), so no received frame is lost.
+static void apply_rx_desc_switch(struct netif *netif) {
+    uint32_t want = upload_switch_rx_desc;
+    if (want < 2) {
+        want = 2;
+    } else if (want > ETH_RXBUFNB) {
+        want = ETH_RXBUFNB;
+    }
+    if (want == rx_desc_active) {
+        return;
+    }
+    // With the link down (HAL_ETH_Stop), keep the switch pending. Do not start
+    // a stopped MAC.
+    if (!netif_is_link_up(netif)) {
+        return;
+    }
+    const uint32_t maccr_re = heth.Instance->MACCR & ETH_MACCR_RE;
+    const uint32_t dmaomr_sr = heth.Instance->DMAOMR & ETH_DMAOMR_SR;
+    if (maccr_re == 0 || dmaomr_sr == 0) {
+        return;
+    }
+
+    // Stop the MAC receiver, then the RX DMA. DMARDLAR can be written only while
+    // the RX DMA is stopped. TX continues.
+    eth_reg_write(&heth.Instance->MACCR, heth.Instance->MACCR & ~ETH_MACCR_RE);
+    eth_reg_write(&heth.Instance->DMAOMR, heth.Instance->DMAOMR & ~ETH_DMAOMR_SR);
+    const uint32_t start = HAL_GetTick();
+    bool stopped;
+    while (!(stopped = (heth.Instance->DMASR & ETH_DMASR_RPS) == ETH_DMASR_RPS_Stopped)) {
+        if (HAL_GetTick() - start > 10) {
+            break;
+        }
+    }
+
+    // If the DMA did not stop, keep the old ring (the DMA ignores a new DMARDLAR
+    // while it runs) and try again later. The HAL lock is busy if the tcpip thread
+    // transmits at this moment: then also keep the old ring and try again later.
+    bool changed = false;
+    if (stopped && HAL_ETH_DMARxDescListInit(&heth, DMARxDscrTab, &Rx_Buff[0][0], want) == HAL_OK) {
+        memset(&heth.RxFrameInfos, 0, sizeof(heth.RxFrameInfos));
+        rx_desc_active = want;
+        changed = true;
+    }
+
+    eth_reg_write(&heth.Instance->DMAOMR, heth.Instance->DMAOMR | dmaomr_sr);
+    eth_reg_write(&heth.Instance->MACCR, heth.Instance->MACCR | maccr_re);
+    heth.Instance->DMARPDR = 0; // resume reception if the DMA had no descriptor
+
+    if (changed) {
+        metric_record_integer(&metric_rxd_n, (int)want);
+    }
+}
+
+// EXPERIMENT: reports the drop counters and the switches. The network task calls
+// it at each frame and at its 500 ms poll, so the values continue when traffic
+// stops. The metrics are rate-limited to one each second.
+static void report_rx_stats(void) {
+    // DMAMFBOCR clears on read. MFC (bits 0-15) counts the frames missed for lack
+    // of a free descriptor, MFA (bits 17-27) the frames missed by an RX FIFO overflow.
+    const uint32_t mfbocr = heth.Instance->DMAMFBOCR;
+    buddy_rx_stats.eth_missed += mfbocr & 0xFFFFU;
+    buddy_rx_stats.eth_fifo_ovf += (mfbocr >> 17) & 0x7FFU;
+    const struct buddy_rx_stats *s = &buddy_rx_stats;
+    // a=alloc_fail m=eth_missed o=eth_fifo_ovf | r=refused d=refused_drop t=ooseq_trim
+    metric_record_custom(&metric_rxd_eth, " a=%" PRIu32 "i,m=%" PRIu32 "i,o=%" PRIu32 "i", s->alloc_fail, s->eth_missed, s->eth_fifo_ovf);
+    metric_record_custom(&metric_rxd_tcp, " r=%" PRIu32 "i,d=%" PRIu32 "i,t=%" PRIu32 "i", s->refused, s->refused_drop, s->ooseq_trim);
+    // n = descriptors in use, then the switches as set (r is applied as n).
+    metric_record_custom(&metric_upx, " n=%ui,r=%ui,a=%ui,q=%ui", (unsigned)rx_desc_active,
+        (unsigned)upload_switch_rx_desc, (unsigned)upload_switch_ooseq_fix, (unsigned)upload_switch_queue_cap);
+}
+
 void ethernetif_input_once(struct netif *netif) {
     struct pbuf *p;
     do {
@@ -411,6 +513,8 @@ void ethernetif_input_once(struct netif *netif) {
             }
         }
     } while (p != NULL);
+    apply_rx_desc_switch(netif); // EXPERIMENT
+    report_rx_stats(); // EXPERIMENT
 }
 
 #if !LWIP_ARP

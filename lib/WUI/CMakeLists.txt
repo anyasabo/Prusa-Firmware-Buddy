@@ -37,6 +37,7 @@ target_sources(
             pbuf_rx.cpp
             sntp/sntp.c
             sntp/sntp_client.c
+            upload_switches.cpp
             wui.cpp
             wui_api.cpp
   )

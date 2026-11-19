@@ -198,7 +198,8 @@ USBH_HandleTypeDef *start(uint32_t block_size) {
     for (int i = 0; i < 1000 && st == USBH_BUSY; i++) {
         st = ph->pActiveClass->Requests(ph);
     }
-    auto *msc = static_cast<MSC_HandleTypeDef *>(ph->pActiveClass->pData);
+    // USB host 3.5.5: the class data is in the handle, not in the class.
+    auto *msc = static_cast<MSC_HandleTypeDef *>(ph->pActiveClassData);
     for (int i = 0; i < 100000 && msc->state != MSC_IDLE; i++) {
         ph->pActiveClass->BgndProcess(ph);
     }
@@ -236,10 +237,13 @@ TEST_CASE("usb_host: MSC read and write refuse a device with a block size other 
     USBH_HandleTypeDef *ph = start(block_size);
     std::vector<uint8_t> buf(block + guard, guard_fill);
 
-    CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 1) == USBH_NOT_SUPPORTED);
+    // anya/main: USB host 3.5.5 refuses a block size above 4096 already in READ CAPACITY
+    // (usbh_msc_scsi.c), so the unit never gets ready and Read and Write give USBH_FAIL.
+    const USBH_StatusTypeDef refused = block_size > 4096 ? USBH_FAIL : USBH_NOT_SUPPORTED;
+    CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 1) == refused);
     CHECK(guard_bytes_changed(buf) == 0);
 
     // A write must not send the memory after the buffer to the device
-    CHECK(USBH_MSC_Write(ph, 0, 0, buf.data(), 1) == USBH_NOT_SUPPORTED);
+    CHECK(USBH_MSC_Write(ph, 0, 0, buf.data(), 1) == refused);
     CHECK(dev.out_received.empty());
 }

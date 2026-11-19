@@ -11,9 +11,11 @@ add_executable(
   ${USBH_LIB}/Class/MSC/Src/usbh_msc_bot.c
   ${USBH_LIB}/Class/MSC/Src/usbh_msc_scsi.c
   )
-# The stub directory comes first: it has the host copy of usbh_conf.h
+# The stub directory comes first: it has the host copy of usbh_conf.h. The include directory comes
+# last: anya/main's usbh_msc.c includes the experiment header buddy/usb_io_stats.h.
 target_include_directories(
   usb_host_msc_tests BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/stub ${USBH_LIB}/Core/Inc
                                     ${USBH_LIB}/Class/MSC/Inc
   )
+target_include_directories(usb_host_msc_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 add_catch_test(usb_host_msc_tests)

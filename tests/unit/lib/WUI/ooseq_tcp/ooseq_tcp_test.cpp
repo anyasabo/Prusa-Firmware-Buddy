@@ -134,7 +134,8 @@ struct Fixture {
     std::array<u8_t, 1024> data {};
     u16_t next_remote_port = 50000;
 
-    explicit Fixture(const Limits &limits = ooseq_limit::DEFAULT_LIMITS) {
+    // anya/main: DEFAULT_LIMITS are the #5598 values. The "stock limits" tests use the 8.0.2 caps.
+    explicit Fixture(const Limits &limits = ooseq_limit::STOCK_LIMITS) {
         static bool initialized = false;
         if (!initialized) {
             lwip_init();
@@ -298,7 +299,7 @@ TEST_CASE("ooseq_tcp T3: fix A keeps and SACKs the segments on port 80", "[ooseq
 // on the shipped limits. [!shouldfail] makes ctest go red if they ever pass,
 // i.e. if this test stops reproducing bug 3.
 TEST_CASE("ooseq_tcp T1-inverse: stock limits fail the fixed expectations", "[ooseq][!shouldfail]") {
-    expect_ooseq_works_on_port_80(ooseq_limit::DEFAULT_LIMITS);
+    expect_ooseq_works_on_port_80(ooseq_limit::STOCK_LIMITS);
 }
 
 TEST_CASE("ooseq_tcp T3b: fix A trims a 4th out-of-order segment and its SACK", "[ooseq]") {

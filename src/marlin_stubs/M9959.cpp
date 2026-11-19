@@ -29,7 +29,9 @@ void PrusaGcodeSuite::M9959() {
         return;
     }
     if (const auto g = p.option<uint32_t>('G')) {
-        buddy_gui_delay_min = std::clamp<uint32_t>(*g, 1, 10);
+        // anya/main: the GUI loop clamps to GUI_DELAY_MIN (10, gui-idle-sleep). Clamp here too,
+        // so that the gui_min metric reports the value in use.
+        buddy_gui_delay_min = std::clamp<uint32_t>(*g, 10, 10);
     }
     if (const auto ph = p.option<uint32_t>('P')) {
         buddy_phstep_fast = *ph ? 1 : 0;

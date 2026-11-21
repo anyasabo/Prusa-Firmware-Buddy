@@ -21,15 +21,18 @@ LOG_COMPONENT_REF(Marlin);
  *         ("MBL fill at X Y: Z"), and then fails the mesh as before. The retry probes all points
  *         again, so the log has the true Z of the same points to compare with the fill.
  *
- * The setting stays until the next restart.
+ * The setting stays until the next restart. After 3 failed points in sequence the mesh stops, as
+ * without M9961. Printers without UBL ignore M9961.
  */
 void PrusaGcodeSuite::M9961() {
+#if ENABLED(AUTO_BED_LEVELING_UBL)
     GCodeParser2 p;
     if (!p.parse_marlin_command()) {
         return;
     }
-    if (const auto s = p.option<uint32_t>('S')) {
-        ubl.g29_continue_after_fail = *s != 0;
+    if (const auto s = p.option<bool>('S')) {
+        ubl.g29_continue_after_fail = *s;
     }
     log_info(Marlin, "M9961: continue after a failed probe point = %i", ubl.g29_continue_after_fail);
+#endif
 }

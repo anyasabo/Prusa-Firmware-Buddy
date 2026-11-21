@@ -1,6 +1,7 @@
 /// @file
 #include <feature/bed_fan/controller.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <feature/bed_fan/bed_fan.hpp>
 #include <feature/chamber/chamber.hpp>
@@ -80,7 +81,7 @@ uint8_t Controller::AutomaticMode::calculate_pwm() const {
 
         return 0.0f;
     }();
-    // std::lerp extrapolates outside 0..1, and a float above 255 converted to uint8_t is undefined.
+    // std::lerp extrapolates outside 0..1, and a float outside 0..255 converted to uint8_t is undefined.
     // A difference above the threshold gives max_pwm. NaN gives min_pwm.
     const float clamped_scale = scale > 0.0f ? std::min(scale, 1.0f) : 0.0f;
     return static_cast<uint8_t>(std::lerp(static_cast<float>(min_pwm), static_cast<float>(max_pwm), clamped_scale));

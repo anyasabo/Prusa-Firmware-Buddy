@@ -1,3 +1,4 @@
+add_subdirectory(bed_fan)
 add_subdirectory(openprinttag)
 add_subdirectory(filament_tracker)
 add_subdirectory(indx_hotend_temp_model)

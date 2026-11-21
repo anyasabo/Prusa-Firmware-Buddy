@@ -8,6 +8,7 @@
 #       them if they are not.
 #
 # pylint: disable=line-too-long
+import contextlib
 import hashlib
 import os
 import platform
@@ -291,18 +292,29 @@ def verify_sha256(filename: Path, expected: str):
                            f'expected {expected}, got {digest.hexdigest()}')
 
 
+@contextlib.contextmanager
 def open_zstd(filename: Path):
-    """Open a .zst file for reading, decompressed."""
+    """Open a .zst file for reading, decompressed.
+
+    With an external decompressor, raise an error at the end if it failed. A stream that
+    stops early can end at a tar block boundary, and then tarfile reports no error.
+    """
     try:
         from compression import zstd  # Python 3.14 and newer
-        return zstd.open(filename, 'rb')
     except ImportError:
-        pass
+        zstd = None
+    if zstd:
+        with zstd.open(filename, 'rb') as file:
+            yield file
+        return
     try:
         import zstandard
-        return zstandard.ZstdDecompressor().stream_reader(open(filename, 'rb'))
     except ImportError:
-        pass
+        zstandard = None
+    if zstandard:
+        with open(filename, 'rb') as file:
+            yield zstandard.ZstdDecompressor().stream_reader(file)
+        return
     if shutil.which('zstd'):
         command = ['zstd', '-dc', str(filename)]
     else:
@@ -315,7 +327,19 @@ def open_zstd(filename: Path):
             str(filename)
         ]
     process = subprocess.Popen(command, stdout=subprocess.PIPE)
-    return process.stdout
+    try:
+        yield process.stdout
+        # tarfile stops at the end-of-archive blocks. Read the rest, so that the
+        # decompressor does not fail with a broken pipe.
+        while process.stdout.read(1 << 20):
+            pass
+    finally:
+        process.stdout.close()
+        returncode = process.wait()
+    if returncode != 0:
+        raise RuntimeError(
+            f'{command[0]} failed with exit code {returncode} for {filename.name}'
+        )
 
 
 def install_archives(archives, directory: Path, strip_prefix=None):
@@ -338,8 +362,8 @@ def install_archives(archives, directory: Path, strip_prefix=None):
         print('done')
         print('Extracting ' + file, end=' ')
         if file.endswith('.zst'):
-            fileobj = open_zstd(filename)
-            with tarfile.open(fileobj=fileobj, mode='r|') as tar:
+            with open_zstd(filename) as fileobj, tarfile.open(
+                    fileobj=fileobj, mode='r|') as tar:
                 for member in tar:
                     if member.name.startswith('.'):
                         continue
@@ -347,7 +371,6 @@ def install_archives(archives, directory: Path, strip_prefix=None):
                         tar.extract(member, temp_directory, filter='tar')
                     else:
                         tar.extract(member, temp_directory)
-            fileobj.close()
         else:
             extract_archive(filename, temp_directory)
         os.remove(filename)

@@ -827,12 +827,14 @@
       #endif
     });
 
-    if (any_failed && !planner.draining()) {
+    if (any_failed && !planner.draining() && failed_in_a_row < max_failed_in_a_row) {
       // M9961: fill the empty points as the start G-code does (G29 P3.2, then P3.13), and log the
       // fill of each failed point. Then empty all the points that were empty before, and fail the
       // mesh as before. The retry then probes the failed points again (also in the purge-area
       // pass, G29 P1 ... C, which does not invalidate the mesh), so the log gets their true Z.
       // The fills write only empty points, and the border, which no pass probes.
+      // Not after a stop for failures in sequence: the rest of the mesh is empty then, and a fill
+      // from a partial mesh would not show what a fill from a full mesh gives.
       uint32_t empty_points[GRID_MAX_POINTS_X] = { 0 };
       for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++)
         for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++)

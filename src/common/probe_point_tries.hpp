@@ -5,8 +5,8 @@
 /// next. The host unit tests can then walk a point try by try.
 ///
 /// The policy, as of Prusa firmware 8.0.2:
-/// - A point gets at most max_tries tries (MULTIPLE_PROBING, 40 on the CORE One L). Try n is at
-///   offset_for_probe_try(n): rings of 1, 7, 13, 19 tries at 0, 2, 4, 6 mm.
+/// - A point gets at most max_tries tries (MULTIPLE_PROBING, 40 on the CORE One L). The n-th try
+///   (counted from 0) is at offset_for_probe_try(n): rings of 1, 7, 13, 19 tries at 0, 2, 4, 6 mm.
 /// - Before each descent the load cell is tared. If the tare differs from the reference tare by
 ///   more than max_tare_offset (the trigger threshold, 125 g), the head lifts and takes a new
 ///   reference. The try continues.
@@ -14,7 +14,8 @@
 /// - A descent that does not reach the bed fails the point at once.
 /// - A good analysis adds its Z. The point is done after required_successes good tries; its Z is
 ///   the mean of them. A NOK analysis goes on to the next try.
-/// - With single_only, the point ends after its first analysis, good or NOK.
+/// - With single_only, the point ends after its first analysis, good or NOK. A recovered safety
+///   trip comes before the analysis, so single_only still retries after it.
 /// - When no try is left, the point fails.
 /// - The load cell must stream, and the first reference tare must not stop the probe. Else the point
 ///   fails before its first try.
@@ -111,7 +112,7 @@ private:
     int successes_ = 0;
     int trips_ = 0;
     float z_sum_ = 0;
-    const char *failure_ = nullptr;
+    const char *failure_ = "unknown";
     const char *last_nok_ = "none";
 };
 

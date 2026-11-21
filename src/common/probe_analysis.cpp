@@ -163,6 +163,10 @@ ProbeAnalysisBase::Result ProbeAnalysisBase::Analyse(bool check_angle_after) {
     {
         const char *feature = "feature-out-of-range";
         float value;
+        // The generated range checks below are false for NaN, so check for NaN and inf first.
+        if (HasNonFiniteFeature(features, &feature, &value, check_angle_after)) {
+            return std::unexpected(AnalysisError { .description = feature, .arg = value });
+        }
         if (HasOutOfRangeFeature(features, &feature, &value, check_angle_after)) {
             return std::unexpected(AnalysisError { .description = feature, .arg = value });
         }
@@ -171,6 +175,11 @@ ProbeAnalysisBase::Result ProbeAnalysisBase::Analyse(bool check_angle_after) {
     // Last, use the features in our classification model and guess the probe's precision
     bool isGood = Classify(features);
     float zCoordinate = InterpolateFinalZCoordinate(features);
+    if (isGood && !std::isfinite(zCoordinate)) {
+        // The Z interpolation divides by a slope of the decompression line; do not pass inf or NaN on as a bed height.
+        log_features_metrics(features, std::nullopt);
+        return std::unexpected(AnalysisError { .description = "z-not-finite" });
+    }
     if (isGood) {
         log_features_metrics(features, zCoordinate);
         return AnalysisResult { .z_coordinate = zCoordinate };
@@ -554,6 +563,46 @@ int ProbeAnalysisBase::Classify(Features &features) {
             }
         }
     }
+}
+
+bool ProbeAnalysisBase::HasNonFiniteFeature(const Features &features, const char **feature, float *value, bool check_angle_after) {
+    // The features that HasOutOfRangeFeature() checks. Hand-written: that function is generated.
+    const std::pair<const char *, float> checked[] = {
+        { "load_mean_before_compression", features.loadMeanBeforeCompression },
+        { "load_mean_after_decompression", features.loadMeanAfterDecompression },
+        { "load_compression_start", features.compressionLine.GetY(features.compressionStartTime) },
+        { "load_decompression_end", features.decompressionLine.GetY(features.decompressionEndTime) },
+        { "load_angle_compression_start", features.loadAngleCompressionStart },
+        { "load_angle_compression_end", features.loadAngleCompressionEnd },
+        { "load_angle_decompression_start", features.loadAngleDecompressionStart },
+        { "load_angle_decompression_end", features.loadAngleDecompressionEnd },
+        { "r2_compression_start_20", features.r2_20ms.compressionStart },
+        { "r2_compression_end_20", features.r2_20ms.compressionEnd },
+        { "r2_decompression_start_30", features.r2_30ms.decompressionStart },
+        { "r2_decompression_end_30", features.r2_30ms.decompressionEnd },
+        { "r2_compression_start_50", features.r2_50ms.compressionStart },
+        { "r2_compression_end_50", features.r2_50ms.compressionEnd },
+        { "r2_decompression_start_50", features.r2_50ms.decompressionStart },
+        { "r2_decompression_end_50", features.r2_50ms.decompressionEnd },
+        { "r2_decompression_start_60", features.r2_60ms.decompressionStart },
+        { "r2_decompression_end_60", features.r2_60ms.decompressionEnd },
+    };
+    for (const auto &[name, v] : checked) {
+        if (!std::isfinite(v)) {
+            *feature = name;
+            *value = v;
+            return true;
+        }
+    }
+    if (check_angle_after) {
+        const float angle = features.compressedLine.CalculateAngle(features.afterDecompressionLine, false);
+        if (!std::isfinite(angle)) {
+            *feature = "angle_after";
+            *value = angle;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ProbeAnalysisBase::HasOutOfRangeFeature(Features &features, const char **feature, float *value, bool check_angle_after) const {

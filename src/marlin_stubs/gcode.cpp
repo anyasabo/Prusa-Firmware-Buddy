@@ -401,6 +401,10 @@ bool GcodeSuite::process_parsed_command_custom(bool no_ok) {
             break;
 #endif
 
+        case 9961: // EXPERIMENT
+            PrusaGcodeSuite::M9961();
+            break;
+
 #if HAS_CRASH_DETECTION()
         case 9944:
             PrusaGcodeSuite::M9944();

@@ -25,3 +25,15 @@ target_link_libraries(position_lookback SG14 raii bsod)
 
 # tell build system about the test case
 add_catch_test(position_lookback)
+
+add_executable(probe_timing_tests probe_timing_tests.cpp)
+target_include_directories(probe_timing_tests PUBLIC ${CMAKE_SOURCE_DIR}/src/common)
+add_catch_test(probe_timing_tests)
+
+add_executable(probe_grid_tests probe_grid_tests.cpp)
+target_include_directories(probe_grid_tests PUBLIC ${CMAKE_SOURCE_DIR}/src/common)
+add_catch_test(probe_grid_tests)
+
+add_executable(probe_point_tries_tests probe_point_tries_tests.cpp)
+target_include_directories(probe_point_tries_tests PUBLIC ${CMAKE_SOURCE_DIR}/src/common)
+add_catch_test(probe_point_tries_tests)

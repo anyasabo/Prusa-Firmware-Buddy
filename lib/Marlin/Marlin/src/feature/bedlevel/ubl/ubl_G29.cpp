@@ -755,6 +755,9 @@
     static_assert(GRID_MAX_POINTS_Y <= 32);
     uint32_t failed_points[GRID_MAX_POINTS_X] = { 0 };
     bool any_failed = false;
+    int failed_in_a_row = 0;
+    // After this many failed points in sequence, stop: the probe itself is not working.
+    static constexpr int max_failed_in_a_row = 3;
     for_each_grid_point([&](const xy_pos_t& pos, int x, int y) {
       // skip points having meaningful value already
       if (z_values[x][y] != 0 && !std::isnan(z_values[x][y])) 
@@ -794,14 +797,20 @@
           ubl.g29_probing_failed = true;
           return;
         }
-        // M9961: leave the point empty and go on. A failed probe can leave the nozzle low, so
-        // lift clear of the bed before the move to the next point.
+        // M9961: leave the point empty and go on. A failed probe can leave the nozzle low, so go
+        // up to the height of the first probe move before the move to the next point. An
+        // absolute height: failures in sequence must not add up.
         SBI(failed_points[x], y);
         any_failed = true;
         log_warning(Marlin, "MBL point at %.2f %.2f failed, continuing (M9961)", (double)pos.x, (double)pos.y);
-        do_blocking_move_to_z(current_position.z + Z_CLEARANCE_BEFORE_PROBING, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
+        do_blocking_move_to_z(std::max<float>(current_position.z, Z_CLEARANCE_BEFORE_PROBING), MMM_TO_MMS(Z_PROBE_SPEED_FAST));
+        if (++failed_in_a_row >= max_failed_in_a_row) {
+          log_warning(Marlin, "MBL: %i points failed in sequence, stopping (M9961)", failed_in_a_row);
+          ubl.g29_probing_failed = true;
+        }
         return;
       }
+      failed_in_a_row = 0;
       z_values[x][y] = measured_z;
 
       const auto prev_measured_z = g29_min_max_measured_z.value_or(MeasuredZ{measured_z, measured_z});
@@ -819,15 +828,25 @@
     });
 
     if (any_failed && !planner.draining()) {
-      // M9961: fill the empty points as the start G-code does (G29 P3.2, then P3.13: weight 10^3),
-      // and log the fill of each failed point. Then fail the mesh as before. The retry invalidates
-      // the mesh and probes all points again, so the log gets the true Z of the same points.
+      // M9961: fill the empty points as the start G-code does (G29 P3.2, then P3.13), and log the
+      // fill of each failed point. Then empty all the points that were empty before, and fail the
+      // mesh as before. The retry then probes the failed points again (also in the purge-area
+      // pass, G29 P1 ... C, which does not invalidate the mesh), so the log gets their true Z.
+      // The fills write only empty points, and the border, which no pass probes.
+      uint32_t empty_points[GRID_MAX_POINTS_X] = { 0 };
+      for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++)
+        for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++)
+          if (std::isnan(z_values[fx][fy]))
+            SBI(empty_points[fx], fy);
       bicubic_fill_mesh();
-      smart_fill_wlsf(1000.0f);
+      smart_fill_wlsf(POW(10.0f, (3.13f - 3.10f) * 100.0f)); // the weight of G29 P3.13
       for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++) {
         for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++) {
           if (TEST(failed_points[fx], fy)) {
             log_info(Marlin, "MBL fill at %.2f %.2f: %f", (double)mesh_index_to_xpos(fx), (double)mesh_index_to_ypos(fy), (double)z_values[fx][fy]);
+          }
+          if (TEST(empty_points[fx], fy)) {
+            z_values[fx][fy] = NAN;
           }
         }
       }

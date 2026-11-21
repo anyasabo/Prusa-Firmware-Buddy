@@ -464,31 +464,36 @@ SCENARIO("gap detection in sample stream", "[probe_analysis]") {
     }
 }
 
-TEST_CASE("range check rejects features that are not finite", "[probe_analysis]") {
-    // Every range check must fail closed. A NaN feature (for example from an empty
-    // sample range or a zero slope) must not pass to the classifier as "in range".
-    ProbeAnalysis<12> analysis;
+TEST_CASE("features that are not finite are rejected", "[probe_analysis]") {
+    // The generated range check (HasOutOfRangeFeature) is false for NaN, so a NaN feature
+    // would pass to the classifier. HasNonFiniteFeature() runs first and catches it.
     const char *feature = nullptr;
     float value = 0;
 
+    SECTION("the generated range check alone lets NaN through") {
+        ProbeAnalysis<12> analysis;
+        ProbeAnalysisBase::Features features;
+        REQUIRE_FALSE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+    }
+
     SECTION("all features NaN (default)") {
         ProbeAnalysisBase::Features features;
-        REQUIRE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+        REQUIRE(ProbeAnalysisBase::HasNonFiniteFeature(features, &feature, &value, true));
         REQUIRE_THAT(feature, Catch::Matchers::Equals("load_mean_before_compression"));
     }
 
-    SECTION("one NaN feature among valid ones") {
+    SECTION("one NaN feature after finite ones") {
         ProbeAnalysisBase::Features features;
         features.loadMeanBeforeCompression = 0;
         features.loadMeanAfterDecompression = std::numeric_limits<float>::quiet_NaN();
-        REQUIRE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+        REQUIRE(ProbeAnalysisBase::HasNonFiniteFeature(features, &feature, &value, true));
         REQUIRE_THAT(feature, Catch::Matchers::Equals("load_mean_after_decompression"));
     }
 
     SECTION("infinity") {
         ProbeAnalysisBase::Features features;
         features.loadMeanBeforeCompression = std::numeric_limits<float>::infinity();
-        REQUIRE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+        REQUIRE(ProbeAnalysisBase::HasNonFiniteFeature(features, &feature, &value, true));
         REQUIRE_THAT(feature, Catch::Matchers::Equals("load_mean_before_compression"));
     }
 }

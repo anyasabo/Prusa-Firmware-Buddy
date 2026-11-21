@@ -163,6 +163,10 @@ ProbeAnalysisBase::Result ProbeAnalysisBase::Analyse(bool check_angle_after) {
     {
         const char *feature = "feature-out-of-range";
         float value;
+        // The generated range checks below are false for NaN, so check for NaN and inf first.
+        if (HasNonFiniteFeature(features, &feature, &value, check_angle_after)) {
+            return std::unexpected(AnalysisError { .description = feature, .arg = value });
+        }
         if (HasOutOfRangeFeature(features, &feature, &value, check_angle_after)) {
             return std::unexpected(AnalysisError { .description = feature, .arg = value });
         }
@@ -171,7 +175,7 @@ ProbeAnalysisBase::Result ProbeAnalysisBase::Analyse(bool check_angle_after) {
     // Last, use the features in our classification model and guess the probe's precision
     bool isGood = Classify(features);
     float zCoordinate = InterpolateFinalZCoordinate(features);
-    if (!std::isfinite(zCoordinate)) {
+    if (isGood && !std::isfinite(zCoordinate)) {
         // The Z interpolation divides by a slope of the decompression line; do not pass inf or NaN on as a bed height.
         log_features_metrics(features, std::nullopt);
         return std::unexpected(AnalysisError { .description = "z-not-finite" });
@@ -561,94 +565,133 @@ int ProbeAnalysisBase::Classify(Features &features) {
     }
 }
 
+bool ProbeAnalysisBase::HasNonFiniteFeature(const Features &features, const char **feature, float *value, bool check_angle_after) {
+    // The features that HasOutOfRangeFeature() checks. Hand-written: that function is generated.
+    const std::pair<const char *, float> checked[] = {
+        { "load_mean_before_compression", features.loadMeanBeforeCompression },
+        { "load_mean_after_decompression", features.loadMeanAfterDecompression },
+        { "load_compression_start", features.compressionLine.GetY(features.compressionStartTime) },
+        { "load_decompression_end", features.decompressionLine.GetY(features.decompressionEndTime) },
+        { "load_angle_compression_start", features.loadAngleCompressionStart },
+        { "load_angle_compression_end", features.loadAngleCompressionEnd },
+        { "load_angle_decompression_start", features.loadAngleDecompressionStart },
+        { "load_angle_decompression_end", features.loadAngleDecompressionEnd },
+        { "r2_compression_start_20", features.r2_20ms.compressionStart },
+        { "r2_compression_end_20", features.r2_20ms.compressionEnd },
+        { "r2_decompression_start_30", features.r2_30ms.decompressionStart },
+        { "r2_decompression_end_30", features.r2_30ms.decompressionEnd },
+        { "r2_compression_start_50", features.r2_50ms.compressionStart },
+        { "r2_compression_end_50", features.r2_50ms.compressionEnd },
+        { "r2_decompression_start_50", features.r2_50ms.decompressionStart },
+        { "r2_decompression_end_50", features.r2_50ms.decompressionEnd },
+        { "r2_decompression_start_60", features.r2_60ms.decompressionStart },
+        { "r2_decompression_end_60", features.r2_60ms.decompressionEnd },
+    };
+    for (const auto &[name, v] : checked) {
+        if (!std::isfinite(v)) {
+            *feature = name;
+            *value = v;
+            return true;
+        }
+    }
+    if (check_angle_after) {
+        const float angle = features.compressedLine.CalculateAngle(features.afterDecompressionLine, false);
+        if (!std::isfinite(angle)) {
+            *feature = "angle_after";
+            *value = angle;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ProbeAnalysisBase::HasOutOfRangeFeature(Features &features, const char **feature, float *value, bool check_angle_after) const {
-    // Each check is written as !(in range), so that a NaN feature counts as out of range.
-    if (!(features.loadMeanBeforeCompression >= -154.48058105323756f && features.loadMeanBeforeCompression <= 152.44410035911991f)) {
+    if (features.loadMeanBeforeCompression < -154.48058105323756f || features.loadMeanBeforeCompression > 152.44410035911991f) {
         *feature = "load_mean_before_compression";
         *value = features.loadMeanBeforeCompression;
         return true;
     }
-    if (!(features.loadMeanAfterDecompression >= -186.40204083948444f && features.loadMeanAfterDecompression <= 194.03907144265904f)) {
+    if (features.loadMeanAfterDecompression < -186.40204083948444f || features.loadMeanAfterDecompression > 194.03907144265904f) {
         *feature = "load_mean_after_decompression";
         *value = features.loadMeanAfterDecompression;
         return true;
     }
-    if (!(features.compressionLine.GetY(features.compressionStartTime) >= -256.92789509011595f && features.compressionLine.GetY(features.compressionStartTime) <= 159.88252116779623f)) {
+    if (features.compressionLine.GetY(features.compressionStartTime) < -256.92789509011595f || features.compressionLine.GetY(features.compressionStartTime) > 159.88252116779623f) {
         *feature = "load_compression_start";
         *value = features.compressionLine.GetY(features.compressionStartTime);
         return true;
     }
-    if (!(features.decompressionLine.GetY(features.decompressionEndTime) >= -6731.697754324502f && features.decompressionLine.GetY(features.decompressionEndTime) <= 470.6857951091628f)) {
+    if (features.decompressionLine.GetY(features.decompressionEndTime) < -6731.697754324502f || features.decompressionLine.GetY(features.decompressionEndTime) > 470.6857951091628f) {
         *feature = "load_decompression_end";
         *value = features.decompressionLine.GetY(features.decompressionEndTime);
         return true;
     }
-    if (!(features.loadAngleCompressionStart >= -52.492364077060884f && features.loadAngleCompressionStart <= 233.5051448593478f)) {
+    if (features.loadAngleCompressionStart < -52.492364077060884f || features.loadAngleCompressionStart > 233.5051448593478f) {
         *feature = "load_angle_compression_start";
         *value = features.loadAngleCompressionStart;
         return true;
     }
-    if (!(features.loadAngleCompressionEnd >= -29.99231606763046f && features.loadAngleCompressionEnd <= 213.1064906506039f)) {
+    if (features.loadAngleCompressionEnd < -29.99231606763046f || features.loadAngleCompressionEnd > 213.1064906506039f) {
         *feature = "load_angle_compression_end";
         *value = features.loadAngleCompressionEnd;
         return true;
     }
-    if (!(features.loadAngleDecompressionStart >= -46.98080445417618f && features.loadAngleDecompressionStart <= 227.04222071853522f)) {
+    if (features.loadAngleDecompressionStart < -46.98080445417618f || features.loadAngleDecompressionStart > 227.04222071853522f) {
         *feature = "load_angle_decompression_start";
         *value = features.loadAngleDecompressionStart;
         return true;
     }
-    if (!(features.loadAngleDecompressionEnd >= -93.72798028750367f && features.loadAngleDecompressionEnd <= 273.7232224109812f)) {
+    if (features.loadAngleDecompressionEnd < -93.72798028750367f || features.loadAngleDecompressionEnd > 273.7232224109812f) {
         *feature = "load_angle_decompression_end";
         *value = features.loadAngleDecompressionEnd;
         return true;
     }
-    if (!(features.r2_20ms.compressionStart >= -6535.315705859364f && features.r2_20ms.compressionStart <= 133.50744526719794f)) {
+    if (features.r2_20ms.compressionStart < -6535.315705859364f || features.r2_20ms.compressionStart > 133.50744526719794f) {
         *feature = "r2_compression_start_20";
         *value = features.r2_20ms.compressionStart;
         return true;
     }
-    if (!(features.r2_20ms.compressionEnd >= -1690.1392305507259f && features.r2_20ms.compressionEnd <= 46.445990831041414f)) {
+    if (features.r2_20ms.compressionEnd < -1690.1392305507259f || features.r2_20ms.compressionEnd > 46.445990831041414f) {
         *feature = "r2_compression_end_20";
         *value = features.r2_20ms.compressionEnd;
         return true;
     }
-    if (!(features.r2_30ms.decompressionStart >= -14399.59142096975f && features.r2_30ms.decompressionStart <= 469.83971245187513f)) {
+    if (features.r2_30ms.decompressionStart < -14399.59142096975f || features.r2_30ms.decompressionStart > 469.83971245187513f) {
         *feature = "r2_decompression_start_30";
         *value = features.r2_30ms.decompressionStart;
         return true;
     }
-    if (!(features.r2_30ms.decompressionEnd >= -62922.69516938705f && features.r2_30ms.decompressionEnd <= 2911.3834010814626f)) {
+    if (features.r2_30ms.decompressionEnd < -62922.69516938705f || features.r2_30ms.decompressionEnd > 2911.3834010814626f) {
         *feature = "r2_decompression_end_30";
         *value = features.r2_30ms.decompressionEnd;
         return true;
     }
-    if (!(features.r2_50ms.compressionStart >= -525.66164523715f && features.r2_50ms.compressionStart <= 15.14786031499957f)) {
+    if (features.r2_50ms.compressionStart < -525.66164523715f || features.r2_50ms.compressionStart > 15.14786031499957f) {
         *feature = "r2_compression_start_50";
         *value = features.r2_50ms.compressionStart;
         return true;
     }
-    if (!(features.r2_50ms.compressionEnd >= -131.39515975957238f && features.r2_50ms.compressionEnd <= 5.006255152513094f)) {
+    if (features.r2_50ms.compressionEnd < -131.39515975957238f || features.r2_50ms.compressionEnd > 5.006255152513094f) {
         *feature = "r2_compression_end_50";
         *value = features.r2_50ms.compressionEnd;
         return true;
     }
-    if (!(features.r2_50ms.decompressionStart >= -8376.465287601053f && features.r2_50ms.decompressionStart <= 284.4350844023189f)) {
+    if (features.r2_50ms.decompressionStart < -8376.465287601053f || features.r2_50ms.decompressionStart > 284.4350844023189f) {
         *feature = "r2_decompression_start_50";
         *value = features.r2_50ms.decompressionStart;
         return true;
     }
-    if (!(features.r2_50ms.decompressionEnd >= -42356.61891250352f && features.r2_50ms.decompressionEnd <= 1919.5961422774267f)) {
+    if (features.r2_50ms.decompressionEnd < -42356.61891250352f || features.r2_50ms.decompressionEnd > 1919.5961422774267f) {
         *feature = "r2_decompression_end_50";
         *value = features.r2_50ms.decompressionEnd;
         return true;
     }
-    if (!(features.r2_60ms.decompressionStart >= -9867.310839170745f && features.r2_60ms.decompressionStart <= 257.2049327020503f)) {
+    if (features.r2_60ms.decompressionStart < -9867.310839170745f || features.r2_60ms.decompressionStart > 257.2049327020503f) {
         *feature = "r2_decompression_start_60";
         *value = features.r2_60ms.decompressionStart;
         return true;
     }
-    if (!(features.r2_60ms.decompressionEnd >= -35308.89153040849f && features.r2_60ms.decompressionEnd <= 1336.844303073224f)) {
+    if (features.r2_60ms.decompressionEnd < -35308.89153040849f || features.r2_60ms.decompressionEnd > 1336.844303073224f) {
         *feature = "r2_decompression_end_60";
         *value = features.r2_60ms.decompressionEnd;
         return true;
@@ -656,7 +699,7 @@ bool ProbeAnalysisBase::HasOutOfRangeFeature(Features &features, const char **fe
     if (check_angle_after) {
         // this is too strict for nozzle clean, where 3 consecutive good probes are required.
         auto compressedvsDecompressedAngleAfter = features.compressedLine.CalculateAngle(features.afterDecompressionLine, false);
-        if (!(std::abs(compressedvsDecompressedAngleAfter) <= 40)) {
+        if (std::abs(compressedvsDecompressedAngleAfter) > 40) {
             *feature = "angle_after";
             *value = compressedvsDecompressedAngleAfter;
             return true;

@@ -355,6 +355,9 @@ public:
      */
     int Classify(Features &features);
 
+    /// True if a feature that HasOutOfRangeFeature() checks is NaN or inf. Sets @p feature and @p value.
+    static bool HasNonFiniteFeature(const Features &features, const char **feature, float *value, bool check_angle_after);
+
     /**
      * Identify any feature being out of its expected range.
      *

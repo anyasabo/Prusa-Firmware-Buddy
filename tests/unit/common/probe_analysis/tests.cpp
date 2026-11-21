@@ -463,3 +463,32 @@ SCENARIO("gap detection in sample stream", "[probe_analysis]") {
         }
     }
 }
+
+TEST_CASE("range check rejects features that are not finite", "[probe_analysis]") {
+    // Every range check must fail closed. A NaN feature (for example from an empty
+    // sample range or a zero slope) must not pass to the classifier as "in range".
+    ProbeAnalysis<12> analysis;
+    const char *feature = nullptr;
+    float value = 0;
+
+    SECTION("all features NaN (default)") {
+        ProbeAnalysisBase::Features features;
+        REQUIRE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+        REQUIRE_THAT(feature, Catch::Matchers::Equals("load_mean_before_compression"));
+    }
+
+    SECTION("one NaN feature among valid ones") {
+        ProbeAnalysisBase::Features features;
+        features.loadMeanBeforeCompression = 0;
+        features.loadMeanAfterDecompression = std::numeric_limits<float>::quiet_NaN();
+        REQUIRE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+        REQUIRE_THAT(feature, Catch::Matchers::Equals("load_mean_after_decompression"));
+    }
+
+    SECTION("infinity") {
+        ProbeAnalysisBase::Features features;
+        features.loadMeanBeforeCompression = std::numeric_limits<float>::infinity();
+        REQUIRE(analysis.HasOutOfRangeFeature(features, &feature, &value, true));
+        REQUIRE_THAT(feature, Catch::Matchers::Equals("load_mean_before_compression"));
+    }
+}

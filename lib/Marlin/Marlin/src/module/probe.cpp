@@ -66,6 +66,7 @@ LOG_COMPONENT_DEF(Probe, logging::Severity::info);
 
 #if ENABLED(NOZZLE_LOAD_CELL)
   #include "loadcell.hpp"
+  #include "probe_timing.hpp"
 #endif
 #if HAS_INDX()
   #include <puppies/INDX.hpp>
@@ -361,26 +362,6 @@ static bool do_probe_move(const float z, const feedRate_t fr_mm_s) {
 METRIC_DEF(metric_probe_z, "probe_z", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
 METRIC_DEF(metric_probe_z_diff, "probe_z_diff", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
 
-#if ENABLED(NOZZLE_LOAD_CELL)
-static xy_pos_t offset_for_probe_try(int try_idx) {
-  const float distance = 2.0;
-  float radius = 0;
-  int idx_offset = 0;
-
-  do {
-    float perimeter = 2 * radius * std::numbers::pi_v<float>;
-    int tries_within_perimeter = static_cast<int>(perimeter / distance) + 1;
-    if (try_idx < idx_offset + tries_within_perimeter) {
-      int try_within_perimeter = try_idx - idx_offset;
-      float goniom_dist = (static_cast<float>(try_within_perimeter) / static_cast<float>(tries_within_perimeter)) * 2 * std::numbers::pi_v<float>;
-      return {std::cos(goniom_dist) * radius, std::sin(goniom_dist) * radius};
-    } else {
-      idx_offset += tries_within_perimeter;
-      radius += distance;
-    }
-  } while (true);
-}
-#endif
 
 #if ENABLED(NOZZLE_LOAD_CELL)
 
@@ -550,7 +531,8 @@ float run_z_probe(const RunZProbeParams& params) {
     {
       idle(false); // Avoid watchdog reset in case of no move while probing
       #if ENABLED(NOZZLE_LOAD_CELL)
-        auto center_offset = offset_for_probe_try(probe_idx++);
+        const auto try_offset = buddy::probe::offset_for_probe_try(probe_idx++);
+        const xy_pos_t center_offset { try_offset.x, try_offset.y };
         // XY travel must not be quick-stoppable; re-arm after for the tare + descent.
         loadcell.disarm_probe_safety();
         do_blocking_move_to_xy(center_pos + center_offset, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
@@ -617,9 +599,8 @@ float run_z_probe(const RunZProbeParams& params) {
         uint32_t elapsed_us = ticks_diff(ticks_us(), move_fwd_end);
         uint32_t start_delay_us = PreciseStepping::get_first_move_delay_us();
         uint32_t precomp_ms = (elapsed_us + start_delay_us) / 1000;
-        debug_assert(precomp_ms <= Loadcell::TOUCHDOWN_DELAY_MS); // we handle underflow, but catch it on debug
-        millis_t delay_ms = std::min<uint32_t>(Loadcell::TOUCHDOWN_DELAY_MS - precomp_ms, Loadcell::TOUCHDOWN_DELAY_MS);
-        safe_delay(delay_ms);
+        debug_assert(precomp_ms <= Loadcell::TOUCHDOWN_DELAY_MS); // unexpected, but handled: no wait then
+        safe_delay(buddy::probe::touchdown_remaining_delay_ms(precomp_ms, Loadcell::TOUCHDOWN_DELAY_MS));
 
         // Return slowly back. Ensure this move is not optimized even when small
         float move_back = 0.09f;

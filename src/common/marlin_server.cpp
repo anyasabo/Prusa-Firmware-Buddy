@@ -958,6 +958,7 @@ static void cycle() {
 
 #if HAS_BED_FAN()
     bed_fan::controller().step();
+    bed_fan::bed_fan().record_metric();
 #endif
 
 #if HAS_INDX()

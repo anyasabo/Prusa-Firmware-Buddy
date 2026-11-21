@@ -8,8 +8,10 @@
 using namespace buddy::probe;
 using Point = std::pair<int, int>;
 
-// The CORE One L and CORE One: 27 x 27 mesh, border 1, a probe each 3 indices (9 x 9 major points).
+// The CORE One L: 27 x 27 mesh, border 1, a probe each 3 indices (9 x 9 major points).
 static constexpr GridLayout core_one_l { 27, 27, 1, 3 };
+// The CORE One: 21 x 21 mesh (7 x 7 major points).
+static constexpr GridLayout core_one { 21, 21, 1, 3 };
 
 static std::vector<Point> order(const GridLayout &g) {
     std::vector<Point> out;
@@ -51,6 +53,14 @@ TEST_CASE("major grid points: serpentine from the back row", "[probe_grid]") {
         const int dy = pts[i - 1].second - pts[i].second;
         CHECK(((dx == 3 && dy == 0) || (dx == 0 && dy == 3)));
     }
+}
+
+TEST_CASE("major grid points: CORE One 21 x 21", "[probe_grid]") {
+    const auto pts = order(core_one);
+    REQUIRE(pts.size() == 49);
+    // Row y = 19 is row index 6 (even): from high X to low X.
+    CHECK(pts.front() == Point { 19, 19 });
+    CHECK(pts.back() == Point { 1, 1 });
 }
 
 TEST_CASE("major grid points: the visitor can stop the walk", "[probe_grid]") {

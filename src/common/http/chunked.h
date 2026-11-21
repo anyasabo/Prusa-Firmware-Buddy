@@ -1,7 +1,6 @@
 #pragma once
 #include "types.h"
 
-#include <cstdbool>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>

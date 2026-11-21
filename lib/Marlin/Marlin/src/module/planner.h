@@ -80,7 +80,7 @@ enum BlockFlagBit : uint8_t {
 /**
  * Planner block flags as boolean bit fields
  */
-typedef struct {
+typedef struct block_flags_t {
   union {
     uint8_t bits;
 

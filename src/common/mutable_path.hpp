@@ -5,8 +5,15 @@
 #include <bsod/bsod.h>
 #include <buddy/filename_defs.hpp>
 
+// newlib, macOS and glibc 2.38 or newer declare strlcpy and strlcat in <string.h>. Declare them here
+// only for an older glibc (host builds). glibc declares them with throw(), and clang refuses a second
+// declaration without it in the same file.
+#if defined(__GLIBC__)
+    #if !__GLIBC_PREREQ(2, 38)
 extern "C" size_t strlcat(char *, const char *, size_t);
 extern "C" size_t strlcpy(char *dst, const char *src, size_t dsize);
+    #endif
+#endif
 
 class MutablePath {
 private:

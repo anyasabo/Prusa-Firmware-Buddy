@@ -36,7 +36,7 @@ std::vector<std::byte> create_transaction(size_t num_of_items, uint16_t start_id
     for (size_t i = 0; i < num_of_items; i++) {
         const bool last_item = i + 1 == num_of_items;
         constexpr uint16_t data_len = 10;
-        append(Backend::ItemHeader { last_item, start_id + i, data_len });
+        append(Backend::ItemHeader { last_item, static_cast<unsigned int>(start_id + i), data_len });
         std::array<std::byte, data_len> data;
         data.fill(std::byte { 0xAB });
         append(data);
@@ -454,7 +454,7 @@ TEST_CASE("journal::EEPROM::Config store - error states") {
 
     const auto break_end_item = []() {
         const uint16_t address = Test_EEPROM_journal().current_address + 1;
-        const auto broken_value = std::byte { static_cast<uint8_t>(eeprom_chip.get(address)) + 2 };
+        const auto broken_value = std::byte { static_cast<uint8_t>(static_cast<uint8_t>(eeprom_chip.get(address)) + 2) };
         eeprom_chip.set(address, broken_value);
     };
 

@@ -30,7 +30,10 @@ static constexpr char special_button_code = static_cast<char>(255);
 // One extra char for the terminating \0
 struct ButtonRec : std::array<char, 5> {
 
-    constexpr ButtonRec() = default;
+    // Zero the array: operator""_b relies on the terminating zero, and clang rejects a constant
+    // expression with uninitialized elements.
+    constexpr ButtonRec()
+        : array {} {}
     constexpr ButtonRec(const ButtonRec &) = default;
     constexpr ButtonRec(SpecialButton b)
         : array { special_button_code, static_cast<char>(b) } {}

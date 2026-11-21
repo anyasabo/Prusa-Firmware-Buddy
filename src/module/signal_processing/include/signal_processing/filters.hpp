@@ -385,8 +385,9 @@ std::array<BiquadCoeffs<T>, 2> butterworth_lowpass_biquads_4th(T cutoff_hz, T sa
     const T c2 = c * c;
 
     // 4th-order Butterworth poles (2 pairs of complex conjugates)
-    constexpr T q1 = T { 1 } / (T { 2 } * std::sin(T { 3 } * std::numbers::pi_v<T> / T { 8 }));
-    constexpr T q2 = T { 1 } / (T { 2 } * std::sin(std::numbers::pi_v<T> / T { 8 }));
+    // const, not constexpr: std::sin is constexpr only in GCC (GCC still folds it at compile time)
+    const T q1 = T { 1 } / (T { 2 } * std::sin(T { 3 } * std::numbers::pi_v<T> / T { 8 }));
+    const T q2 = T { 1 } / (T { 2 } * std::sin(std::numbers::pi_v<T> / T { 8 }));
 
     const auto create_butterworth_biquads = [&](T pole) -> BiquadCoeffs<T> {
         const T k = c / pole;

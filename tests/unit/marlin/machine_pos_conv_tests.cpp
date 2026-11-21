@@ -7,7 +7,7 @@
 
 constexpr float epsilon = std::numeric_limits<float>::epsilon();
 constexpr float tolerance = 0.000001f;
-constexpr float roundtrip_tolerance = std::sqrt(tolerance);
+const float roundtrip_tolerance = std::sqrt(tolerance); // std::sqrt is constexpr only in GCC
 
 TEST_CASE("machine_pos_conv") {
     SECTION("Fade off") {

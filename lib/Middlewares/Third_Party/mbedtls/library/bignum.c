@@ -1393,6 +1393,7 @@ void mpi_mul_hlp( size_t i,
                   mbedtls_mpi_uint b )
 {
     mbedtls_mpi_uint c = 0, t = 0;
+    (void) t; /* Some MULADDC variants (for example the ARM assembly) do not use t. */
 
 #if defined(MULADDC_HUIT)
     for( ; i >= 8; i -= 8 )

@@ -426,6 +426,7 @@ enum class ProbeRetry { retry, fail };
 static ProbeRetry handle_probe_safety_trip() {
   if (planner.draining())
     return ProbeRetry::fail; // cancelled: propagate
+  log_warning(Probe, "load cell safety trip at Z %.2f, recovering", (double)current_position.z);
   if (!recover_from_probe_safety_trip())
     return ProbeRetry::fail; // unrecoverable loadcell
   return ProbeRetry::retry;
@@ -464,8 +465,23 @@ float run_z_probe(const RunZProbeParams& params) {
   debug_assert(pressure_advance::PressureAdvanceDisabler::is_active());
 
   #if ENABLED(NOZZLE_LOAD_CELL)
-    if (!loadcell_wait_streaming()) {
+    // Diagnostics: when this point fails, say where, after how many tries and why, in the log and
+    // in the metric probe_fail. Without this, a failed mesh shows only "Probing failed".
+    const xy_pos_t diag_pos = current_position.xy();
+    const char *diag_last_nok = "none";
+    auto probe_failed = [&](const char *reason, int tries) -> float {
+      if (planner.draining())
+        return NAN; // cancelled by the user: not a probe failure
+      METRIC_DEF(probe_fail_metric, "probe_fail", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+      metric_record_custom(&probe_fail_metric, " x=%.2f,y=%.2f,tries=%i,reason=\"%s\",last_nok=\"%s\"",
+        (double)diag_pos.x, (double)diag_pos.y, tries, reason, diag_last_nok);
+      log_warning(Probe, "probe at %.2f %.2f failed: %s after %i tries, last NOK %s",
+        (double)diag_pos.x, (double)diag_pos.y, reason, tries, diag_last_nok);
       return NAN;
+    };
+
+    if (!loadcell_wait_streaming()) {
+      return probe_failed("loadcell-not-streaming", 0);
     }
     auto H = loadcell.CreateLoadAboveErrEnforcer();
     // Arm for the reference tare + descent; disarms on every return path.
@@ -473,7 +489,7 @@ float run_z_probe(const RunZProbeParams& params) {
     auto reference_tare = loadcell_retare_for_analysis(Z_FIRST_PROBE_DELAY); ///< Use this value as reference for following tares
     const auto max_tare_offset = std::abs(loadcell.GetThreshold()); ///< Maximal valid offset from reference_tare
     if (loadcell.probe_should_abort())
-      return NAN;
+      return probe_failed("reference-tare-tripped", 0);
   #endif
 
   // Double-probing does a fast probe followed by a slow probe
@@ -553,6 +569,10 @@ float run_z_probe(const RunZProbeParams& params) {
           SERIAL_ECHOLNPAIR_F("Lifted and took new reference tare ", reference_tare);
         }
 
+        METRIC_DEF(probe_tare_metric, "probe_tare", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+        metric_record_custom(&probe_tare_metric, " x=%.2f,y=%.2f,try=%i,off=%.2f,lift=%i",
+          (double)center_pos.x, (double)center_pos.y, probe_idx, (double)offset, std::abs(offset) > max_tare_offset);
+
         SERIAL_ECHO_START();
         SERIAL_ECHOLNPAIR("Starting probe at ", center_pos.x, " ", center_pos.y);
 
@@ -566,7 +586,7 @@ float run_z_probe(const RunZProbeParams& params) {
         // A re-tare or the sync above tripped the safety stop.
         if (loadcell.probe_should_abort()) {
           if (handle_probe_safety_trip() == ProbeRetry::fail)
-            return NAN;
+            return probe_failed("safety-trip-no-recovery", probe_idx);
           continue;
         }
       #endif
@@ -580,7 +600,7 @@ float run_z_probe(const RunZProbeParams& params) {
         #if ENABLED(NOZZLE_LOAD_CELL)
           if (loadcell.probe_safety_did_trip()) { // anomaly mid-descent: recover and retry
             if (handle_probe_safety_trip() == ProbeRetry::fail)
-              return NAN;
+              return probe_failed("safety-trip-no-recovery", probe_idx);
             continue;
           }
         #endif
@@ -589,7 +609,11 @@ float run_z_probe(const RunZProbeParams& params) {
           // #error dead code found by automatic analyses (see BFW-5461)
           kill("PROBING ERROR", "Could not reach the bed, SLOW Probe fail!");
         #endif
-        return NAN;
+        #if ENABLED(NOZZLE_LOAD_CELL)
+          return probe_failed("bed-not-reached", probe_idx);
+        #else
+          return NAN;
+        #endif
       }
 
       #if ENABLED(NOZZLE_LOAD_CELL)
@@ -613,7 +637,7 @@ float run_z_probe(const RunZProbeParams& params) {
         planner.synchronize();
         if (loadcell.probe_should_abort()) {
           if (handle_probe_safety_trip() == ProbeRetry::fail)
-            return NAN;
+            return probe_failed("safety-trip-no-recovery", probe_idx);
           continue;
         }
         uint32_t move_back_end = PreciseStepping::get_time_of_last_block_us();
@@ -645,7 +669,7 @@ float run_z_probe(const RunZProbeParams& params) {
 
         if (loadcell.probe_should_abort()) {
           if (handle_probe_safety_trip() == ProbeRetry::fail)
-            return NAN;
+            return probe_failed("safety-trip-no-recovery", probe_idx);
           continue;
         }
 
@@ -662,6 +686,7 @@ float run_z_probe(const RunZProbeParams& params) {
 
         } else {
           const auto &err = result.error();
+          diag_last_nok = err.description;
           metric_record_custom(&analysis_result, " ok=%i,desc=\"%s\",arg=%f", false, err.description, err.arg);
           SERIAL_ECHO_START();
           SERIAL_ECHOPAIR("Probe classified as NOK (", err.description);
@@ -690,6 +715,8 @@ float run_z_probe(const RunZProbeParams& params) {
   #if ENABLED(NOZZLE_LOAD_CELL)
 
     const float measured_z = success_count >= params.required_successes ? z_sum / success_count : NAN;
+    if (std::isnan(measured_z))
+      return probe_failed(params.single_only ? "single-try-nok" : "tries-exhausted", probe_idx);
 
   #elif TOTAL_PROBING > 2
 

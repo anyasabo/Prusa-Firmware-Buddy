@@ -960,6 +960,9 @@ static void cycle() {
     bed_fan::controller().step();
     bed_fan::bed_fan().record_metric();
 #endif
+#if HAS_PSU_FAN()
+    psu_fan::psu_fan().record_metric();
+#endif
 
 #if HAS_INDX()
     IndxHotend::process_pending_thermal_runaway();

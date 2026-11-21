@@ -43,6 +43,7 @@
   #include <fanctl.hpp>
   #include <option/has_love_board.h>
   #include <raii/scope_guard.hpp>
+  #include <probe_grid.hpp>
 
   #if BOARD_IS_XBUDDY()
     #include <hw_configuration.hpp>
@@ -726,30 +727,20 @@
       * @param func Function to be called for each grid point.
       */  
     auto for_each_grid_point = [&](auto&& func) {
-      for (int y = GRID_MAX_POINTS_Y - GRID_BORDER - 1; y >= GRID_BORDER; y -= GRID_MAJOR_STEP) {
-        int y_idx = (y - GRID_BORDER) / GRID_MAJOR_STEP;
-        bool is_odd_y_position = y_idx % 2 == 1;
-        int x0 = is_odd_y_position ? GRID_BORDER : GRID_MAX_POINTS_X - 1 - GRID_BORDER;
-        int xStep = is_odd_y_position ? GRID_MAJOR_STEP : -GRID_MAJOR_STEP;
+      static constexpr buddy::probe::GridLayout layout { GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y, GRID_BORDER, GRID_MAJOR_STEP };
+      buddy::probe::for_each_major_grid_point(layout, [&](int x, int y) {
+        if (ubl.g29_probing_failed) {
+          return false;
+        }
 
-        for (int x = x0; GRID_BORDER <= x && x < GRID_MAX_POINTS_X - GRID_BORDER; x += xStep) {
-          if(ubl.g29_probing_failed) {
-            return;
-          }
-          
-          xy_pos_t pos = {mesh_index_to_xpos(x), mesh_index_to_ypos(y)};
+        xy_pos_t pos = {mesh_index_to_xpos(x), mesh_index_to_ypos(y)};
 
-          // skip points the probe can't reach
-          if (!position_is_reachable_by_probe(pos.x, pos.y))
-              continue;
-
-          // skip points outside print area
-          if (!probe_area.contains(pos))
-              continue;
-
+        // skip points the probe can't reach, and points outside the print area
+        if (position_is_reachable_by_probe(pos.x, pos.y) && probe_area.contains(pos)) {
           func(pos, x, y);
         }
-      }
+        return true;
+      });
     };
 
     int num_of_points_to_probe = 0;

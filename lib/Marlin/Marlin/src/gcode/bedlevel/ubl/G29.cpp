@@ -32,6 +32,7 @@
 
 #include <option/has_auto_retract.h>
 #include <bsod/bsod.h>
+#include <probe_grid.hpp>
 #if HAS_AUTO_RETRACT()
     #include <feature/auto_retract/auto_retract.hpp>
 #endif
@@ -370,7 +371,7 @@ void GcodeSuite::G29() {
         // If we've done some measuring in this phase and it is too uneven, offer running Z calib
         if (
             ubl.g29_min_max_measured_z.has_value()
-            && ubl.g29_min_max_measured_z->max - ubl.g29_min_max_measured_z->min >= MBL_Z_DIFF_CALIB_WARNING_THRESHOLD
+            && buddy::probe::mesh_is_uneven(ubl.g29_min_max_measured_z->min, ubl.g29_min_max_measured_z->max, MBL_Z_DIFF_CALIB_WARNING_THRESHOLD)
 
             // Hack for the supplemenary "probe near purge place" - that is done after print area MBL and we don't want to offer Z align after that
             && !parser.seenval('C') //

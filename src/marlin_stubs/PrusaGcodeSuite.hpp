@@ -204,6 +204,7 @@ void M9202(); //< Clear precise homing calibration
 #endif
 
 void M9933(); //< Cork for tracking when gcode finished executing
+void M9961(); //< EXPERIMENT: continue the mesh after a failed probe point
 
 #if HAS_CRASH_DETECTION()
 void M9944(); ///< Execute G-Code interrupt

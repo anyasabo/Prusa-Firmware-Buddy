@@ -750,6 +750,11 @@
 
     bool is_initial_probe = true;
     int num_of_probed_points = 0;
+
+    // M9961: the points that failed, to log their fill after the walk (bit y of word x).
+    static_assert(GRID_MAX_POINTS_Y <= 32);
+    uint32_t failed_points[GRID_MAX_POINTS_X] = { 0 };
+    bool any_failed = false;
     for_each_grid_point([&](const xy_pos_t& pos, int x, int y) {
       // skip points having meaningful value already
       if (z_values[x][y] != 0 && !std::isnan(z_values[x][y])) 
@@ -785,7 +790,16 @@
       );
 
       if (std::isnan(measured_z)) {
-        ubl.g29_probing_failed = true;
+        if (!ubl.g29_continue_after_fail || planner.draining()) {
+          ubl.g29_probing_failed = true;
+          return;
+        }
+        // M9961: leave the point empty and go on. A failed probe can leave the nozzle low, so
+        // lift clear of the bed before the move to the next point.
+        SBI(failed_points[x], y);
+        any_failed = true;
+        log_warning(Marlin, "MBL point at %.2f %.2f failed, continuing (M9961)", (double)pos.x, (double)pos.y);
+        do_blocking_move_to_z(current_position.z + Z_CLEARANCE_BEFORE_PROBING, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
         return;
       }
       z_values[x][y] = measured_z;
@@ -803,6 +817,22 @@
         ExtUI::onMeshUpdate(x, y, measured_z);
       #endif
     });
+
+    if (any_failed && !planner.draining()) {
+      // M9961: fill the empty points as the start G-code does (G29 P3.2, then P3.13: weight 10^3),
+      // and log the fill of each failed point. Then fail the mesh as before. The retry invalidates
+      // the mesh and probes all points again, so the log gets the true Z of the same points.
+      bicubic_fill_mesh();
+      smart_fill_wlsf(1000.0f);
+      for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++) {
+        for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++) {
+          if (TEST(failed_points[fx], fy)) {
+            log_info(Marlin, "MBL fill at %.2f %.2f: %f", (double)mesh_index_to_xpos(fx), (double)mesh_index_to_ypos(fy), (double)z_values[fx][fy]);
+          }
+        }
+      }
+      ubl.g29_probing_failed = true;
+    }
 
     // make sure the probe is stowed when finished no matter the `stow_probe` argument
     STOW_PROBE();

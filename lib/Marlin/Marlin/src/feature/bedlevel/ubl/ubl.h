@@ -119,6 +119,9 @@ class unified_bed_leveling {
 
     bool g29_probing_failed = false;
     bool g29_nozzle_cleaning_failed = false;
+    /// M9961: probe_major_points() goes on after a failed point, logs the fill of the failed points,
+    /// and then fails the mesh. Off at boot.
+    bool g29_continue_after_fail = false;
 
     unified_bed_leveling();
 

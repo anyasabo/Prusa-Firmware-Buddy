@@ -426,7 +426,8 @@ enum class ProbeRetry { retry, fail };
 static ProbeRetry handle_probe_safety_trip() {
   if (planner.draining())
     return ProbeRetry::fail; // cancelled: propagate
-  log_warning(Probe, "load cell safety trip at Z %.2f, recovering", (double)current_position.z);
+  // probe_should_abort() is also true for a stepping stop without a load cell trip.
+  log_warning(Probe, "probe stopped at Z %.2f (load cell trip: %i), recovering", (double)current_position.z, loadcell.probe_safety_did_trip());
   if (!recover_from_probe_safety_trip())
     return ProbeRetry::fail; // unrecoverable loadcell
   return ProbeRetry::retry;
@@ -465,18 +466,21 @@ float run_z_probe(const RunZProbeParams& params) {
   debug_assert(pressure_advance::PressureAdvanceDisabler::is_active());
 
   #if ENABLED(NOZZLE_LOAD_CELL)
-    // Diagnostics: when this point fails, say where, after how many tries and why, in the log and
+    // Diagnostics: when a point fails, say where, after how many tries and why, in the log and
     // in the metric probe_fail. Without this, a failed mesh shows only "Probing failed".
-    const xy_pos_t diag_pos = current_position.xy();
+    // Not for single_only callers (nozzle cleaning, sheet detection, probe_here): for them a
+    // failed probe is a normal result, and they retry or decide themselves.
+    const xy_pos_t center_pos = current_position.xy();
     const char *diag_last_nok = "none";
+    int diag_trips = 0; ///< safety trips that were recovered
     auto probe_failed = [&](const char *reason, int tries) -> float {
-      if (planner.draining())
-        return NAN; // cancelled by the user: not a probe failure
+      if (planner.draining() || params.single_only)
+        return NAN; // a cancel is not a probe failure
       METRIC_DEF(probe_fail_metric, "probe_fail", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
-      metric_record_custom(&probe_fail_metric, " x=%.2f,y=%.2f,tries=%i,reason=\"%s\",last_nok=\"%s\"",
-        (double)diag_pos.x, (double)diag_pos.y, tries, reason, diag_last_nok);
-      log_warning(Probe, "probe at %.2f %.2f failed: %s after %i tries, last NOK %s",
-        (double)diag_pos.x, (double)diag_pos.y, reason, tries, diag_last_nok);
+      metric_record_custom(&probe_fail_metric, " x=%.2f,y=%.2f,tries=%i,trips=%i,reason=\"%s\",last_nok=\"%s\"",
+        (double)center_pos.x, (double)center_pos.y, tries, diag_trips, reason, diag_last_nok);
+      log_warning(Probe, "probe at %.2f %.2f failed: %s after %i tries (%i safety trips), last NOK %s",
+        (double)center_pos.x, (double)center_pos.y, reason, tries, diag_trips, diag_last_nok);
       return NAN;
     };
 
@@ -531,7 +535,6 @@ float run_z_probe(const RunZProbeParams& params) {
   #ifdef EXTRA_PROBING
     float probes[TOTAL_PROBING];
   #elif ENABLED(NOZZLE_LOAD_CELL)
-    xy_pos_t center_pos = current_position.xy();
     int probe_idx = 0;
     uint8_t success_count = 0;
     float z_sum = 0.0f;
@@ -587,6 +590,7 @@ float run_z_probe(const RunZProbeParams& params) {
         if (loadcell.probe_should_abort()) {
           if (handle_probe_safety_trip() == ProbeRetry::fail)
             return probe_failed("safety-trip-no-recovery", probe_idx);
+          ++diag_trips;
           continue;
         }
       #endif
@@ -601,6 +605,7 @@ float run_z_probe(const RunZProbeParams& params) {
           if (loadcell.probe_safety_did_trip()) { // anomaly mid-descent: recover and retry
             if (handle_probe_safety_trip() == ProbeRetry::fail)
               return probe_failed("safety-trip-no-recovery", probe_idx);
+            ++diag_trips;
             continue;
           }
         #endif
@@ -638,6 +643,7 @@ float run_z_probe(const RunZProbeParams& params) {
         if (loadcell.probe_should_abort()) {
           if (handle_probe_safety_trip() == ProbeRetry::fail)
             return probe_failed("safety-trip-no-recovery", probe_idx);
+          ++diag_trips;
           continue;
         }
         uint32_t move_back_end = PreciseStepping::get_time_of_last_block_us();
@@ -670,6 +676,7 @@ float run_z_probe(const RunZProbeParams& params) {
         if (loadcell.probe_should_abort()) {
           if (handle_probe_safety_trip() == ProbeRetry::fail)
             return probe_failed("safety-trip-no-recovery", probe_idx);
+          ++diag_trips;
           continue;
         }
 

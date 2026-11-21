@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <cmath>
+
 #include <feature/bed_fan/bed_fan.hpp>
 #include <feature/bed_fan/controller.hpp>
 #include <feature/chamber/chamber.hpp>
@@ -79,5 +81,32 @@ TEST_CASE("bed_fan automatic mode gives max_pwm above the chamber threshold") {
 TEST_CASE("bed_fan automatic mode with max_pwm at or below the minimum") {
     const AutomaticMode mode { .max_pwm = 10, .bed_temp_threshold = 10, .chamber_temp_threshold = -1 };
     set_bed(20, 100);
+    CHECK(mode.calculate_pwm() == min_pwm);
+}
+
+TEST_CASE("bed_fan automatic mode uses the bed if the chamber has no values") {
+    const AutomaticMode mode { .max_pwm = 255, .bed_temp_threshold = 10, .chamber_temp_threshold = 5 };
+    set_bed(55, 60); // the chamber values are empty, scale 0.5
+    CHECK(mode.calculate_pwm() == 140);
+}
+
+TEST_CASE("bed_fan automatic mode: the chamber has priority also at the minimum") {
+    const AutomaticMode mode { .max_pwm = 255, .bed_temp_threshold = 10, .chamber_temp_threshold = 5 };
+    set_bed(20, 100);
+    set_chamber(50, 40); // chamber hotter than its target
+    CHECK(mode.calculate_pwm() == min_pwm);
+}
+
+TEST_CASE("bed_fan automatic mode with the bed heater off") {
+    const AutomaticMode mode { .max_pwm = 255, .bed_temp_threshold = 10, .chamber_temp_threshold = -1 };
+    set_bed(80, 0);
+    CHECK(mode.calculate_pwm() == min_pwm);
+}
+
+TEST_CASE("bed_fan automatic mode gives min_pwm for a NaN scale") {
+    // std::clamp would let NaN through to the conversion to uint8_t, which is undefined.
+    const AutomaticMode mode { .max_pwm = 255, .bed_temp_threshold = 10, .chamber_temp_threshold = 5 };
+    set_bed(20, 100);
+    set_chamber(NAN, 40);
     CHECK(mode.calculate_pwm() == min_pwm);
 }

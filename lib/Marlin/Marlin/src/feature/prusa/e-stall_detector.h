@@ -20,11 +20,15 @@ public:
 
     constexpr float DetectionThreshold() const { return detectionThreshold.load(std::memory_order_relaxed); }
 
+    /// The filter output of the last sample (compared with the detection threshold).
+    float LastFiltered() const { return lastFiltered; }
+
 #ifndef UNITTEST
 private:
 #endif
     std::array<int32_t, 5> buffer {}; // Buffer to store previous input values
     std::atomic<float> detectionThreshold = 700'000.F;
+    float lastFiltered = 0.F;
 #ifdef UNITTEST
     float filteredValue; // for unit tests, filteredValue is a member of the class allowing better debugging experience
 #endif
@@ -53,6 +57,23 @@ public:
 
     /// Record and process incoming raw readings from the LoadCell
     void ProcessSample(int32_t value, uint32_t time_us);
+
+    /// What the filter saw since the last TakeObservation(), for diagnostics (metric e_stall).
+    struct Observation {
+        float peak; ///< highest filter output (0 if no sample)
+        uint32_t over_threshold; ///< samples over the detection threshold
+        uint32_t samples; ///< samples processed
+    };
+
+    /// @returns the observation since the last call, and starts a new interval.
+    /// Call it from one task only (the Marlin task). The samples come from the load cell task.
+    Observation TakeObservation() {
+        return {
+            .peak = obs_peak.exchange(0.F, std::memory_order_relaxed),
+            .over_threshold = obs_over.exchange(0, std::memory_order_relaxed),
+            .samples = obs_samples.exchange(0, std::memory_order_relaxed),
+        };
+    }
 
     /// @returns raw detected flag disregarding blocked and enabled flags
     constexpr bool DetectedRaw() const { return detected.load(std::memory_order_relaxed); }
@@ -135,6 +156,11 @@ private:
     int blocked = 0;
 
     /// true if filter value exceeded the threshold
+    // Diagnostics, see TakeObservation(). A race between a new peak and the exchange can put one
+    // sample's value into the next interval. That is fine for a diagnostic metric.
+    std::atomic<float> obs_peak = 0.F;
+    std::atomic<uint32_t> obs_over = 0;
+    std::atomic<uint32_t> obs_samples = 0;
     std::atomic<bool> detected = false;
 
     /// true if multiple detections (based on the bucket above) happened.

@@ -432,8 +432,9 @@ void record_ps_debug_events() {
 /// - e_stall (1 s, on): what the E-stall filter on the load cell saw since the last point: the
 ///   peak filter output (p), the samples over the detection threshold (o) and all samples (n),
 ///   and whether the detector is enabled (e) and blocked (b). The firmware reacts only when many
-///   samples are over the threshold in a short time; this shows how close it came. Samples during
-///   homing, probing and toolchanges are counted too; b > 0 marks them.
+///   samples are over the threshold in a short time; this shows how close it came. b > 0 marks
+///   filament load and unload, M600, auto-retract and MMU operations. Samples during homing and
+///   probing are counted too, and nothing here marks them (use the time or the printer state).
 /// - tmc_e (1 s, off by default, M331 tmc_e): DRV_STATUS of the E driver: the StallGuard load
 ///   value (sg, lower = more load; valid only while the motor moves fast enough in spreadCycle),
 ///   the actual current scale (cs), standstill (st) and the overtemperature warning (otpw). Off by

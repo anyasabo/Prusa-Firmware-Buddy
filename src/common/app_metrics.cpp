@@ -429,24 +429,33 @@ void record_ps_debug_events() {
 
 /// The extruder drive, to tell a feed problem (no resistance) from a drive problem (resistance)
 /// when the filament stops. Two metrics:
-/// - e_stall (1 s): what the E-stall filter on the load cell saw since the last point: the peak
-///   filter output (p), the samples over the detection threshold (o) and all samples (n). The
-///   firmware reacts only when many samples are over the threshold in a short time; this shows
-///   how close it came.
-/// - tmc_e (200 ms): DRV_STATUS of the E driver: the StallGuard load value (sg, lower = more load;
-///   valid only while the motor moves fast enough in spreadCycle), the actual current scale (cs),
-///   standstill (st) and the overtemperature warning (otpw).
+/// - e_stall (1 s, on): what the E-stall filter on the load cell saw since the last point: the
+///   peak filter output (p), the samples over the detection threshold (o) and all samples (n),
+///   and whether the detector is enabled (e) and blocked (b). The firmware reacts only when many
+///   samples are over the threshold in a short time; this shows how close it came. Samples during
+///   homing, probing and toolchanges are counted too; b > 0 marks them.
+/// - tmc_e (1 s, off by default, M331 tmc_e): DRV_STATUS of the E driver: the StallGuard load
+///   value (sg, lower = more load; valid only while the motor moves fast enough in spreadCycle),
+///   the actual current scale (cs), standstill (st) and the overtemperature warning (otpw). Off by
+///   default: during a read the TMC bus lock makes phase stepping skip X/Y updates.
+///   Not on printers with a toolchanger: there the E driver is behind Modbus (puppy task only).
+/// RateLimiter, not metric_record_is_due(): is_due stays true when the metric queue is full, and
+/// then each loop would read the driver and reset the observation.
 void record_e_motor() {
 #if HAS_LOADCELL()
-    METRIC_DEF(metric_e_stall, "e_stall", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
-    if (metric_record_is_due(&metric_e_stall)) {
-        const auto o = EMotorStallDetector::Instance().TakeObservation();
-        metric_record_custom(&metric_e_stall, " p=%.0f,o=%" PRIu32 "i,n=%" PRIu32 "i", (double)o.peak, o.over_threshold, o.samples);
+    METRIC_DEF(metric_e_stall, "e_stall", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+    static auto e_stall_should_record = RateLimiter<uint32_t>(1000);
+    if (metric_e_stall.enabled && e_stall_should_record.check(ticks_ms())) {
+        auto &emsd = EMotorStallDetector::Instance();
+        const auto o = emsd.TakeObservation();
+        metric_record_custom(&metric_e_stall, " p=%.0f,o=%" PRIu32 "i,n=%" PRIu32 "i,e=%ii,b=%ii",
+            (double)o.peak, o.over_threshold, o.samples, emsd.Enabled() ? 1 : 0, emsd.Blocked());
     }
 #endif
-#if AXIS_IS_TMC(E0) && (AXIS_DRIVER_TYPE_E0(TMC2130) || AXIS_DRIVER_TYPE_E0(TMC5160))
-    METRIC_DEF(metric_tmc_e, "tmc_e", METRIC_VALUE_CUSTOM, 200, METRIC_ENABLED);
-    if (metric_record_is_due(&metric_tmc_e)) {
+#if AXIS_IS_TMC(E0) && AXIS_DRIVER_TYPE_E0(TMC2130) && !HAS_TOOLCHANGER()
+    METRIC_DEF(metric_tmc_e, "tmc_e", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
+    static auto tmc_e_should_record = RateLimiter<uint32_t>(1000);
+    if (metric_tmc_e.enabled && tmc_e_should_record.check(ticks_ms())) {
         const uint32_t ds = stepperE0.DRV_STATUS();
         metric_record_custom(&metric_tmc_e, " sg=%" PRIu32 "i,cs=%" PRIu32 "i,st=%" PRIu32 "i,otpw=%" PRIu32 "i",
             ds & 0x3FF, (ds >> 16) & 0x1F, (ds >> 31) & 1, (ds >> 26) & 1);

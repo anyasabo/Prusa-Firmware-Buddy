@@ -60,13 +60,14 @@ public:
 
     /// What the filter saw since the last TakeObservation(), for diagnostics (metric e_stall).
     struct Observation {
-        float peak; ///< highest filter output (0 if no sample)
+        float peak; ///< highest filter output (0 if no sample or none above 0)
         uint32_t over_threshold; ///< samples over the detection threshold
         uint32_t samples; ///< samples processed
     };
 
     /// @returns the observation since the last call, and starts a new interval.
-    /// Call it from one task only (the Marlin task). The samples come from the load cell task.
+    /// Call it from one task only (the Marlin task). The samples come from the load cell sample
+    /// path (the HX717 interrupt; on the XL the puppy task).
     Observation TakeObservation() {
         return {
             .peak = obs_peak.exchange(0.F, std::memory_order_relaxed),
@@ -99,6 +100,8 @@ public:
     inline void ClearReported() {
         reported = false;
     }
+
+    int Blocked() const { return blocked; }
 
     constexpr bool Enabled() const {
         return enabled;
@@ -155,12 +158,13 @@ private:
     /// Increased/decreased by each blocker. >0 = blocked. <0 should never happen
     int blocked = 0;
 
-    /// true if filter value exceeded the threshold
     // Diagnostics, see TakeObservation(). A race between a new peak and the exchange can put one
     // sample's value into the next interval. That is fine for a diagnostic metric.
     std::atomic<float> obs_peak = 0.F;
     std::atomic<uint32_t> obs_over = 0;
     std::atomic<uint32_t> obs_samples = 0;
+
+    /// true if filter value exceeded the threshold
     std::atomic<bool> detected = false;
 
     /// true if multiple detections (based on the bucket above) happened.

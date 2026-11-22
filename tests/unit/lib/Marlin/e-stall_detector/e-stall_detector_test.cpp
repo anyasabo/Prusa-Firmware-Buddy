@@ -338,6 +338,13 @@ TEST_CASE("Marlin::MotorStallFilter stall3-300Hz", "[Marlin][EStallDetector]") {
 
 TEST_CASE("Marlin::EStallDetector observation: peak and count since the last read", "[Marlin][EStallDetector]") {
     auto &emsd = EMotorStallDetector::Instance();
+    emsd.emf.buffer.fill(0); // independent of the tests before
+    emsd.emf.SetDetectionThreshold(700'000.F);
+    const float threshold = emsd.emf.DetectionThreshold();
+    // A fresh buffer gives a large filter output while it fills; feed a steady load first.
+    for (int i = 0; i < 5; ++i) {
+        emsd.ProcessSample(1997572, 1);
+    }
     (void)emsd.TakeObservation(); // start a new interval
 
     SECTION("smooth load: peak below the threshold, nothing over it") {
@@ -347,7 +354,7 @@ TEST_CASE("Marlin::EStallDetector observation: peak and count since the last rea
         const auto o = emsd.TakeObservation();
         CHECK(o.samples == 5);
         CHECK(o.over_threshold == 0);
-        CHECK(o.peak < 700'000.F);
+        CHECK(o.peak < threshold);
     }
 
     SECTION("a sharp drop (an E-motor skip): peak over the threshold, counted") {
@@ -357,7 +364,7 @@ TEST_CASE("Marlin::EStallDetector observation: peak and count since the last rea
         const auto o = emsd.TakeObservation();
         CHECK(o.samples == 7);
         CHECK(o.over_threshold >= 1);
-        CHECK(o.peak > 700'000.F);
+        CHECK(o.peak > threshold);
 
         // The read starts a new interval.
         const auto again = emsd.TakeObservation();

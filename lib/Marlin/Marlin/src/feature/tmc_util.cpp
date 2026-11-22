@@ -1460,7 +1460,7 @@ static char tmc_slave_addr_to_axis_character([[maybe_unused]] uint8_t slave_addr
 }
 
 static char should_log_register_operation(uint8_t reg_addr) {
-    if (reg_addr == 0x02 /*IFCNT*/ || reg_addr == 0x41 /*SG_RESULT*/) {
+    if (reg_addr == 0x02 /*IFCNT*/ || reg_addr == 0x41 /*SG_RESULT*/ || reg_addr == 0x6F /*DRV_STATUS, metric tmc_e*/) {
         return false;
     } else {
         return true;

@@ -335,3 +335,41 @@ TEST_CASE("Marlin::MotorStallFilter stall3-300Hz", "[Marlin][EStallDetector]") {
         CHECK(emsd.DetectedRaw());
     }
 }
+
+TEST_CASE("Marlin::EStallDetector observation: peak and count since the last read", "[Marlin][EStallDetector]") {
+    auto &emsd = EMotorStallDetector::Instance();
+    emsd.emf.buffer.fill(0); // independent of the tests before
+    emsd.emf.SetDetectionThreshold(700'000.F);
+    const float threshold = emsd.emf.DetectionThreshold();
+    // A fresh buffer gives a large filter output while it fills; feed a steady load first.
+    for (int i = 0; i < 5; ++i) {
+        emsd.ProcessSample(1997572, 1);
+    }
+    (void)emsd.TakeObservation(); // start a new interval
+
+    SECTION("smooth load: peak below the threshold, nothing over it") {
+        for (int32_t v : { 1997572, 2054684, 2096993, 2125882, 2072601 }) {
+            emsd.ProcessSample(v, 1);
+        }
+        const auto o = emsd.TakeObservation();
+        CHECK(o.samples == 5);
+        CHECK(o.over_threshold == 0);
+        CHECK(o.peak < threshold);
+    }
+
+    SECTION("a sharp drop (an E-motor skip): peak over the threshold, counted") {
+        for (int32_t v : { 1997572, 2054684, 2096993, 2125882, 2072601, 585962, 1976478 }) {
+            emsd.ProcessSample(v, 1);
+        }
+        const auto o = emsd.TakeObservation();
+        CHECK(o.samples == 7);
+        CHECK(o.over_threshold >= 1);
+        CHECK(o.peak > threshold);
+
+        // The read starts a new interval.
+        const auto again = emsd.TakeObservation();
+        CHECK(again.samples == 0);
+        CHECK(again.over_threshold == 0);
+        CHECK(again.peak == 0.F);
+    }
+}

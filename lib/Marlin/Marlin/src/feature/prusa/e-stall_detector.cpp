@@ -53,6 +53,7 @@ bool MotorStallFilter::ProcessSample(int32_t value) {
     for (size_t i = 0; i < combinedFilter.size(); ++i) {
         filteredValue += combinedFilter[i] * buffer[i];
     }
+    lastFiltered = filteredValue;
     return filteredValue > detectionThreshold.load(std::memory_order_relaxed);
 }
 
@@ -71,6 +72,13 @@ void EMotorStallDetector::SetEnabled(bool set) {
 #if HAS_LOADCELL()
 void EMotorStallDetector::ProcessSample(int32_t value, uint32_t time_us) {
     const bool detected_now = emf.ProcessSample(value);
+    obs_samples.fetch_add(1, std::memory_order_relaxed);
+    if (detected_now) {
+        obs_over.fetch_add(1, std::memory_order_relaxed);
+    }
+    if (const float f = emf.LastFiltered(); f > obs_peak.load(std::memory_order_relaxed)) {
+        obs_peak.store(f, std::memory_order_relaxed);
+    }
     if (clear_bucket.load(std::memory_order_relaxed)) {
         clear_bucket.store(false, std::memory_order_relaxed);
         bucket.reset();

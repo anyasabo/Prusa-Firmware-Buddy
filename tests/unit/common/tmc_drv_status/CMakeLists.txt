@@ -1,0 +1,3 @@
+add_executable(tmc_drv_status_tests tmc_drv_status_tests.cpp)
+target_include_directories(tmc_drv_status_tests PUBLIC ${CMAKE_SOURCE_DIR}/src/common)
+add_catch_test(tmc_drv_status_tests)

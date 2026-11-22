@@ -438,9 +438,10 @@ void record_ps_debug_events() {
 ///   probing are counted too, and nothing here marks them (use the time or the printer state).
 /// - tmc_e (1 s, off by default, M331 tmc_e): DRV_STATUS of the E driver: the StallGuard load
 ///   value (sg, lower = more load; valid only while the motor moves fast enough in spreadCycle),
-///   the actual current scale (cs), standstill (st), the overtemperature warning (ot), open load
-///   on coil A or B (oa, ob: a broken motor wire; valid only while the motor turns slowly) and a
-///   short to ground (sh). Off by
+///   the actual current scale (cs), standstill (s), overtemperature warning (w) and shutdown (x),
+///   open load on coil A or B (a, b: can mean a broken motor wire, but it is information only and
+///   can be set falsely in fast motion and at standstill) and a short to ground (g, either coil).
+///   A failed read (all ones or all zeros) gives only bad=1. Off by
 ///   default: during a read the TMC bus lock makes phase stepping skip X/Y updates.
 ///   Not on printers with a toolchanger: there the E driver is behind Modbus (puppy task only).
 /// RateLimiter, not metric_record_is_due(): is_due stays true when the metric queue is full, and
@@ -460,11 +461,16 @@ void record_e_motor() {
     METRIC_DEF(metric_tmc_e, "tmc_e", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
     static auto tmc_e_should_record = RateLimiter<uint32_t>(1000);
     if (metric_tmc_e.enabled && tmc_e_should_record.check(ticks_ms())) {
-        const auto d = buddy::decode_drv_status(stepperE0.DRV_STATUS());
-        // At most " sg=1023i,cs=31i,st=1i,ot=1i,oa=1i,ob=1i,sh=1i": 46 characters
-        metric_record_custom(&metric_tmc_e, " sg=%ui,cs=%ui,st=%ii,ot=%ii,oa=%ii,ob=%ii,sh=%ii",
-            static_cast<unsigned>(d.sg_result), static_cast<unsigned>(d.cs_actual), d.standstill, d.overtemp_warning,
-            d.open_load_a, d.open_load_b, d.short_to_ground);
+        const uint32_t ds = stepperE0.DRV_STATUS();
+        if (!buddy::drv_status_valid(ds)) {
+            metric_record_custom(&metric_tmc_e, " bad=1i");
+        } else {
+            const auto d = buddy::decode_drv_status(ds);
+            // At most " sg=1023i,cs=31i,s=1i,w=1i,x=1i,a=1i,b=1i,g=1i": 46 characters (limit 47)
+            metric_record_custom(&metric_tmc_e, " sg=%ui,cs=%ui,s=%ii,w=%ii,x=%ii,a=%ii,b=%ii,g=%ii",
+                static_cast<unsigned>(d.sg_result), static_cast<unsigned>(d.cs_actual), d.standstill, d.overtemp_warning,
+                d.overtemp_shutdown, d.open_load_a, d.open_load_b, d.short_to_ground);
+        }
     }
 #endif
 }

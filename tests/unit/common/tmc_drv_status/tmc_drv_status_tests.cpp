@@ -9,6 +9,7 @@ TEST_CASE("DRV_STATUS decode: each field at its TMC2130 bit position", "[tmc_drv
     CHECK(zero.cs_actual == 0);
     CHECK_FALSE(zero.short_to_ground);
     CHECK_FALSE(zero.overtemp_warning);
+    CHECK_FALSE(zero.overtemp_shutdown);
     CHECK_FALSE(zero.open_load_a);
     CHECK_FALSE(zero.open_load_b);
     CHECK_FALSE(zero.standstill);
@@ -16,7 +17,11 @@ TEST_CASE("DRV_STATUS decode: each field at its TMC2130 bit position", "[tmc_drv
     CHECK(decode_drv_status(0x3FF).sg_result == 1023);
     CHECK(decode_drv_status(0x400).sg_result == 0); // bit 10 is not SG_RESULT
     CHECK(decode_drv_status(0x1F0000).cs_actual == 31);
+    CHECK(decode_drv_status(1u << 25).overtemp_shutdown);
+    CHECK_FALSE(decode_drv_status(1u << 25).overtemp_warning);
     CHECK(decode_drv_status(1u << 26).overtemp_warning);
+    CHECK_FALSE(decode_drv_status(1u << 26).overtemp_shutdown);
+    CHECK(decode_drv_status(1u << 21).cs_actual == 0); // bit 21 is not CS_ACTUAL
     CHECK(decode_drv_status(1u << 27).short_to_ground);
     CHECK(decode_drv_status(1u << 28).short_to_ground);
     CHECK(decode_drv_status(1u << 29).open_load_a);
@@ -33,4 +38,10 @@ TEST_CASE("DRV_STATUS decode: a running motor with an open coil", "[tmc_drv_stat
     CHECK(s.open_load_b);
     CHECK_FALSE(s.open_load_a);
     CHECK_FALSE(s.standstill);
+}
+
+TEST_CASE("DRV_STATUS: failed reads are not valid", "[tmc_drv_status]") {
+    CHECK_FALSE(buddy::drv_status_valid(0xFFFFFFFF)); // SPI read failed
+    CHECK_FALSE(buddy::drv_status_valid(0)); // driver without power
+    CHECK(buddy::drv_status_valid(300u | (16u << 16)));
 }

@@ -1,4 +1,5 @@
 add_subdirectory(probe_analysis)
+add_subdirectory(tmc_drv_status)
 add_subdirectory(automata)
 add_subdirectory(gcode)
 add_subdirectory(e2ee)

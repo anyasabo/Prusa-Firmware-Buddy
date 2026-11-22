@@ -51,6 +51,7 @@
 #endif
 #if AXIS_IS_TMC(E0)
     #include <Marlin/src/module/stepper/indirection.h>
+    #include "tmc_drv_status.hpp"
 #endif
 #include <option/has_toolchanger.h>
 
@@ -437,7 +438,9 @@ void record_ps_debug_events() {
 ///   probing are counted too, and nothing here marks them (use the time or the printer state).
 /// - tmc_e (1 s, off by default, M331 tmc_e): DRV_STATUS of the E driver: the StallGuard load
 ///   value (sg, lower = more load; valid only while the motor moves fast enough in spreadCycle),
-///   the actual current scale (cs), standstill (st) and the overtemperature warning (otpw). Off by
+///   the actual current scale (cs), standstill (st), the overtemperature warning (ot), open load
+///   on coil A or B (oa, ob: a broken motor wire; valid only while the motor turns slowly) and a
+///   short to ground (sh). Off by
 ///   default: during a read the TMC bus lock makes phase stepping skip X/Y updates.
 ///   Not on printers with a toolchanger: there the E driver is behind Modbus (puppy task only).
 /// RateLimiter, not metric_record_is_due(): is_due stays true when the metric queue is full, and
@@ -457,9 +460,11 @@ void record_e_motor() {
     METRIC_DEF(metric_tmc_e, "tmc_e", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
     static auto tmc_e_should_record = RateLimiter<uint32_t>(1000);
     if (metric_tmc_e.enabled && tmc_e_should_record.check(ticks_ms())) {
-        const uint32_t ds = stepperE0.DRV_STATUS();
-        metric_record_custom(&metric_tmc_e, " sg=%" PRIu32 "i,cs=%" PRIu32 "i,st=%" PRIu32 "i,otpw=%" PRIu32 "i",
-            ds & 0x3FF, (ds >> 16) & 0x1F, (ds >> 31) & 1, (ds >> 26) & 1);
+        const auto d = buddy::decode_drv_status(stepperE0.DRV_STATUS());
+        // At most " sg=1023i,cs=31i,st=1i,ot=1i,oa=1i,ob=1i,sh=1i": 46 characters
+        metric_record_custom(&metric_tmc_e, " sg=%ui,cs=%ui,st=%ii,ot=%ii,oa=%ii,ob=%ii,sh=%ii",
+            static_cast<unsigned>(d.sg_result), static_cast<unsigned>(d.cs_actual), d.standstill, d.overtemp_warning,
+            d.open_load_a, d.open_load_b, d.short_to_ground);
     }
 #endif
 }

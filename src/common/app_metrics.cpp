@@ -45,6 +45,13 @@
 #include <Marlin/src/feature/phase_stepping/debug_events.hpp>
 
 #include <config_store/store_instance.hpp>
+#include <option/has_loadcell.h>
+#if HAS_LOADCELL()
+    #include <Marlin/src/feature/prusa/e-stall_detector.h>
+#endif
+#if AXIS_IS_TMC(E0)
+    #include <Marlin/src/module/stepper/indirection.h>
+#endif
 #include <option/has_toolchanger.h>
 
 #if BOARD_IS_XLBUDDY()
@@ -420,6 +427,33 @@ void record_ps_debug_events() {
 }
 #endif
 
+/// The extruder drive, to tell a feed problem (no resistance) from a drive problem (resistance)
+/// when the filament stops. Two metrics:
+/// - e_stall (1 s): what the E-stall filter on the load cell saw since the last point: the peak
+///   filter output (p), the samples over the detection threshold (o) and all samples (n). The
+///   firmware reacts only when many samples are over the threshold in a short time; this shows
+///   how close it came.
+/// - tmc_e (200 ms): DRV_STATUS of the E driver: the StallGuard load value (sg, lower = more load;
+///   valid only while the motor moves fast enough in spreadCycle), the actual current scale (cs),
+///   standstill (st) and the overtemperature warning (otpw).
+void record_e_motor() {
+#if HAS_LOADCELL()
+    METRIC_DEF(metric_e_stall, "e_stall", METRIC_VALUE_CUSTOM, 1000, METRIC_ENABLED);
+    if (metric_record_is_due(&metric_e_stall)) {
+        const auto o = EMotorStallDetector::Instance().TakeObservation();
+        metric_record_custom(&metric_e_stall, " p=%.0f,o=%" PRIu32 "i,n=%" PRIu32 "i", (double)o.peak, o.over_threshold, o.samples);
+    }
+#endif
+#if AXIS_IS_TMC(E0) && (AXIS_DRIVER_TYPE_E0(TMC2130) || AXIS_DRIVER_TYPE_E0(TMC5160))
+    METRIC_DEF(metric_tmc_e, "tmc_e", METRIC_VALUE_CUSTOM, 200, METRIC_ENABLED);
+    if (metric_record_is_due(&metric_tmc_e)) {
+        const uint32_t ds = stepperE0.DRV_STATUS();
+        metric_record_custom(&metric_tmc_e, " sg=%" PRIu32 "i,cs=%" PRIu32 "i,st=%" PRIu32 "i,otpw=%" PRIu32 "i",
+            ds & 0x3FF, (ds >> 16) & 0x1F, (ds >> 31) & 1, (ds >> 26) & 1);
+    }
+#endif
+}
+
 } // namespace
 
 void buddy::metrics::record() {
@@ -431,6 +465,7 @@ void buddy::metrics::record() {
     record_ps_debug_events();
 #endif
     RecordMarlinVariables();
+    record_e_motor();
     RecordRuntimeStats();
     RecordPrintFilename();
 #if HAS_ADVANCED_POWER()

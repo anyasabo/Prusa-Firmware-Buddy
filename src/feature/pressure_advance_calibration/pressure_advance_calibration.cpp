@@ -25,6 +25,7 @@
 #include <raii/scope_guard.hpp>
 #include <timing.h>
 #include <tool/hotend/hotend.hpp>
+#include <utils/string_builder.hpp>
 
 #include <option/has_pressure_advance_calibration.h>
 
@@ -86,6 +87,10 @@ namespace {
 
     /// The load cell delivers the last samples of the run a little after the motion ends
     constexpr uint32_t sample_latency_ms = 50;
+
+    /// The log file buffer holds only a few lines, the per-segment report is spread out so that it
+    /// does not overflow
+    constexpr uint32_t log_line_spacing_ms = 50;
 
     StepResponseAnalyzer analyzer;
     std::atomic<StepResponseAnalyzer *> active_analyzer = nullptr;
@@ -222,9 +227,14 @@ namespace {
 
         for (size_t i = 0; i < segments.size(); ++i) {
             const auto &segment = segments[i];
-            log_info(PressureAdvanceCalibration, "segment %u %s: tau %.4f s, level %.1f g, noise %.2f g, fit %u samples, %u lags",
+            ArrayStringBuilder<StepResponseAnalyzer::lags.size() * 7 + 1> lag_taus;
+            for (const float tau : segment.lag_tau_s) {
+                lag_taus.append_printf(" %.1f", static_cast<double>(tau * 1000.f));
+            }
+            log_info(PressureAdvanceCalibration, "segment %u %s: tau %.4f s, level %.1f g, noise %.2f g, fit %u, lags [ms]%s",
                 i, segment.rising ? "up" : "down", static_cast<double>(segment.tau_s), static_cast<double>(segment.level),
-                static_cast<double>(segment.noise), segment.fit_samples, segment.valid_lags);
+                static_cast<double>(segment.noise), segment.fit_samples, lag_taus.str_nocheck());
+            wait_ms(log_line_spacing_ms);
 
             if (i < warmup_segments) {
                 continue;
@@ -253,6 +263,7 @@ namespace {
         const float min_load_step = std::max(min_load_step_g, min_load_step_to_noise * noise);
         log_info(PressureAdvanceCalibration, "load step up %.1f g, down %.1f g, noise %.2f g",
             static_cast<double>(load_step_rising), static_cast<double>(load_step_falling), static_cast<double>(noise));
+        wait_ms(log_line_spacing_ms);
         if (!(std::abs(load_step_rising) >= min_load_step && std::abs(load_step_falling) >= min_load_step)
             || std::signbit(load_step_rising) == std::signbit(load_step_falling)) {
             result.error = Error::no_signal;
@@ -271,6 +282,7 @@ namespace {
         log_info(PressureAdvanceCalibration, "tau up %.4f s, down %.4f s, spread %.2f, pressure advance %.4f s",
             static_cast<double>(result.tau_rising), static_cast<double>(result.tau_falling), static_cast<double>(result.spread),
             static_cast<double>(result.pressure_advance));
+        wait_ms(log_line_spacing_ms);
 
         if (result.spread > max_spread) {
             result.error = Error::inconsistent;

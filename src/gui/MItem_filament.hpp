@@ -4,6 +4,7 @@
 #include <i_window_menu_item.hpp>
 #include <i18n.h>
 #include <gui/menu_item/menu_item_toggle_switch.hpp>
+#include <option/has_pressure_advance_calibration.h>
 
 class MI_LOAD : public IWindowMenuItem {
     constexpr static const char *const label = N_("Load Filament");
@@ -67,6 +68,16 @@ public:
     MI_PURGE();
     virtual void click(IWindowMenu &) override;
 };
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+class MI_PRESSURE_ADVANCE_CALIBRATION : public IWindowMenuItem {
+    constexpr static const char *const label = N_("Calibrate Pressure Advance");
+
+public:
+    MI_PRESSURE_ADVANCE_CALIBRATION();
+    virtual void click(IWindowMenu &) override;
+};
+#endif
 
 class MI_ASK_COLOR_ON_LOAD final : public MenuItemToggleSwitch {
 public:

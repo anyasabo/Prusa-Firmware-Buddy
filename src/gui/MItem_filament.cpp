@@ -168,6 +168,18 @@ void MI_PURGE::click(IWindowMenu &) {
     marlin_client::gcode("M701 L0 W2"); // load with distance 0 and return option
 }
 
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+/*****************************************************************************/
+// MI_PRESSURE_ADVANCE_CALIBRATION
+MI_PRESSURE_ADVANCE_CALIBRATION::MI_PRESSURE_ADVANCE_CALIBRATION()
+    : IWindowMenuItem(_(label), nullptr, static_cast<is_enabled_t>(any_tool_has_filament())) {
+}
+
+void MI_PRESSURE_ADVANCE_CALIBRATION::click(IWindowMenu &) {
+    marlin_client::gcode("M1572");
+}
+#endif
+
 /*****************************************************************************/
 // MI_ASK_COLOR_ON_LOAD
 MI_ASK_COLOR_ON_LOAD::MI_ASK_COLOR_ON_LOAD()

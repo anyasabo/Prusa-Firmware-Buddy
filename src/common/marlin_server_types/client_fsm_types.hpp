@@ -15,6 +15,7 @@
 #include <option/has_loadcell.h>
 #include <option/has_manual_belt_tuning.h>
 #include <option/has_phase_stepping_calibration.h>
+#include <option/has_pressure_advance_calibration.h>
 #include <option/has_selftest.h>
 #include <option/has_serial_print.h>
 #include <option/has_heaters_selftest_gcode.h>
@@ -63,6 +64,9 @@ enum class ClientFSM : uint8_t {
 #endif
 #if HAS_DOOR_SENSOR_CALIBRATION()
     DoorSensorCalibration,
+#endif
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    PressureAdvanceCalibration,
 #endif
 #if HAS_LOADCELL()
     NozzleCleaningFailed,

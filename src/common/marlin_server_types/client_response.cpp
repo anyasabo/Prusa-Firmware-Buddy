@@ -36,6 +36,10 @@
     #include <fsm/gearbox_alignment_phases.hpp>
 #endif
 
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <fsm/pressure_advance_calibration_phases.hpp>
+#endif
+
 #include <fsm/filament_change_phases.hpp>
 #include <fsm/preheat_phases.hpp>
 
@@ -82,6 +86,9 @@ constinit const EnumArray<ClientFSM, std::span<const PhaseResponses>, ClientFSM:
 #endif
 #if HAS_DOOR_SENSOR_CALIBRATION()
         { ClientFSM::DoorSensorCalibration, door_sensor_calibration_responses },
+#endif
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+        { ClientFSM::PressureAdvanceCalibration, pressure_advance_calibration_responses },
 #endif
 #if HAS_LOADCELL()
         { ClientFSM::NozzleCleaningFailed, nozzle_cleaning_responses },

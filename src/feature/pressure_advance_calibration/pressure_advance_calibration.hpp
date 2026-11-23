@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <inplace_function.hpp>
 
 /// Pressure advance calibration from the load cell.
@@ -62,6 +63,8 @@ struct Result {
     float spread = 0;
     /// Load difference between the flow rates [g]
     float load_step = 0;
+    /// Nozzle temperature of the measurement [°C]
+    int16_t nozzle_temperature = 0;
 };
 
 struct Callbacks {
@@ -69,9 +72,15 @@ struct Callbacks {
     stdext::inplace_function<bool(Stage stage, uint8_t percent)> on_progress;
 };
 
+/// Print temperature of the filament loaded in the active tool [°C]; nullopt when none is loaded
+std::optional<int16_t> filament_nozzle_temperature();
+
 /// Run the calibration on the active tool. Blocks until done.
 /// Restores the nozzle target temperature, the pressure advance settings and the extruder position.
 /// The result is not used until saved (@see calibrated_pressure_advance.hpp).
-Result run(const Callbacks &callbacks = {});
+/// @param nozzle_temperature [°C]; the filament_nozzle_temperature() when nullopt. The melt viscosity and
+///        with it the pressure advance depend on it, so it should match the print. Limited to the range
+///        allowed for extrusion.
+Result run(std::optional<int16_t> nozzle_temperature = std::nullopt, const Callbacks &callbacks = {});
 
 } // namespace pressure_advance_calibration

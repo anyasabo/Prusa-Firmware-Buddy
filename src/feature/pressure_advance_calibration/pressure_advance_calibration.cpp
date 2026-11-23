@@ -10,6 +10,7 @@
 #include <span>
 #include <tuple>
 
+#include <Configuration.h>
 #include <Marlin/src/Marlin.h>
 #include <Marlin/src/feature/pressure_advance/pressure_advance_config.hpp>
 #include <Marlin/src/feature/prusa/e-stall_detector.h>
@@ -367,7 +368,19 @@ const char *to_string(Error error) {
     return "unknown";
 }
 
-Result run(const Callbacks &callbacks) {
+std::optional<int16_t> filament_nozzle_temperature() {
+    const auto virtual_tool = VirtualToolIndex::currently_selected_opt();
+    if (!virtual_tool) {
+        return std::nullopt;
+    }
+    const FilamentType filament_type = FilamentType::for_tool(*virtual_tool);
+    if (filament_type == FilamentType::none) {
+        return std::nullopt;
+    }
+    return filament_type.parameters().nozzle_temperature;
+}
+
+Result run(std::optional<int16_t> nozzle_temperature, const Callbacks &callbacks) {
     const auto report = [&](Stage stage, uint8_t percent) {
         return !callbacks.on_progress || callbacks.on_progress(stage, percent);
     };
@@ -394,13 +407,16 @@ Result run(const Callbacks &callbacks) {
     mapi::home_if_needed_and_park(mapi::get_parking_position(mapi::ParkPosition::purge));
     planner.synchronize();
 
-    // Measure at the print temperature of the filament, the melt viscosity depends on it
     Hotend &hotend = Hotend::for_tool(*tool);
+    const int16_t max_temperature = hotend.config().max_nozzle_temp - HEATER_MAXTEMP_SAFETY_MARGIN;
+    const int16_t temperature = std::clamp<int16_t>(nozzle_temperature.value_or(filament.nozzle_temperature), EXTRUDE_MINTEMP, max_temperature);
+    log_info(PressureAdvanceCalibration, "nozzle temperature %d C", temperature);
+
     const auto original_target = hotend.nozzle_target_temp();
     ScopeGuard restore_temperature([&] {
         hotend.set_nozzle_target_temp(original_target);
     });
-    hotend.set_nozzle_target_temp(filament.nozzle_temperature);
+    hotend.set_nozzle_target_temp(temperature);
 
     const uint32_t heating_start_ms = ticks_ms();
     while (!hotend.is_nozzle_temp_reached()) {
@@ -417,7 +433,8 @@ Result run(const Callbacks &callbacks) {
         return { .error = Error::aborted };
     }
 
-    const Result result = calibrate(*tool, filament, callbacks);
+    Result result = calibrate(*tool, filament, callbacks);
+    result.nozzle_temperature = temperature;
     if (result.error == Error::none) {
         log_info(PressureAdvanceCalibration, "result: %.3f s", static_cast<double>(result.pressure_advance));
     } else {

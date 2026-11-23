@@ -5,6 +5,7 @@
 
 enum class PhasePressureAdvanceCalibration : PhaseUnderlyingType {
     intro,
+    select_temperature,
     preparing,
     measuring,
     result,
@@ -18,6 +19,8 @@ constexpr inline ClientFSM client_fsm_from_phase(PhasePressureAdvanceCalibration
 namespace ClientResponses {
 inline constexpr EnumArray<PhasePressureAdvanceCalibration, PhaseResponses, CountPhases<PhasePressureAdvanceCalibration>()> pressure_advance_calibration_responses {
     { PhasePressureAdvanceCalibration::intro, { Response::Continue, Response::Abort } },
+    // Starting the measurement passes the nozzle temperature through FSMResponseVariant as an int16_t [°C]
+    { PhasePressureAdvanceCalibration::select_temperature, { Response::Abort } },
     { PhasePressureAdvanceCalibration::preparing, { Response::Abort } },
     { PhasePressureAdvanceCalibration::measuring, {} },
     { PhasePressureAdvanceCalibration::result, { Response::Yes, Response::No } },
@@ -34,4 +37,10 @@ struct FSMPressureAdvanceCalibrationData {
     uint8_t progress_percent = 0;
     /// pressure_advance_calibration::Error
     uint8_t error = 0;
+};
+
+/// Data struct of PhasePressureAdvanceCalibration::select_temperature
+struct FSMPressureAdvanceCalibrationTemperature {
+    /// Proposed nozzle temperature [°C]
+    int16_t nozzle_temperature = 0;
 };

@@ -43,9 +43,6 @@ static constexpr uint32_t score(ClientFSM fsm_type) {
 #if HAS_DOOR_SENSOR_CALIBRATION()
     case ClientFSM::DoorSensorCalibration:
 #endif
-#if HAS_PRESSURE_ADVANCE_CALIBRATION()
-    case ClientFSM::PressureAdvanceCalibration:
-#endif
 #if HAS_INDX()
     case ClientFSM::DockCalibration:
     case ClientFSM::NozzleCleanerCalibration:
@@ -87,6 +84,12 @@ static constexpr uint32_t score(ClientFSM fsm_type) {
     case ClientFSM::WastebinEmptying:
     #endif
         // Show over Printing and PrintPreview - these interrupt both
+        return 3;
+#endif
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    case ClientFSM::PressureAdvanceCalibration:
+        // Also offered nested over Load_unload (score 2) at the end of a filament load
         return 3;
 #endif
 

@@ -201,6 +201,15 @@ void MI_PRESSURE_ADVANCE_CALIBRATION::click(IWindowMenu &) {
 }
 
 /*****************************************************************************/
+// MI_PRESSURE_ADVANCE_AFTER_LOAD
+MI_PRESSURE_ADVANCE_AFTER_LOAD::MI_PRESSURE_ADVANCE_AFTER_LOAD()
+    : MenuItemToggleSwitch(config_store().pressure_advance_calibrate_after_load.get(), _("Calibrate PA After Load")) {}
+
+void MI_PRESSURE_ADVANCE_AFTER_LOAD::toggled([[maybe_unused]] Tristate previous_value) {
+    config_store().pressure_advance_calibrate_after_load.set(value() == Tristate::yes);
+}
+
+/*****************************************************************************/
 // MI_PRESSURE_ADVANCE_GCODE_OVERRIDE
 MI_PRESSURE_ADVANCE_GCODE_OVERRIDE::MI_PRESSURE_ADVANCE_GCODE_OVERRIDE()
     : MenuItemToggleSwitch(config_store().pressure_advance_gcode_override.get(), _("Allow M572 Override")) {}

@@ -87,6 +87,14 @@ private:
     std::array<char, 24> saved_calibration {};
 };
 
+class MI_PRESSURE_ADVANCE_AFTER_LOAD final : public MenuItemToggleSwitch {
+public:
+    MI_PRESSURE_ADVANCE_AFTER_LOAD();
+
+protected:
+    void toggled(Tristate previous_value) override;
+};
+
 class MI_PRESSURE_ADVANCE_GCODE_OVERRIDE final : public MenuItemToggleSwitch {
 public:
     MI_PRESSURE_ADVANCE_GCODE_OVERRIDE();

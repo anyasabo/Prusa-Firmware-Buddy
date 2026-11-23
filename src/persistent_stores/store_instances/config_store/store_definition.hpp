@@ -519,6 +519,8 @@ struct CurrentStore
     StoreItem<EncodedFilamentType, EncodedFilamentType {}, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance Filament")> calibrated_pressure_advance_filament;
     /// G-code (M572, M900) may override the calibrated pressure advance
     StoreItem<bool, false, ItemFlag::features, journal::hash("Pressure Advance M572 Override")> pressure_advance_gcode_override;
+    /// Offer the pressure advance calibration after a filament load
+    StoreItem<bool, true, ItemFlag::features, journal::hash("Pressure Advance Offer After Load")> pressure_advance_calibrate_after_load;
 #endif
 
     /// User-defined filament ordering. Does not need to contain all the filaments - the rest will be appended to the back using the standard rules

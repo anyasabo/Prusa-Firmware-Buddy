@@ -9,10 +9,23 @@
 #include <cstdio>
 #include <optional>
 
+#include <Marlin/src/Marlin.h>
 #include <Marlin/src/core/serial.h>
 #include <Marlin/src/gcode/parser.h>
+#include <Marlin/src/module/planner.h>
+#include <config_store/store_instance.hpp>
+#include <filament.hpp>
 #include <fsm/pressure_advance_calibration_phases.hpp>
+#include <logging/log.hpp>
 #include <marlin_server.hpp>
+#include <tool_index.hpp>
+
+#include <option/has_mmu2.h>
+#if HAS_MMU2()
+    #include <feature/prusa/MMU2/mmu2_mk4.h>
+#endif
+
+LOG_COMPONENT_REF(PressureAdvanceCalibration);
 
 namespace {
 
@@ -20,6 +33,21 @@ using pressure_advance_calibration::Error;
 using pressure_advance_calibration::Result;
 using pressure_advance_calibration::Stage;
 using Phase = PhasePressureAdvanceCalibration;
+
+/// Waits for the response to the phase; Abort when the planner drains (power panic, print stop)
+FSMResponseVariant wait_for_response(Phase phase) {
+    while (!planner.draining()) {
+        if (const FSMResponseVariant response = marlin_server::get_response_variant_from_phase(phase)) {
+            return response;
+        }
+        idle(true);
+    }
+    return FSMResponseVariant::make(Response::Abort);
+}
+
+bool responded(Phase phase, Response response) {
+    return wait_for_response(phase).value_or<Response>(Response::_none) == response;
+}
 
 void report(const Result &result) {
     std::array<char, 128> buffer;
@@ -62,10 +90,10 @@ private:
     Phase handle(Phase phase) {
         switch (phase) {
         case Phase::intro:
-            return marlin_server::wait_for_response(Phase::intro) == Response::Continue ? select_temperature() : Phase::finish;
+            return responded(Phase::intro, Response::Continue) ? select_temperature() : Phase::finish;
 
         case Phase::select_temperature: {
-            const FSMResponseVariant response = marlin_server::wait_for_response_variant(Phase::select_temperature);
+            const FSMResponseVariant response = wait_for_response(Phase::select_temperature);
             if (response.holds_alternative<int16_t>()) {
                 nozzle_temperature = response.value_or<int16_t>(0);
             } else if (response.value_or<Response>(Response::_none) != Response::Continue) {
@@ -75,13 +103,13 @@ private:
         }
 
         case Phase::result:
-            if (marlin_server::wait_for_response(Phase::result) == Response::Yes) {
+            if (responded(Phase::result, Response::Yes)) {
                 pressure_advance_calibration::save(pressure_advance, measured_temperature);
             }
             return Phase::finish;
 
         case Phase::failed:
-            return marlin_server::wait_for_response(Phase::failed) == Response::Retry ? select_temperature() : Phase::finish;
+            return responded(Phase::failed, Response::Retry) ? select_temperature() : Phase::finish;
 
         case Phase::preparing:
         case Phase::measuring:
@@ -116,7 +144,7 @@ private:
                     data.progress_percent = percent;
                     change(phase);
                 }
-                return phase != Phase::preparing || marlin_server::get_response_from_phase(Phase::preparing) != Response::Abort;
+                return !planner.draining() && (phase != Phase::preparing || marlin_server::get_response_from_phase(Phase::preparing) != Response::Abort);
             },
         };
         const Result result = pressure_advance_calibration::run(nozzle_temperature, callbacks);
@@ -140,6 +168,32 @@ private:
 };
 
 } // namespace
+
+void pressure_advance_calibration::run_wizard(std::optional<int16_t> nozzle_temperature) {
+    Wizard(nozzle_temperature).run();
+}
+
+bool pressure_advance_calibration::should_offer_after_load() {
+    if (!config_store().pressure_advance_calibrate_after_load.get() || planner.draining()) {
+        return false;
+    }
+#if HAS_MMU2()
+    // The MMU loads a filament at every tool change
+    if (MMU2::mmu2.Enabled()) {
+        return false;
+    }
+#endif
+    const auto tool = VirtualToolIndex::currently_selected_opt();
+    if (!tool) {
+        return false;
+    }
+    const FilamentType filament = FilamentType::for_tool(*tool);
+    if (filament == FilamentType::none || filament.parameters().is_flexible) {
+        return false;
+    }
+    log_info(PressureAdvanceCalibration, "offering the calibration after a filament load");
+    return true;
+}
 
 /** \addtogroup G-Codes
  * @{
@@ -177,7 +231,7 @@ void PrusaGcodeSuite::M1572() {
     const std::optional<int16_t> nozzle_temperature = parser.seenval('R') ? std::optional<int16_t>(static_cast<int16_t>(parser.value_int())) : std::nullopt;
 
     if (!parser.seen('S')) {
-        Wizard(nozzle_temperature).run();
+        pressure_advance_calibration::run_wizard(nozzle_temperature);
         return;
     }
 

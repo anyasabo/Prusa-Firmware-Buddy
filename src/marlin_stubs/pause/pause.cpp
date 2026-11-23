@@ -97,6 +97,10 @@ static_assert(HAS_PAUSE());
     #include <feature/filament_tracker/filament_tracker.hpp>
 #endif
 
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <feature/pressure_advance_calibration/gcode_pressure_advance_calibration.hpp>
+#endif
+
 LOG_COMPONENT_REF(MarlinServer);
 
 #ifndef NOZZLE_UNPARK_XY_FEEDRATE
@@ -1027,6 +1031,19 @@ void Pause::eject_process([[maybe_unused]] Response response) {
 }
 
 void Pause::load_finalize_process(Response) {
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    // Calibrate the new filament while the head is still parked, before the auto-retract or the return
+    // to the print. Only once, this handler may run repeatedly.
+    if (!pressure_advance_calibration_offered) {
+        pressure_advance_calibration_offered = true;
+        const bool new_filament = load_type == LoadType::load || load_type == LoadType::autoload || load_type == LoadType::filament_change;
+        if (new_filament && pressure_advance_calibration::should_offer_after_load()) {
+            // The wizard shows over the load screen, leave nothing to answer there meanwhile
+            setPhase(PhasesLoadUnload::Purging_unstoppable);
+            pressure_advance_calibration::run_wizard();
+        }
+    }
+#endif
 #if HAS_AUTO_RETRACT()
     // Only retract from nozzle outside printing
     if (!marlin_server::is_printing()) {
@@ -1519,6 +1536,9 @@ bool Pause::invoke_loop() {
     // Trust that the filament change knows what it's doing
     AutoRestore ar_ce(thermalManager.allow_cold_extrude, true);
 
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    pressure_advance_calibration_offered = false;
+#endif
     set(LoadState::start);
 
     while (!finished()) {

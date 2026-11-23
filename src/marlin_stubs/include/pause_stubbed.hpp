@@ -18,6 +18,7 @@
 
 #include <option/has_human_interactions.h>
 #include <option/has_mmu2.h>
+#include <option/has_pressure_advance_calibration.h>
 #include <option/has_nozzle_cleaner.h>
 #include <option/has_side_fsensor.h>
 #include <option/has_indx.h>
@@ -209,6 +210,11 @@ public:
 
 private:
     LoadType load_type {};
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    /// The pressure advance calibration was considered for the running load already
+    bool pressure_advance_calibration_offered = false;
+#endif
 
     bool is_unstoppable() const;
     LoadUnloadMode get_load_unload_mode();

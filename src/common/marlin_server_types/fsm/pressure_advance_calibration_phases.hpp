@@ -19,8 +19,9 @@ constexpr inline ClientFSM client_fsm_from_phase(PhasePressureAdvanceCalibration
 namespace ClientResponses {
 inline constexpr EnumArray<PhasePressureAdvanceCalibration, PhaseResponses, CountPhases<PhasePressureAdvanceCalibration>()> pressure_advance_calibration_responses {
     { PhasePressureAdvanceCalibration::intro, { Response::Continue, Response::Abort } },
-    // Starting the measurement passes the nozzle temperature through FSMResponseVariant as an int16_t [°C]
-    { PhasePressureAdvanceCalibration::select_temperature, { Response::Abort } },
+    // Continue measures at the proposed temperature; the GUI passes the chosen one through FSMResponseVariant
+    // as an int16_t [°C] instead
+    { PhasePressureAdvanceCalibration::select_temperature, { Response::Continue, Response::Abort } },
     { PhasePressureAdvanceCalibration::preparing, { Response::Abort } },
     { PhasePressureAdvanceCalibration::measuring, {} },
     { PhasePressureAdvanceCalibration::result, { Response::Yes, Response::No } },

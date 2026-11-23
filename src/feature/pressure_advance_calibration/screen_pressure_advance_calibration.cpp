@@ -3,22 +3,31 @@
 
 #include "pressure_advance_calibration.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
 
-#include <WinMenuContainer.hpp>
-#include <WindowMenuSpin.hpp>
 #include <fsm/pressure_advance_calibration_phases.hpp>
-#include <fsm_menu_item.hpp>
+#include <gui/auto_layout.hpp>
+#include <gui/event/focus_event.hpp>
+#include <gui/event/gui_event.hpp>
+#include <gui/event/knob_event.hpp>
 #include <i18n.h>
 #include <img_resources.hpp>
 #include <marlin_client.hpp>
 #include <numeric_input_config_common.hpp>
-#include <window_menu.hpp>
+#include <radio_button.hpp>
+#include <sound.hpp>
+#include <window_text.hpp>
 #include <standard_frame/frame_extensions/with_footer.hpp>
 #include <standard_frame/frame_progress_prompt.hpp>
 #include <standard_frame/frame_prompt.hpp>
+
+#include <option/has_touch.h>
+#if HAS_TOUCH()
+    #include <dialog_numeric_input.hpp>
+#endif
 
 using Phase = PhasePressureAdvanceCalibration;
 using pressure_advance_calibration::Error;
@@ -32,6 +41,9 @@ constexpr const char *txt_intro = N_("The printer measures how fast the nozzle p
                                      "It extrudes about 15 mm of filament at the purge position.\n\n"
                                      "The result depends on the nozzle temperature, the next screen asks for the one you print with.\n\n"
                                      "Make sure the filament is loaded and nothing blocks the nozzle.");
+constexpr const char *txt_temperature_title = N_("Calibration temperature");
+constexpr const char *txt_temperature = N_("The pressure advance depends on the nozzle temperature. Set the one you print this filament at.");
+constexpr const char *txt_nozzle_temperature = N_("Nozzle Temperature");
 constexpr const char *txt_preparing = N_("Moving to the purge position and heating the nozzle.");
 constexpr const char *txt_measuring = N_("Measuring, please wait.");
 constexpr const char *txt_result_title = N_("Calibration done");
@@ -73,58 +85,122 @@ public:
         : FramePrompt(parent, Phase::intro, _(txt_title), _(txt_intro)) {}
 };
 
-class MI_CALIBRATION_TEMPERATURE final : private NumericInputConfigHolder, public WiSpin {
+/// Nozzle temperature field. While focused, the knob changes the value; a click moves on to the buttons.
+/// Touching it opens the numeric keypad.
+class WindowNozzleTemperature final : public window_text_t {
 public:
-    MI_CALIBRATION_TEMPERATURE()
-        : NumericInputConfigHolder { numeric_input_config::filament_nozzle_temperature(AllTools {}) }
-        , WiSpin(0, NumericInputConfigHolder::owned_config, _("Nozzle Temperature")) {}
-};
+    WindowNozzleTemperature(window_t *parent, const NumericInputConfig &config, window_t &next)
+        : window_text_t(parent, {}, is_multiline::no, is_closed_on_click_t::no)
+        , config(config)
+        , next(next) {
+        set_font(GuiDefaults::FontBig);
+        SetAlignment(Align_t::Center());
+        Enable();
+    }
 
-class MI_START_CALIBRATION final : public IWindowMenuItem {
-public:
-    MI_START_CALIBRATION()
-        : IWindowMenuItem(_("Start Calibration"), &img::ok_16x16) {}
+    int16_t value() const {
+        return value_;
+    }
 
-    void set_temperature_source(const WiSpin &spin) {
-        temperature = &spin;
+    void set_value(float value) {
+        value_ = static_cast<int16_t>(std::clamp(std::round(value), config.min_value, config.max_value));
+        snprintf(text.data(), text.size(), "%d °C", value_);
+        SetText(string_view_utf8::MakeRAM(text.data()));
+        Invalidate();
     }
 
 protected:
-    void click(IWindowMenu &) override {
-        const auto nozzle_temperature = static_cast<int16_t>(std::lround(temperature->value()));
-        marlin_client::FSM_response_variant(Phase::select_temperature, FSMResponseVariant::make<int16_t>(nozzle_temperature));
+    void windowEvent(window_t *sender, GUI_event_t event, void *param) override {
+        switch (event) {
+
+        case GUI_event_t::KNOB: {
+            auto &ctx = *static_cast<GuiEventContext *>(param);
+            const int16_t old_value = value_;
+            set_value(value_ + ctx.event.value<gui_event::KnobEvent>().diff * config.step);
+            sound::play(value_ != old_value ? SoundType::encoder_move : SoundType::blind_alert);
+            // Also at the limits, so that only a click leaves the field
+            ctx.accept();
+            break;
+        }
+
+        case GUI_event_t::CLICK:
+            next.SetFocus(gui_event::FocusInEvent::Reason::forward_focus_chain);
+            break;
+
+#if HAS_TOUCH()
+        case GUI_event_t::TOUCH_CLICK:
+            if (const auto result = DialogNumericInput::exec(_(txt_nozzle_temperature), value_, config)) {
+                set_value(static_cast<float>(*result));
+            }
+            break;
+#endif
+
+        default:
+            window_text_t::windowEvent(sender, event, param);
+            break;
+        }
     }
 
 private:
-    const WiSpin *temperature = nullptr;
-};
-
-class MI_ABORT_CALIBRATION final : public FSMMenuItem {
-public:
-    MI_ABORT_CALIBRATION()
-        : FSMMenuItem(Phase::select_temperature, Response::Abort, _("Abort"), &img::cancel_16x16) {}
+    const NumericInputConfig &config;
+    window_t &next;
+    std::array<char, 12> text {};
+    int16_t value_ = 0;
 };
 
 class FrameSelectTemperature {
 public:
     explicit FrameSelectTemperature(window_frame_t *parent)
-        : menu(parent, parent->GetRect(), &container) {
-        container.Item<MI_START_CALIBRATION>().set_temperature_source(container.Item<MI_CALIBRATION_TEMPERATURE>());
-        parent->CaptureNormalWindow(menu);
+        : title(parent, {}, is_multiline::no, is_closed_on_click_t::no, _(txt_temperature_title))
+        , title_line(parent, {})
+        , info(parent, {}, is_multiline::yes, is_closed_on_click_t::no, _(txt_temperature))
+        , temperature(parent, temperature_config, radio)
+        , radio(parent, {}, RadioButton::Responses_t { Response::Continue, Response::Abort, Response::_none, Response::_none }) {
+        title.set_font(GuiDefaults::FontBig);
+        title.SetTextColor(COLOR_BRAND);
+        title.SetAlignment(Align_t::LeftBottom());
+        title_line.SetBackColor(COLOR_DARK_GRAY);
+        info.SetAlignment(Align_t::LeftTop());
+
+        radio.set_callback([this](Response response) {
+            if (response == Response::Continue) {
+                marlin_client::FSM_response_variant(Phase::select_temperature, FSMResponseVariant::make<int16_t>(temperature.value()));
+            } else {
+                marlin_client::FSM_response(Phase::select_temperature, response);
+            }
+        });
+
+        static constexpr std::array layout {
+            StackLayoutItem { .height = 32, .margin_side = 16, .margin_bottom = 4 },
+            StackLayoutItem { .height = 2, .margin_side = 16 },
+            StackLayoutItem { .height = StackLayoutItem::stretch, .margin_side = 16, .margin_top = 16 },
+            StackLayoutItem { .height = 40, .width = 160, .margin_bottom = 16 },
+            standard_stack_layout::for_radio,
+        };
+        std::array<window_t *, layout.size()> windows { &title, &title_line, &info, &temperature, &radio };
+        layout_vertical_stack(parent->GetRect(), windows, layout);
+
+        // Nothing is captured: the knob moves between the field and the buttons. The buttons show no
+        // selection until they get the focus.
+        radio.SetFocus();
+        temperature.SetFocus();
     }
 
     void update(const fsm::PhaseData &raw) {
         // Only the initial proposal, the user may have changed the value since
         if (!proposed) {
-            const auto data = fsm::deserialize_data<FSMPressureAdvanceCalibrationTemperature>(raw);
-            container.Item<MI_CALIBRATION_TEMPERATURE>().set_value(data.nozzle_temperature);
+            temperature.set_value(fsm::deserialize_data<FSMPressureAdvanceCalibrationTemperature>(raw).nozzle_temperature);
             proposed = true;
         }
     }
 
 private:
-    WinMenuContainer<MI_CALIBRATION_TEMPERATURE, MI_START_CALIBRATION, MI_ABORT_CALIBRATION> container;
-    window_menu_t menu;
+    const NumericInputConfig temperature_config = numeric_input_config::filament_nozzle_temperature(AllTools {});
+    window_text_t title;
+    BasicWindow title_line;
+    window_text_t info;
+    WindowNozzleTemperature temperature;
+    RadioButton radio;
     bool proposed = false;
 };
 

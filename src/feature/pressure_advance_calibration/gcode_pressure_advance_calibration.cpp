@@ -36,7 +36,7 @@ void report(const Result &result) {
 
 class Wizard {
 public:
-    /// @param nozzle_temperature offered for the measurement [°C]; the filament's print temperature when nullopt
+    /// @param nozzle_temperature proposed for the measurement [°C]; the default one when nullopt
     explicit Wizard(std::optional<int16_t> nozzle_temperature)
         : nozzle_temperature(nozzle_temperature) {}
 
@@ -64,10 +64,11 @@ private:
 
         case Phase::select_temperature: {
             const FSMResponseVariant response = marlin_server::wait_for_response_variant(Phase::select_temperature);
-            if (!response.holds_alternative<int16_t>()) {
+            if (response.holds_alternative<int16_t>()) {
+                nozzle_temperature = response.value_or<int16_t>(0);
+            } else if (response.value_or<Response>(Response::_none) != Response::Continue) {
                 return Phase::finish;
             }
-            nozzle_temperature = response.value_or<int16_t>(0);
             return measure();
         }
 
@@ -89,12 +90,14 @@ private:
     }
 
     Phase select_temperature() {
-        const auto temperature = nozzle_temperature ? nozzle_temperature : pressure_advance_calibration::filament_nozzle_temperature();
-        if (!temperature) {
+        if (!nozzle_temperature) {
+            nozzle_temperature = pressure_advance_calibration::default_nozzle_temperature();
+        }
+        if (!nozzle_temperature) {
             // The measurement reports the missing filament
             return measure();
         }
-        marlin_server::fsm_change(Phase::select_temperature, fsm::serialize_data(FSMPressureAdvanceCalibrationTemperature { .nozzle_temperature = *temperature }));
+        marlin_server::fsm_change(Phase::select_temperature, fsm::serialize_data(FSMPressureAdvanceCalibrationTemperature { .nozzle_temperature = *nozzle_temperature }));
         return Phase::select_temperature;
     }
 
@@ -158,8 +161,8 @@ private:
  *
  * - `S` - Silent: no dialogs, only measure and print the result
  * - `A` - Save and use the measured value (silent mode only; the wizard asks)
- * - `R` - Nozzle temperature [°C]; the print temperature of the loaded filament by default.
- *         The wizard offers it for a change.
+ * - `R` - Nozzle temperature [°C]; by default the one of the last calibration of the loaded filament,
+ *         or its print temperature. The wizard offers it for a change.
  *
  *#### Examples
  *

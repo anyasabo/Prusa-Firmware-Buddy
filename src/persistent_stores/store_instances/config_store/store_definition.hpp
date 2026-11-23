@@ -512,7 +512,10 @@ struct CurrentStore
     /// Pressure advance measured for the filament below, 0 if none.
     /// Discarded when that filament is unloaded or replaced.
     StoreItem<float, 0.f, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance")> calibrated_pressure_advance;
-    /// Virtual tool and filament the calibrated pressure advance was measured with
+    /// Nozzle temperature last used for a calibration of the loaded filament [°C], 0 if none.
+    /// Discarded when that filament is unloaded or replaced.
+    StoreItem<int16_t, 0, ItemFlag::printer_state, journal::hash("Pressure Advance Calibration Temperature")> pressure_advance_calibration_temperature;
+    /// Virtual tool and filament the calibrated pressure advance and temperature belong to
     StoreItem<uint8_t, 0, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance Tool")> calibrated_pressure_advance_tool;
     StoreItem<EncodedFilamentType, EncodedFilamentType {}, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance Filament")> calibrated_pressure_advance_filament;
     /// G-code (M572, M900) may override the calibrated pressure advance

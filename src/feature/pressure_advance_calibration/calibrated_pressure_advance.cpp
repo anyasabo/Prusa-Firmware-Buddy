@@ -61,9 +61,14 @@ namespace {
         applied = context;
     }
 
-    /// The saved value belongs to the filament that was loaded when it was measured
+    void discard_calibration() {
+        config_store().calibrated_pressure_advance.set(0.f);
+        config_store().pressure_advance_calibration_temperature.set(0);
+    }
+
+    /// The saved calibration belongs to the filament that was loaded when it was measured
     void discard_if_filament_changed() {
-        if (!(config_store().calibrated_pressure_advance.get() > 0)) {
+        if (!(config_store().calibrated_pressure_advance.get() > 0) && config_store().pressure_advance_calibration_temperature.get() == 0) {
             return;
         }
         const uint8_t tool = config_store().calibrated_pressure_advance_tool.get();
@@ -71,34 +76,62 @@ namespace {
         if (tool < VirtualToolIndex::count && FilamentType::for_tool(VirtualToolIndex::from_raw(tool)) == filament) {
             return;
         }
-        config_store().calibrated_pressure_advance.set(0.f);
-        log_info(PressureAdvanceCalibration, "filament changed, calibrated value discarded");
+        discard_calibration();
+        log_info(PressureAdvanceCalibration, "filament changed, calibration discarded");
+    }
+
+    /// The saved calibration belongs to the active tool and the filament loaded in it
+    bool saved_for_active_tool() {
+        const auto tool = VirtualToolIndex::currently_selected_opt();
+        return tool && tool->to_raw() == config_store().calibrated_pressure_advance_tool.get()
+            && FilamentType::for_tool(*tool) == FilamentType(config_store().calibrated_pressure_advance_filament.get());
+    }
+
+    /// Make the saved calibration belong to the active tool and its filament, dropping the one of another
+    bool save_for_active_tool() {
+        const auto tool = VirtualToolIndex::currently_selected_opt();
+        if (!tool) {
+            return false;
+        }
+        if (!saved_for_active_tool()) {
+            discard_calibration();
+            config_store().calibrated_pressure_advance_tool.set(tool->to_raw());
+            config_store().calibrated_pressure_advance_filament.set(FilamentType::for_tool(*tool));
+        }
+        return true;
     }
 
 } // namespace
 
 std::optional<float> saved_value() {
     const float value = config_store().calibrated_pressure_advance.get();
-    const auto tool = VirtualToolIndex::currently_selected_opt();
-    if (!(value > 0) || !tool || tool->to_raw() != config_store().calibrated_pressure_advance_tool.get()) {
-        return std::nullopt;
-    }
-    if (FilamentType::for_tool(*tool) != FilamentType(config_store().calibrated_pressure_advance_filament.get())) {
+    if (!(value > 0) || !saved_for_active_tool()) {
         return std::nullopt;
     }
     return value;
 }
 
 void save(float pressure_advance) {
-    const auto tool = VirtualToolIndex::currently_selected_opt();
-    if (!tool) {
+    if (!save_for_active_tool()) {
         return;
     }
-    config_store().calibrated_pressure_advance_tool.set(tool->to_raw());
-    config_store().calibrated_pressure_advance_filament.set(FilamentType::for_tool(*tool));
     config_store().calibrated_pressure_advance.set(pressure_advance);
     gcode_overrides = false;
     apply(current_context());
+}
+
+void save_calibration_temperature(int16_t nozzle_temperature) {
+    if (save_for_active_tool()) {
+        config_store().pressure_advance_calibration_temperature.set(nozzle_temperature);
+    }
+}
+
+std::optional<int16_t> saved_calibration_temperature() {
+    const int16_t temperature = config_store().pressure_advance_calibration_temperature.get();
+    if (temperature <= 0 || !saved_for_active_tool()) {
+        return std::nullopt;
+    }
+    return temperature;
 }
 
 void gcode_request(std::optional<float> pressure_advance, std::optional<float> smooth_time) {

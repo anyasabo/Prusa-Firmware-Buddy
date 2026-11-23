@@ -1,6 +1,7 @@
 /// @file
 #include "pressure_advance_calibration.hpp"
 
+#include "calibrated_pressure_advance.hpp"
 #include "step_response_analyzer.hpp"
 
 #include <algorithm>
@@ -423,7 +424,10 @@ const char *to_string(Error error) {
     return "unknown";
 }
 
-std::optional<int16_t> filament_nozzle_temperature() {
+std::optional<int16_t> default_nozzle_temperature() {
+    if (const auto saved = saved_calibration_temperature()) {
+        return saved;
+    }
     const auto virtual_tool = VirtualToolIndex::currently_selected_opt();
     if (!virtual_tool) {
         return std::nullopt;
@@ -464,8 +468,10 @@ Result run(std::optional<int16_t> nozzle_temperature, const Callbacks &callbacks
 
     Hotend &hotend = Hotend::for_tool(*tool);
     const int16_t max_temperature = hotend.config().max_nozzle_temp - HEATER_MAXTEMP_SAFETY_MARGIN;
-    const int16_t temperature = std::clamp<int16_t>(nozzle_temperature.value_or(filament.nozzle_temperature), EXTRUDE_MINTEMP, max_temperature);
+    const int16_t requested_temperature = nozzle_temperature.value_or(default_nozzle_temperature().value_or(filament.nozzle_temperature));
+    const int16_t temperature = std::clamp<int16_t>(requested_temperature, EXTRUDE_MINTEMP, max_temperature);
     log_info(PressureAdvanceCalibration, "nozzle temperature %d C", temperature);
+    save_calibration_temperature(temperature);
 
     const auto original_target = hotend.nozzle_target_temp();
     ScopeGuard restore_temperature([&] {

@@ -54,6 +54,7 @@ This file is generated automatically so don't edit it directly
 - Ping: logging::Severity::info, src/common/ping_manager.cpp
 - PowerPanic: logging::Severity::info, src/common/power_panic.cpp
 - PreciseStepping: logging::Severity::debug, lib/Marlin/Marlin/src/feature/precise_stepping/precise_stepping.cpp
+- PressureAdvanceCalibration: logging::Severity::info, src/feature/pressure_advance_calibration/pressure_advance_calibration.cpp
 - Probe: logging::Severity::info, lib/Marlin/Marlin/src/module/probe.cpp
 - PrusaToolChanger: logging::Severity::debug, lib/Marlin/Marlin/src/module/prusa/toolchanger_common.cpp
 - Puppies: logging::Severity::debug, src/puppies/puppy_task.cpp

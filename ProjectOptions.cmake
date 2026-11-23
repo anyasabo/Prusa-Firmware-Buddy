@@ -773,6 +773,8 @@ set_feature_for_printers_master_board(HAS_PRINT_FAN_TYPE "XL")
 set_feature_for_printers_master_board(HAS_CPU_FAN "XL")
 # GEARBOX_ALIGNMENT requires SELFTEST
 set_feature_for_printers_master_board(HAS_GEARBOX_ALIGNMENT "MK4" "COREONE" "COREONEL" "XL")
+# Needs the load cell sampled directly by the HX717 on the main board
+set_feature_for_printers_master_board(HAS_PRESSURE_ADVANCE_CALIBRATION "MK4" "COREONE" "COREONEL")
 set_feature_for_printers_master_board(
   HAS_CHAMBER_VENTS "COREONE" "COREONE_INDX" "COREONEL" "COREONEL_INDX"
   )

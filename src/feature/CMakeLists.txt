@@ -18,6 +18,10 @@ if(HAS_DOOR_SENSOR_CALIBRATION)
   add_subdirectory(door_sensor_calibration)
 endif()
 
+if(HAS_PRESSURE_ADVANCE_CALIBRATION)
+  add_subdirectory(pressure_advance_calibration)
+endif()
+
 if(HAS_TOOL_OFFSET_SENSOR)
   target_sources(firmware PRIVATE contactless_offset/can_remote_sensor_glue.cpp)
   target_link_libraries(firmware PUBLIC contactless_offset)

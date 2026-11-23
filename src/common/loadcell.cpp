@@ -28,6 +28,10 @@
 #include "../Marlin/src/feature/precise_stepping/precise_stepping.hpp"
 #include "feature/prusa/e-stall_detector.h"
 #include <metric_handlers.h>
+#include <option/has_pressure_advance_calibration.h>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <feature/pressure_advance_calibration/pressure_advance_calibration.hpp>
+#endif
 
 LOG_COMPONENT_DEF(Loadcell, logging::Severity::info);
 
@@ -383,6 +387,12 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
         // until a proper solution is found.
         // log_warning(Loadcell, "Got NaN z-coordinate; skipping (age=%dus)", ticks_us_from_now);
     }
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    if (loadcellRaw != undefined_value) {
+        pressure_advance_calibration::on_loadcell_sample(time_us, tared_z_load, pos_sample.e);
+    }
+#endif
 
     // Perform E motor stall detection
     EMotorStallDetector::Instance().ProcessSample(this->loadcellRaw, time_us);

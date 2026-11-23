@@ -11,6 +11,7 @@
 #include "MarlinPin.h"
 #include "metric.h"
 #include <option/has_gearbox_alignment.h>
+#include <option/has_pressure_advance_calibration.h>
 #include <option/has_loadcell.h>
 #include <option/has_toolchanger.h>
 #include <option/has_side_leds.h>
@@ -45,6 +46,10 @@
 
 #if HAS_GEARBOX_ALIGNMENT()
     #include <feature/gearbox_alignment/gcode_gearbox_alignment.hpp>
+#endif
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <feature/pressure_advance_calibration/gcode_pressure_advance_calibration.hpp>
 #endif
 
 #include <logging/log.hpp>
@@ -272,6 +277,11 @@ bool GcodeSuite::process_parsed_command_custom(bool no_ok) {
             PrusaGcodeSuite::M1200();
             break;
 #endif // BUDDY_ENABLE_CONNECT()
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+        case 1572:
+            PrusaGcodeSuite::M1572();
+            break;
+#endif
         case 1600:
             PrusaGcodeSuite::M1600();
             break;

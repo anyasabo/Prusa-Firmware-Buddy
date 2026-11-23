@@ -29,7 +29,17 @@ namespace pressure_advance_calibration {
 /// does not touch them afterwards.
 class StepResponseAnalyzer {
 public:
-    static constexpr size_t max_segments = 24;
+    static constexpr size_t max_segments = 16;
+
+    /// Delays of the regressions [samples]
+    static constexpr std::array<uint8_t, 10> lags { 1, 2, 3, 4, 6, 8, 11, 16, 22, 32 };
+
+    using LagTimeConstants = std::array<float, lags.size()>;
+    static constexpr LagTimeConstants undetermined_lag_time_constants = [] {
+        LagTimeConstants taus {};
+        taus.fill(NAN);
+        return taus;
+    }();
 
     struct Segment {
         /// Extruder travel during the segment [mm], must be positive
@@ -67,6 +77,9 @@ public:
         uint16_t fit_samples = 0;
         /// Number of lags that produced a valid time constant estimate
         uint8_t valid_lags = 0;
+        /// Time constant estimate of each of the lags [s]; NAN where undetermined.
+        /// A first-order response gives the same value for all of them.
+        LagTimeConstants lag_tau_s = undetermined_lag_time_constants;
     };
 
     StepResponseAnalyzer() = default;
@@ -106,7 +119,6 @@ public:
     uint16_t unknown_positions() const { return unknown_positions_; }
 
 private:
-    static constexpr std::array<uint8_t, 10> lags { 1, 2, 3, 4, 6, 8, 11, 16, 22, 32 };
     static constexpr size_t history_size = 32;
     static_assert(lags.back() <= history_size);
 

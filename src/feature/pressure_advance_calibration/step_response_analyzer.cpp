@@ -251,6 +251,7 @@ void StepResponseAnalyzer::finish_segment() {
             continue;
         }
         const float tau = tau_from_lag_coefficient(sxy / sxx, lags[i] * period_s);
+        result.lag_tau_s[i] = tau;
         if (std::isfinite(tau)) {
             taus[tau_count++] = tau;
         }

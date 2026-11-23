@@ -206,6 +206,15 @@ TEST_CASE("pressure_advance_calibration::StepResponseAnalyzer linear nozzle") {
         }
         if (i >= 2) {
             CHECK_THAT(result.tau_s, WithinRel(tau, 0.05f));
+
+            size_t valid_lags = 0;
+            for (const float lag_tau : result.lag_tau_s) {
+                if (std::isfinite(lag_tau)) {
+                    ++valid_lags;
+                    CHECK_THAT(lag_tau, WithinRel(tau, 0.1f));
+                }
+            }
+            CHECK(valid_lags == result.valid_lags);
         }
     }
 

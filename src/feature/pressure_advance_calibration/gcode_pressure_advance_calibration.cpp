@@ -103,8 +103,14 @@ private:
         }
 
         case Phase::result:
-            if (responded(Phase::result, Response::Yes)) {
+            switch (wait_for_response(Phase::result).value_or<Response>(Response::_none)) {
+            case Response::Yes:
                 pressure_advance_calibration::save(pressure_advance, measured_temperature);
+                break;
+            case Response::Retry:
+                return select_temperature();
+            default:
+                break;
             }
             return Phase::finish;
 

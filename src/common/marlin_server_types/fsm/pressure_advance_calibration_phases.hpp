@@ -24,7 +24,7 @@ inline constexpr EnumArray<PhasePressureAdvanceCalibration, PhaseResponses, Coun
     { PhasePressureAdvanceCalibration::select_temperature, { Response::Continue, Response::Abort } },
     { PhasePressureAdvanceCalibration::preparing, { Response::Abort } },
     { PhasePressureAdvanceCalibration::measuring, {} },
-    { PhasePressureAdvanceCalibration::result, { Response::Yes, Response::No } },
+    { PhasePressureAdvanceCalibration::result, { Response::Yes, Response::No, Response::Retry } },
     { PhasePressureAdvanceCalibration::failed, { Response::Retry, Response::Abort } },
     { PhasePressureAdvanceCalibration::finish, {} },
 };

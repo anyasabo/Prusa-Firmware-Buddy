@@ -15,6 +15,12 @@
     #include "screen_menu_filament_changeall.hpp"
 #endif
 #include <config_store/store_instance.hpp>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <cstdio>
+    #include <display_helper.h>
+    #include <feature/pressure_advance_calibration/calibrated_pressure_advance.hpp>
+    #include <gui/fonts.hpp>
+#endif
 
 namespace {
 
@@ -173,6 +179,21 @@ void MI_PURGE::click(IWindowMenu &) {
 // MI_PRESSURE_ADVANCE_CALIBRATION
 MI_PRESSURE_ADVANCE_CALIBRATION::MI_PRESSURE_ADVANCE_CALIBRATION()
     : IWindowMenuItem(_(label), nullptr, static_cast<is_enabled_t>(any_tool_has_filament())) {
+    const auto pressure_advance = pressure_advance_calibration::saved_value();
+    if (!pressure_advance) {
+        return;
+    }
+    if (const auto temperature = pressure_advance_calibration::saved_calibration_temperature()) {
+        snprintf(saved_calibration.data(), saved_calibration.size(), "(%.3f @ %d°C)", static_cast<double>(*pressure_advance), *temperature);
+    } else {
+        snprintf(saved_calibration.data(), saved_calibration.size(), "(%.3f)", static_cast<double>(*pressure_advance));
+    }
+    extension_width = resource_font(GuiDefaults::FontMenuSpecial)->w * string_view_utf8::MakeRAM(saved_calibration.data()).computeNumUtf8Chars();
+}
+
+void MI_PRESSURE_ADVANCE_CALIBRATION::printExtension(Rect16 extension_rect, [[maybe_unused]] Color color_text, Color color_back, [[maybe_unused]] ropfn raster_op) const {
+    const Color color = (IsFocused() && IsEnabled()) ? COLOR_DARK_GRAY : COLOR_SILVER;
+    render_text_align(extension_rect, string_view_utf8::MakeRAM(saved_calibration.data()), GuiDefaults::FontMenuSpecial, color_back, color, {}, Align_t::RightCenter());
 }
 
 void MI_PRESSURE_ADVANCE_CALIBRATION::click(IWindowMenu &) {

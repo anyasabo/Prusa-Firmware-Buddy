@@ -1,6 +1,8 @@
 /// @file
 #pragma once
 
+#include <array>
+
 #include <i_window_menu_item.hpp>
 #include <i18n.h>
 #include <gui/menu_item/menu_item_toggle_switch.hpp>
@@ -70,12 +72,19 @@ public:
 };
 
 #if HAS_PRESSURE_ADVANCE_CALIBRATION()
+/// Shows the saved calibration of the loaded filament next to the label, e.g. "(0.040 @ 275°C)"
 class MI_PRESSURE_ADVANCE_CALIBRATION : public IWindowMenuItem {
     constexpr static const char *const label = N_("Calibrate Pressure Advance");
 
 public:
     MI_PRESSURE_ADVANCE_CALIBRATION();
     virtual void click(IWindowMenu &) override;
+
+protected:
+    void printExtension(Rect16 extension_rect, Color color_text, Color color_back, ropfn raster_op) const override;
+
+private:
+    std::array<char, 24> saved_calibration {};
 };
 
 class MI_PRESSURE_ADVANCE_GCODE_OVERRIDE final : public MenuItemToggleSwitch {

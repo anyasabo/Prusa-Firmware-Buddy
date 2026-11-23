@@ -25,11 +25,11 @@ namespace pressure_advance_calibration {
 /// Samples are fed one at a time; memory use does not depend on the run length.
 ///
 /// Threading: begin() and the result accessors are called from one context, add_sample() from another
-/// (the load cell sample callback). The results may be read once done() returns true, add_sample()
-/// does not touch them afterwards.
+/// (the load cell sample callback). The result of a finished segment does not change anymore, so the
+/// results may be read while the run continues.
 class StepResponseAnalyzer {
 public:
-    static constexpr size_t max_segments = 16;
+    static constexpr size_t max_segments = 20;
 
     /// Delays of the regressions [samples]
     static constexpr std::array<uint8_t, 10> lags { 1, 2, 3, 4, 6, 8, 11, 16, 22, 32 };
@@ -100,6 +100,8 @@ public:
 
     /// Finalize the running segment when the extruder stopped short of the last segment end
     /// (step rounding) or the run was cut short. Must not run concurrently with add_sample().
+    /// When the extruder stopped at a segment boundary, the segment after it is finalized as well; its
+    /// result covers only the standstill.
     void finish();
 
     /// All segments have been processed, the run was finished, or begin() failed
@@ -108,9 +110,9 @@ public:
     /// Number of planned segments
     size_t segment_count() const { return segment_count_; }
 
-    /// Results of the processed segments, in the order of execution; valid once done().
-    /// Shorter than segment_count() if the run did not complete.
-    std::span<const SegmentResult> results() const { return { results_.data(), finished_segments_ }; }
+    /// Results of the finished segments, in the order of execution.
+    /// Shorter than segment_count() while running or if the run did not complete.
+    std::span<const SegmentResult> results() const { return { results_.data(), finished_segments_.load(std::memory_order_acquire) }; }
 
     /// Number of sample dropouts encountered
     uint16_t gaps() const { return gaps_; }
@@ -138,6 +140,7 @@ private:
 
     void start_segment(uint32_t time_us);
     void finish_segment();
+    void fit_time_constant(SegmentResult &result) const;
     void accumulate(uint32_t time_us, float load);
     void reset_history() { history_count = 0; }
 
@@ -146,7 +149,7 @@ private:
     std::array<SegmentPlan, max_segments> plan_ {};
     std::array<SegmentResult, max_segments> results_ {};
     size_t segment_count_ = 0;
-    size_t finished_segments_ = 0;
+    std::atomic<size_t> finished_segments_ = 0;
     float e_start_ = 0;
 
     /// Index of the running segment; -1 before the extruder starts

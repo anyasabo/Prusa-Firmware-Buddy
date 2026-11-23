@@ -53,7 +53,7 @@ bool StepResponseAnalyzer::begin(float e_start, std::span<const Segment> segment
     done_.store(true, std::memory_order_relaxed);
 
     segment_count_ = 0;
-    finished_segments_ = 0;
+    finished_segments_.store(0, std::memory_order_relaxed);
     current = -1;
     start_confirmed = false;
     have_prev = false;
@@ -223,7 +223,6 @@ void StepResponseAnalyzer::accumulate(uint32_t time_us, float load) {
 
 void StepResponseAnalyzer::finish_segment() {
     SegmentResult &result = results_[current];
-    finished_segments_ = current + 1;
     result.fit_samples = fit_samples;
 
     if (plateau_n > 1) {
@@ -232,9 +231,13 @@ void StepResponseAnalyzer::finish_segment() {
         result.noise = std::sqrt(std::max(0.f, plateau_sum_sq / plateau_n - mean * mean));
     }
 
-    if (period_count == 0) {
-        return;
+    if (period_count > 0) {
+        fit_time_constant(result);
     }
+    finished_segments_.store(current + 1, std::memory_order_release);
+}
+
+void StepResponseAnalyzer::fit_time_constant(SegmentResult &result) const {
     const float period_s = period_sum_s / period_count;
 
     std::array<float, lags.size()> taus;

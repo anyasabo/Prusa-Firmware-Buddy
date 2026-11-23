@@ -46,8 +46,10 @@ struct SimOptions {
 };
 
 /// Runs the segments on the model and feeds the analyzer like the load cell would.
-void simulate(StepResponseAnalyzer &analyzer, const Nozzle &nozzle, float e_start, const std::vector<StepResponseAnalyzer::Segment> &segments, const SimOptions &options = {}) {
-    REQUIRE(analyzer.begin(e_start, segments));
+/// The analyzer is told the plan, by default the segments that run.
+void simulate(StepResponseAnalyzer &analyzer, const Nozzle &nozzle, float e_start, const std::vector<StepResponseAnalyzer::Segment> &segments, const SimOptions &options = {},
+    const std::vector<StepResponseAnalyzer::Segment> &plan = {}) {
+    REQUIRE(analyzer.begin(e_start, plan.empty() ? segments : plan));
 
     // Integrated in double so that the simulated motion matches the plan exactly
     constexpr double dt = 25e-6;
@@ -224,6 +226,24 @@ TEST_CASE("pressure_advance_calibration::StepResponseAnalyzer linear nozzle") {
     // Plateau levels follow the flow
     const auto results = analyzer.results();
     CHECK(results[2].level - results[3].level > 1000.f);
+}
+
+TEST_CASE("pressure_advance_calibration::StepResponseAnalyzer run shorter than the plan") {
+    const float tau = 0.03f;
+    const auto nozzle = Nozzle::with_secant(1.f, tau, v_lo, v_hi);
+    const auto plan = step_profile(v_lo, v_hi, 0.6f, 0.4f, 9);
+    const std::vector<StepResponseAnalyzer::Segment> segments(plan.begin(), plan.begin() + 14);
+
+    StepResponseAnalyzer analyzer;
+    simulate(analyzer, nozzle, 3.f, segments, {}, plan);
+
+    REQUIRE(analyzer.done());
+    REQUIRE(analyzer.results().size() >= segments.size());
+    REQUIRE(analyzer.results().size() < plan.size());
+    for (size_t i = 2; i < segments.size(); ++i) {
+        CHECK(analyzer.results()[i].rising == (i % 2 == 0));
+        CHECK_THAT(analyzer.results()[i].tau_s, WithinRel(tau, 0.05f));
+    }
 }
 
 TEST_CASE("pressure_advance_calibration::StepResponseAnalyzer shear thinning nozzle") {

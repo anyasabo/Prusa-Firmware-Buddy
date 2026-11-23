@@ -56,10 +56,18 @@ namespace {
     constexpr float prime_duration_s = 0.4f;
     constexpr float high_duration_s = 0.4f;
     constexpr float low_duration_s = 0.6f;
-    constexpr int cycles = 6;
 
-    /// Prime, lead-in and the first cycle only bring the melt into a periodic steady state
-    constexpr size_t warmup_segments = 4;
+    /// The test repeats cycles of a high and a low flow step, the first one starts with the prime.
+    /// The nozzle may have lost melt before the test (oozing, retraction) and fills up during the first
+    /// cycles. They count as priming until the load difference between the flow rates repeats in two
+    /// consecutive cycles; only the cycles after that are evaluated.
+    constexpr int min_priming_cycles = 2;
+    constexpr int max_priming_cycles = 5;
+    constexpr int measured_cycles = 5;
+    constexpr int max_cycles = max_priming_cycles + measured_cycles;
+
+    /// Relative difference of the load steps of consecutive cycles up to which the nozzle counts as primed
+    constexpr float primed_load_step_tolerance = 0.1f;
 
     /// Step durations are multiplied by this when the response turned out to be too slow
     constexpr float slow_retry_scale = 2.f;
@@ -96,18 +104,15 @@ namespace {
     StepResponseAnalyzer analyzer;
     std::atomic<StepResponseAnalyzer *> active_analyzer = nullptr;
 
+    /// All the cycles the test may need; how many of them run depends on the priming
     struct Plan {
         std::array<StepResponseAnalyzer::Segment, StepResponseAnalyzer::max_segments> segments;
         size_t count = 0;
-        float duration_s = 0;
-        float length_mm = 0;
         float high_duration_s = 0;
         float low_duration_s = 0;
 
         void add(float velocity_mm_s, float duration_s) {
             segments[count++] = { .length_mm = velocity_mm_s * duration_s, .duration_s = duration_s };
-            this->duration_s += duration_s;
-            length_mm += velocity_mm_s * duration_s;
         }
 
         std::span<const StepResponseAnalyzer::Segment> span() const { return { segments.data(), count }; }
@@ -124,11 +129,11 @@ namespace {
         plan.low_duration_s = low_duration_s * duration_scale;
         plan.add(high_velocity, prime_duration_s);
         plan.add(low_velocity, plan.low_duration_s);
-        for (int i = 0; i < cycles; ++i) {
+        for (int i = 1; i < max_cycles; ++i) {
             plan.add(high_velocity, plan.high_duration_s);
             plan.add(low_velocity, plan.low_duration_s);
         }
-        static_assert(2 + 2 * cycles <= StepResponseAnalyzer::max_segments);
+        static_assert(2 * max_cycles <= StepResponseAnalyzer::max_segments);
         return plan;
     }
 
@@ -168,8 +173,22 @@ namespace {
         std::span<float> load_step_span() { return { load_steps.data(), load_step_count }; }
     };
 
-    /// Runs the test moves and feeds the load cell samples to the analyzer
-    Error measure(const Plan &plan, const Callbacks &callbacks) {
+    /// What the test extruded
+    struct Run {
+        /// Number of segments of the plan that ran
+        size_t segments = 0;
+        /// Cycles at the start that primed the nozzle; nullopt when the load steps did not settle
+        std::optional<int> priming_cycles;
+    };
+
+    /// Load difference between the high and the low flow step of a cycle [g]
+    float cycle_load_step(std::span<const StepResponseAnalyzer::SegmentResult> segments, int cycle) {
+        return segments[2 * cycle].level - segments[2 * cycle + 1].level;
+    }
+
+    /// Runs the test moves and feeds the load cell samples to the analyzer. Adds cycles while the
+    /// nozzle is still priming, so that the measured cycles follow without a pause.
+    Error measure(const Plan &plan, const Callbacks &callbacks, Run &run) {
         planner.synchronize();
 
         // Measure from a fresh origin: the position counter keeps growing and floats would lose resolution
@@ -182,20 +201,50 @@ namespace {
         }
         active_analyzer.store(&analyzer, std::memory_order_release);
 
+        run = {};
         bool queued = true;
-        for (const auto &segment : plan.span()) {
-            queued = queued && mapi::extruder_move(segment.length_mm, segment.length_mm / segment.duration_s);
-        }
+        float queued_duration_s = 0;
+        float queued_length_mm = 0;
+        const auto queue_cycles = [&](int cycles) {
+            for (; run.segments < std::min<size_t>(2 * cycles, plan.count); ++run.segments) {
+                const auto &segment = plan.segments[run.segments];
+                queued = queued && mapi::extruder_move(segment.length_mm, segment.length_mm / segment.duration_s);
+                queued_duration_s += segment.duration_s;
+                queued_length_mm += segment.length_mm;
+            }
+        };
+        queue_cycles(min_priming_cycles + measured_cycles);
+
+        // Each finished cycle is compared with the previous one. The decision comes at least a cycle
+        // before the queued moves run out.
+        int compared_cycle = min_priming_cycles - 1;
+        const auto check_priming = [&] {
+            const auto finished = analyzer.results();
+            while (!run.priming_cycles && compared_cycle < max_priming_cycles && finished.size() >= static_cast<size_t>(2 * (compared_cycle + 1))) {
+                const float previous = cycle_load_step(finished, compared_cycle - 1);
+                const float current = cycle_load_step(finished, compared_cycle);
+                if (std::abs(current - previous) <= primed_load_step_tolerance * std::max(std::abs(previous), std::abs(current))) {
+                    run.priming_cycles = compared_cycle + 1;
+                    log_info(PressureAdvanceCalibration, "primed after %d cycles, load step %.1f g, previous %.1f g",
+                        *run.priming_cycles, static_cast<double>(current), static_cast<double>(previous));
+                    queue_cycles(*run.priming_cycles + measured_cycles);
+                }
+                ++compared_cycle;
+            }
+        };
 
         const uint32_t start_ms = ticks_ms();
-        const uint32_t timeout_ms = static_cast<uint32_t>(plan.duration_s * 2000.f) + 5000;
         bool timed_out = false;
+        uint8_t progress = 0;
         while (planner.busy()) {
+            check_priming();
             const uint32_t elapsed_ms = ticks_ms() - start_ms;
             if (callbacks.on_progress) {
-                std::ignore = callbacks.on_progress(Stage::measuring, static_cast<uint8_t>(std::min(99.f, elapsed_ms / (plan.duration_s * 10.f))));
+                // The run may get longer, the progress must not go back
+                progress = std::max(progress, static_cast<uint8_t>(std::min(99.f, elapsed_ms / (queued_duration_s * 10.f))));
+                std::ignore = callbacks.on_progress(Stage::measuring, progress);
             }
-            if (elapsed_ms > timeout_ms) {
+            if (elapsed_ms > static_cast<uint32_t>(queued_duration_s * 2000.f) + 5000) {
                 timed_out = true;
                 planner.quick_stop_and_resume();
                 break;
@@ -210,17 +259,24 @@ namespace {
         loadcell.WaitBarrier();
         analyzer.finish();
 
-        log_info(PressureAdvanceCalibration, "samples: gaps %u, unknown positions %u", analyzer.gaps(), analyzer.unknown_positions());
+        log_info(PressureAdvanceCalibration, "run: %u segments, %.1f s, %.1f mm; samples: gaps %u, unknown positions %u",
+            run.segments, static_cast<double>(queued_duration_s), static_cast<double>(queued_length_mm), analyzer.gaps(), analyzer.unknown_positions());
 
-        if (!queued || timed_out || analyzer.results().size() != plan.count) {
-            log_error(PressureAdvanceCalibration, "incomplete run (queued %d, timeout %d, segments %u/%u)", queued, timed_out, analyzer.results().size(), plan.count);
+        if (!queued || timed_out || analyzer.results().size() < run.segments) {
+            log_error(PressureAdvanceCalibration, "incomplete run (queued %d, timeout %d, segments %u/%u)", queued, timed_out, analyzer.results().size(), run.segments);
             return Error::measurement_failed;
+        }
+        if (!run.priming_cycles) {
+            log_warning(PressureAdvanceCalibration, "load steps did not settle within %d cycles", max_priming_cycles);
+            return Error::inconsistent;
         }
         return Error::none;
     }
 
-    Result evaluate(const Plan &plan) {
-        const auto segments = analyzer.results();
+    Result evaluate(const Plan &plan, const Run &run) {
+        // The analyzer also finalizes the segment after the last one that ran
+        const auto segments = analyzer.results().first(run.segments);
+        const size_t warmup_segments = 2 * static_cast<size_t>(*run.priming_cycles);
 
         Steps rising, falling;
         std::array<float, StepResponseAnalyzer::max_segments> noises;
@@ -317,13 +373,12 @@ namespace {
         Result result;
         for (const float duration_scale : { 1.f, slow_retry_scale }) {
             const Plan plan = make_plan(tool, duration_scale);
-            log_info(PressureAdvanceCalibration, "run: %u segments, %.1f s, %.1f mm", plan.count, static_cast<double>(plan.duration_s), static_cast<double>(plan.length_mm));
-
-            if (const Error error = measure(plan, callbacks); error != Error::none) {
+            Run run;
+            if (const Error error = measure(plan, callbacks, run); error != Error::none) {
                 result.error = error;
                 break;
             }
-            result = evaluate(plan);
+            result = evaluate(plan, run);
             if (result.error != Error::too_slow) {
                 break;
             }

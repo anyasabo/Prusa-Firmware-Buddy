@@ -7,6 +7,12 @@
 #include "../../../module/stepper.h"
 #include "../../../feature/pressure_advance/pressure_advance_config.hpp"
 
+#include <optional>
+#include <option/has_pressure_advance_calibration.h>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <feature/pressure_advance_calibration/calibrated_pressure_advance.hpp>
+#endif
+
 static void dump_current_config() {
     if (const pressure_advance::Config &config = pressure_advance::get_axis_e_config(); config.pressure_advance <= 0.f) {
         SERIAL_ECHO_MSG("Pressure advance: disabled");
@@ -43,11 +49,13 @@ static void dump_current_config() {
  * - `W` - Set a time range in seconds used for calculating the average extruder velocity for pressure advance. Range between 0. and 0.2 Default value is 0.04
  *
  * Without parameters prints the current pressure advance settings.
+ *
+ * While a pressure advance calibrated for the loaded filament (M1572) is in effect, `S` is ignored
+ * unless overriding it from G-code is allowed in the Filament menu.
  */
 void GcodeSuite::M572() {
-    const pressure_advance::Config &pa_config = pressure_advance::get_axis_e_config();
-    float pressure_advance = pa_config.pressure_advance;
-    float smooth_time = pa_config.smooth_time;
+    std::optional<float> pressure_advance;
+    std::optional<float> smooth_time;
 
     const bool seen_d = parser.seen('D');
     if (seen_d) {
@@ -79,7 +87,13 @@ void GcodeSuite::M572() {
         return;
     }
 
-    M572_internal(pressure_advance, smooth_time);
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    // A calibrated value may take precedence
+    pressure_advance_calibration::gcode_request(pressure_advance, smooth_time);
+#else
+    const pressure_advance::Config &pa_config = pressure_advance::get_axis_e_config();
+    M572_internal(pressure_advance.value_or(pa_config.pressure_advance), smooth_time.value_or(pa_config.smooth_time));
+#endif
 }
 
 /** @}*/

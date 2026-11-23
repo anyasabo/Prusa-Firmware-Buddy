@@ -71,9 +71,7 @@ struct Callbacks {
 
 /// Run the calibration on the active tool. Blocks until done.
 /// Restores the nozzle target temperature, the pressure advance settings and the extruder position.
+/// The result is not used until saved (@see calibrated_pressure_advance.hpp).
 Result run(const Callbacks &callbacks = {});
-
-/// Use the measured pressure advance (like M572 S<value>); keeps the smooth time
-void apply(float value);
 
 } // namespace pressure_advance_calibration

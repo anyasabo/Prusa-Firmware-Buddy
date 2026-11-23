@@ -28,8 +28,8 @@ constexpr const char *txt_preparing = N_("Moving to the purge position and heati
 constexpr const char *txt_measuring = N_("Measuring, please wait.");
 constexpr const char *txt_result_title = N_("Calibration done");
 constexpr const char *txt_result = N_("Pressure advance: %s\n\n"
-                                      "Apply it now? A print that sets its own value overrides it. To keep it, "
-                                      "enter it into the filament profile in the slicer.");
+                                      "Save it for the loaded filament? It is used until the filament is unloaded, "
+                                      "instead of the value from G-code (unless overriding is allowed in the Filament menu).");
 constexpr const char *txt_failed_title = N_("Calibration failed");
 
 const char *error_text(Error error) {

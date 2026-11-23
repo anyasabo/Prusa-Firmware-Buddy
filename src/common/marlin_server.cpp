@@ -273,6 +273,11 @@
     #include <module/prusa/tool_mapper.hpp>
 #endif
 
+#include <option/has_pressure_advance_calibration.h>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <feature/pressure_advance_calibration/calibrated_pressure_advance.hpp>
+#endif
+
 void record_fanctl_metrics();
 
 using namespace ExtUI;
@@ -951,6 +956,10 @@ static void cycle() {
 #endif
 
     buddy::safety_timer().step();
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    pressure_advance_calibration::step();
+#endif
 
     // Although the timeout should never trigger within idle() (= when a gcode is run),
     // We still need to run the step() there to prevent "sampling bias" so that the timer could reset itself during movements and single-injected gcodes

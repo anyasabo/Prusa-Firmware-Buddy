@@ -26,6 +26,11 @@
 #include "../../../module/planner.h"
 #include "../../../feature/pressure_advance/pressure_advance_config.hpp"
 
+#include <option/has_pressure_advance_calibration.h>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+  #include <feature/pressure_advance_calibration/calibrated_pressure_advance.hpp>
+#endif
+
 /** \addtogroup G-Codes
  * @{
  */
@@ -70,7 +75,12 @@ void GcodeSuite::M900() {
 
     if (WITHIN(newK, 0, 10)) {
       const pressure_advance::Config default_config = pressure_advance::Config();
-      M572_internal(newK, default_config.smooth_time);
+      #if HAS_PRESSURE_ADVANCE_CALIBRATION()
+        // A calibrated value may take precedence
+        pressure_advance_calibration::gcode_request(newK, default_config.smooth_time);
+      #else
+        M572_internal(newK, default_config.smooth_time);
+      #endif
     }
     else
       SERIAL_ECHOLNPGM("?K value out of range (0-10).");

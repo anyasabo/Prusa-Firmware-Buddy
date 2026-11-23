@@ -30,6 +30,7 @@
 #include <utils/meta/meta_utils.hpp>
 #include <tool_index.hpp>
 #include <option/has_loadcell.h>
+#include <option/has_pressure_advance_calibration.h>
 #include <option/has_sheet_profiles.h>
 #include <option/has_adc_side_fsensor.h>
 #include <option/has_input_shaper_calibration.h>
@@ -506,6 +507,17 @@ struct CurrentStore
     /// that was loaded previously and that there is currenly no loaded
     /// filament (true).
     StoreItem<EncodedBitset<16>, 0, ItemFlag::printer_state, journal::hash("Loaded filament is previous")> loaded_filament_is_previous;
+
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    /// Pressure advance measured for the filament below, 0 if none.
+    /// Discarded when that filament is unloaded or replaced.
+    StoreItem<float, 0.f, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance")> calibrated_pressure_advance;
+    /// Virtual tool and filament the calibrated pressure advance was measured with
+    StoreItem<uint8_t, 0, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance Tool")> calibrated_pressure_advance_tool;
+    StoreItem<EncodedFilamentType, EncodedFilamentType {}, ItemFlag::printer_state, journal::hash("Calibrated Pressure Advance Filament")> calibrated_pressure_advance_filament;
+    /// G-code (M572, M900) may override the calibrated pressure advance
+    StoreItem<bool, false, ItemFlag::features, journal::hash("Pressure Advance M572 Override")> pressure_advance_gcode_override;
+#endif
 
     /// User-defined filament ordering. Does not need to contain all the filaments - the rest will be appended to the back using the standard rules
     StoreItem<std::array<EncodedFilamentType, max_total_filament_count>, EncodedFilamentType {}, ItemFlag::user_presets, journal::hash("Filament Order V2")> filament_order;

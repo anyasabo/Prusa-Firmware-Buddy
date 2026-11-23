@@ -178,6 +178,16 @@ MI_PRESSURE_ADVANCE_CALIBRATION::MI_PRESSURE_ADVANCE_CALIBRATION()
 void MI_PRESSURE_ADVANCE_CALIBRATION::click(IWindowMenu &) {
     marlin_client::gcode("M1572");
 }
+
+/*****************************************************************************/
+// MI_PRESSURE_ADVANCE_GCODE_OVERRIDE
+MI_PRESSURE_ADVANCE_GCODE_OVERRIDE::MI_PRESSURE_ADVANCE_GCODE_OVERRIDE()
+    : MenuItemToggleSwitch(config_store().pressure_advance_gcode_override.get(), _("Allow M572 Override")) {}
+
+void MI_PRESSURE_ADVANCE_GCODE_OVERRIDE::toggled([[maybe_unused]] Tristate previous_value) {
+    // The Marlin thread picks the change up and updates the effective pressure advance
+    config_store().pressure_advance_gcode_override.set(value() == Tristate::yes);
+}
 #endif
 
 /*****************************************************************************/

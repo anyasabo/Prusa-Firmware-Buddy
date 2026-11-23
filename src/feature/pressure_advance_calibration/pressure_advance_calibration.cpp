@@ -414,13 +414,4 @@ Result run(const Callbacks &callbacks) {
     return result;
 }
 
-void apply(float value) {
-    pressure_advance::Config config = pressure_advance::get_axis_e_config();
-    config.pressure_advance = value;
-    planner.synchronize();
-    if (!planner.draining()) {
-        pressure_advance::set_axis_e_config(config);
-    }
-}
-
 } // namespace pressure_advance_calibration

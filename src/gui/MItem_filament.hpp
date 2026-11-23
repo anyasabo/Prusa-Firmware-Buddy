@@ -77,6 +77,14 @@ public:
     MI_PRESSURE_ADVANCE_CALIBRATION();
     virtual void click(IWindowMenu &) override;
 };
+
+class MI_PRESSURE_ADVANCE_GCODE_OVERRIDE final : public MenuItemToggleSwitch {
+public:
+    MI_PRESSURE_ADVANCE_GCODE_OVERRIDE();
+
+protected:
+    void toggled(Tristate previous_value) override;
+};
 #endif
 
 class MI_ASK_COLOR_ON_LOAD final : public MenuItemToggleSwitch {

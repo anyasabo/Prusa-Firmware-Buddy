@@ -1,6 +1,7 @@
 /// @file
 #include "gcode_pressure_advance_calibration.hpp"
 
+#include "calibrated_pressure_advance.hpp"
 #include "pressure_advance_calibration.hpp"
 
 #include <array>
@@ -57,7 +58,7 @@ private:
 
         case Phase::result:
             if (marlin_server::wait_for_response(Phase::result) == Response::Yes) {
-                pressure_advance_calibration::apply(pressure_advance);
+                pressure_advance_calibration::save(pressure_advance);
             }
             return Phase::finish;
 
@@ -118,7 +119,9 @@ private:
  * Measures the pressure advance of the loaded filament with the load cell.
  * Parks over the purge position, heats the nozzle to the filament's print temperature and extrudes
  * about 15 mm of filament, alternating between a low and a high flow rate.
- * The result is printed to the serial line.
+ * The result is printed to the serial line. A saved result stays in use for the loaded filament
+ * until it is unloaded, also across restarts; M572 from G-code is ignored meanwhile, unless allowed
+ * in the settings.
  *
  *#### Usage
  *
@@ -127,7 +130,7 @@ private:
  *#### Parameters
  *
  * - `S` - Silent: no dialogs, only measure and print the result
- * - `A` - Apply the measured value, like `M572 S<value>` (silent mode only; the wizard asks)
+ * - `A` - Save and use the measured value (silent mode only; the wizard asks)
  *
  *#### Examples
  *
@@ -143,7 +146,7 @@ void PrusaGcodeSuite::M1572() {
     const Result result = pressure_advance_calibration::run();
     report(result);
     if (result.error == Error::none && parser.seen('A')) {
-        pressure_advance_calibration::apply(result.pressure_advance);
+        pressure_advance_calibration::save(result.pressure_advance);
     }
 }
 

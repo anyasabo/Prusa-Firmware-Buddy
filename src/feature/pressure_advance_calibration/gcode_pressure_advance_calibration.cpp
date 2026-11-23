@@ -50,8 +50,10 @@ public:
 private:
     marlin_server::FSM_Holder holder { Phase::intro };
     FSMPressureAdvanceCalibrationData data;
-    float pressure_advance = 0;
     std::optional<int16_t> nozzle_temperature;
+    /// Result of the last measurement, saved only when confirmed
+    float pressure_advance = 0;
+    int16_t measured_temperature = 0;
 
     void change(Phase phase) {
         marlin_server::fsm_change(phase, fsm::serialize_data(data));
@@ -74,7 +76,7 @@ private:
 
         case Phase::result:
             if (marlin_server::wait_for_response(Phase::result) == Response::Yes) {
-                pressure_advance_calibration::save(pressure_advance);
+                pressure_advance_calibration::save(pressure_advance, measured_temperature);
             }
             return Phase::finish;
 
@@ -123,6 +125,7 @@ private:
         switch (result.error) {
         case Error::none:
             pressure_advance = result.pressure_advance;
+            measured_temperature = result.nozzle_temperature;
             data.pressure_advance_100us = static_cast<uint16_t>(std::lround(result.pressure_advance * 10000.f));
             change(Phase::result);
             return Phase::result;
@@ -161,7 +164,7 @@ private:
  *
  * - `S` - Silent: no dialogs, only measure and print the result
  * - `A` - Save and use the measured value (silent mode only; the wizard asks)
- * - `R` - Nozzle temperature [°C]; by default the one of the last calibration of the loaded filament,
+ * - `R` - Nozzle temperature [°C]; by default the one of the saved calibration of the loaded filament,
  *         or its print temperature. The wizard offers it for a change.
  *
  *#### Examples
@@ -181,7 +184,7 @@ void PrusaGcodeSuite::M1572() {
     const Result result = pressure_advance_calibration::run(nozzle_temperature);
     report(result);
     if (result.error == Error::none && parser.seen('A')) {
-        pressure_advance_calibration::save(result.pressure_advance);
+        pressure_advance_calibration::save(result.pressure_advance, result.nozzle_temperature);
     }
 }
 

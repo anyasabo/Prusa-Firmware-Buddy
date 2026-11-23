@@ -14,18 +14,14 @@
 /// to be set wins.
 namespace pressure_advance_calibration {
 
-/// Save the measured pressure advance for the filament loaded in the active tool and start using it.
-/// Marlin thread only.
-void save(float pressure_advance);
+/// Save the pressure advance measured at the given nozzle temperature [°C] for the filament loaded in
+/// the active tool and start using it. Marlin thread only.
+void save(float pressure_advance, int16_t nozzle_temperature);
 
 /// Pressure advance saved for the filament loaded in the active tool
 std::optional<float> saved_value();
 
-/// Remember the nozzle temperature of a calibration of the filament loaded in the active tool; it is
-/// proposed for the next one. Discarded together with the saved value. Marlin thread only.
-void save_calibration_temperature(int16_t nozzle_temperature);
-
-/// Nozzle temperature of the last calibration of the filament loaded in the active tool [°C]
+/// Nozzle temperature the saved pressure advance was measured at [°C]
 std::optional<int16_t> saved_calibration_temperature();
 
 /// Pressure advance settings requested by G-code; nullopt leaves the parameter as requested before.

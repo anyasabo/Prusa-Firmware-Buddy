@@ -111,24 +111,19 @@ std::optional<float> saved_value() {
     return value;
 }
 
-void save(float pressure_advance) {
+void save(float pressure_advance, int16_t nozzle_temperature) {
     if (!save_for_active_tool()) {
         return;
     }
     config_store().calibrated_pressure_advance.set(pressure_advance);
+    config_store().pressure_advance_calibration_temperature.set(nozzle_temperature);
     gcode_overrides = false;
     apply(current_context());
 }
 
-void save_calibration_temperature(int16_t nozzle_temperature) {
-    if (save_for_active_tool()) {
-        config_store().pressure_advance_calibration_temperature.set(nozzle_temperature);
-    }
-}
-
 std::optional<int16_t> saved_calibration_temperature() {
     const int16_t temperature = config_store().pressure_advance_calibration_temperature.get();
-    if (temperature <= 0 || !saved_for_active_tool()) {
+    if (temperature <= 0 || !saved_value()) {
         return std::nullopt;
     }
     return temperature;

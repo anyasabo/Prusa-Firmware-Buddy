@@ -471,7 +471,6 @@ Result run(std::optional<int16_t> nozzle_temperature, const Callbacks &callbacks
     const int16_t requested_temperature = nozzle_temperature.value_or(default_nozzle_temperature().value_or(filament.nozzle_temperature));
     const int16_t temperature = std::clamp<int16_t>(requested_temperature, EXTRUDE_MINTEMP, max_temperature);
     log_info(PressureAdvanceCalibration, "nozzle temperature %d C", temperature);
-    save_calibration_temperature(temperature);
 
     const auto original_target = hotend.nozzle_target_temp();
     ScopeGuard restore_temperature([&] {

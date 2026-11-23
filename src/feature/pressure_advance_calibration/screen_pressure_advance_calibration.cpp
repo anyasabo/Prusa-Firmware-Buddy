@@ -37,10 +37,9 @@ namespace {
 constexpr const char *txt_header = N_("PRESSURE ADVANCE");
 constexpr const char *txt_title = N_("Pressure advance calibration");
 
-constexpr const char *txt_intro = N_("The printer measures how fast the nozzle pressure follows changes of the flow, using the load cell. "
-                                     "It extrudes about 15 mm of filament at the purge position.\n\n"
-                                     "The result depends on the nozzle temperature, the next screen asks for the one you print with.\n\n"
-                                     "Make sure the filament is loaded and nothing blocks the nozzle.");
+constexpr const char *txt_intro = N_("The load cell measures how quickly the nozzle pressure follows flow changes. "
+                                     "About 20 mm of filament is extruded at the purge position.\n\n"
+                                     "Remove any purged filament from the nozzle first.");
 constexpr const char *txt_temperature_title = N_("Calibration temperature");
 constexpr const char *txt_temperature = N_("The pressure advance depends on the nozzle temperature. Set the one you print this filament at.");
 constexpr const char *txt_nozzle_temperature = N_("Nozzle Temperature");

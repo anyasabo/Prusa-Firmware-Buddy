@@ -1040,7 +1040,8 @@ void Pause::load_finalize_process(Response) {
         if (new_filament && pressure_advance_calibration::should_offer_after_load()) {
             // The wizard shows over the load screen, leave nothing to answer there meanwhile
             setPhase(PhasesLoadUnload::Purging_unstoppable);
-            pressure_advance_calibration::run_wizard();
+            // In a print, the loading temperature is the default of the new filament; propose the print one
+            pressure_advance_calibration::run_wizard(settings.resume_nozzle_temperature);
         }
     }
 #endif

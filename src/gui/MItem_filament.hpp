@@ -95,6 +95,14 @@ protected:
     void toggled(Tristate previous_value) override;
 };
 
+class MI_PRESSURE_ADVANCE_ON_PRINT_START final : public MenuItemToggleSwitch {
+public:
+    MI_PRESSURE_ADVANCE_ON_PRINT_START();
+
+protected:
+    void toggled(Tristate previous_value) override;
+};
+
 class MI_PRESSURE_ADVANCE_GCODE_OVERRIDE final : public MenuItemToggleSwitch {
 public:
     MI_PRESSURE_ADVANCE_GCODE_OVERRIDE();

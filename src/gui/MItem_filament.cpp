@@ -210,6 +210,15 @@ void MI_PRESSURE_ADVANCE_AFTER_LOAD::toggled([[maybe_unused]] Tristate previous_
 }
 
 /*****************************************************************************/
+// MI_PRESSURE_ADVANCE_ON_PRINT_START
+MI_PRESSURE_ADVANCE_ON_PRINT_START::MI_PRESSURE_ADVANCE_ON_PRINT_START()
+    : MenuItemToggleSwitch(config_store().pressure_advance_calibrate_on_print_start.get(), _("Allow PA on Start")) {}
+
+void MI_PRESSURE_ADVANCE_ON_PRINT_START::toggled([[maybe_unused]] Tristate previous_value) {
+    config_store().pressure_advance_calibrate_on_print_start.set(value() == Tristate::yes);
+}
+
+/*****************************************************************************/
 // MI_PRESSURE_ADVANCE_GCODE_OVERRIDE
 MI_PRESSURE_ADVANCE_GCODE_OVERRIDE::MI_PRESSURE_ADVANCE_GCODE_OVERRIDE()
     : MenuItemToggleSwitch(config_store().pressure_advance_gcode_override.get(), _("Allow M572 Override")) {}

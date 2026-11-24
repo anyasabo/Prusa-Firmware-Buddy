@@ -38,6 +38,11 @@
   #include <feature/cancel_object/cancel_object.hpp>
 #endif
 
+#include <option/has_pressure_advance_calibration.h>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+  #include <feature/pressure_advance_calibration/gcode_pressure_advance_calibration.hpp>
+#endif
+
 extern xyze_pos_t destination;
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)
@@ -92,6 +97,12 @@ void GcodeSuite::G0_G1(TERN_(HAS_FAST_MOVES, const bool fast_move/*=false*/)) {
     // get_destination_from_command can also change the feedrate, effect of which we should keep
     if (buddy::cancel_object().is_current_object_cancelled()) {
       return;
+    }
+  #endif
+
+  #if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    if (destination.e > current_position.e) {
+      pressure_advance_calibration::before_extrusion();
     }
   #endif
 

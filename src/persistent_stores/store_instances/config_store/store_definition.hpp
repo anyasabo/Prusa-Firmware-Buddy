@@ -521,6 +521,8 @@ struct CurrentStore
     StoreItem<bool, false, ItemFlag::features, journal::hash("Pressure Advance M572 Override")> pressure_advance_gcode_override;
     /// Offer the pressure advance calibration after a filament load
     StoreItem<bool, true, ItemFlag::features, journal::hash("Pressure Advance Offer After Load")> pressure_advance_calibrate_after_load;
+    /// Calibrate the pressure advance at the start of a print whose temperature differs from the calibrated one
+    StoreItem<bool, false, ItemFlag::features, journal::hash("Pressure Advance Calibrate On Print Start")> pressure_advance_calibrate_on_print_start;
 #endif
 
     /// User-defined filament ordering. Does not need to contain all the filaments - the rest will be appended to the back using the standard rules

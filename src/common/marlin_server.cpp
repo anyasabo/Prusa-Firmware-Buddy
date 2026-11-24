@@ -226,6 +226,10 @@
 #if HAS_AUTO_RETRACT()
     #include <feature/auto_retract/auto_retract.hpp>
 #endif
+#include <option/has_pressure_advance_calibration.h>
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+    #include <feature/pressure_advance_calibration/gcode_pressure_advance_calibration.hpp>
+#endif
 
 #include <option/has_filament_tracker.h>
 #if HAS_FILAMENT_TRACKER()
@@ -2376,6 +2380,9 @@ static void _server_print_loop(void) {
 
         server.print_is_serial = (server.print_state == State::SerialPrintInit);
         server.was_print_time_saved = false;
+#if HAS_PRESSURE_ADVANCE_CALIBRATION()
+        pressure_advance_calibration::on_print_start();
+#endif
 #if HAS_WASTEBIN_FILL_TRACKING()
         // Fresh print: reset the per-print pellet/toolchange progress counter.
         WastebinWatcher::instance().reset_print_progress();

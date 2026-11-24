@@ -7,20 +7,33 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <optional>
 
 #include <Marlin/src/Marlin.h>
 #include <Marlin/src/core/serial.h>
 #include <Marlin/src/gcode/parser.h>
+#include <Marlin/src/module/motion.h>
 #include <Marlin/src/module/planner.h>
 #include <config_store/store_instance.hpp>
 #include <filament.hpp>
 #include <fsm/pressure_advance_calibration_phases.hpp>
 #include <logging/log.hpp>
+#include <mapi/feedrates/standard_feedrates.hpp>
+#include <mapi/motion.hpp>
 #include <marlin_server.hpp>
+#include <tool/hotend/hotend.hpp>
 #include <tool_index.hpp>
 
+#include <option/has_auto_retract.h>
+#include <option/has_filament_tracker.h>
 #include <option/has_mmu2.h>
+#if HAS_AUTO_RETRACT()
+    #include <feature/auto_retract/auto_retract.hpp>
+#endif
+#if HAS_FILAMENT_TRACKER()
+    #include <feature/filament_tracker/filament_tracker.hpp>
+#endif
 #if HAS_MMU2()
     #include <feature/prusa/MMU2/mmu2_mk4.h>
 #endif
@@ -33,6 +46,28 @@ using pressure_advance_calibration::Error;
 using pressure_advance_calibration::Result;
 using pressure_advance_calibration::Stage;
 using Phase = PhasePressureAdvanceCalibration;
+
+/// A saved calibration this close to the print temperature is kept at a print start [°C]
+constexpr int print_start_temperature_tolerance = 3;
+
+/// The print started and has not extruded at the print temperature yet
+bool print_start_pending = false;
+
+/// The filament loaded in the active tool can be calibrated
+bool can_calibrate_loaded_filament() {
+#if HAS_MMU2()
+    // The MMU swaps the filament at every tool change, which discards the calibration
+    if (MMU2::mmu2.Enabled()) {
+        return false;
+    }
+#endif
+    const auto tool = VirtualToolIndex::currently_selected_opt();
+    if (!tool) {
+        return false;
+    }
+    const FilamentType filament = FilamentType::for_tool(*tool);
+    return filament != FilamentType::none && !filament.parameters().is_flexible;
+}
 
 /// Waits for the response to the phase; Abort when the planner drains (power panic, print stop)
 FSMResponseVariant wait_for_response(Phase phase) {
@@ -47,6 +82,11 @@ FSMResponseVariant wait_for_response(Phase phase) {
 
 bool responded(Phase phase, Response response) {
     return wait_for_response(phase).value_or<Response>(Response::_none) == response;
+}
+
+/// No dialogs; gives up when the planner drains (power panic, print stop)
+pressure_advance_calibration::Callbacks silent_callbacks() {
+    return { .on_progress = [](Stage, uint8_t) { return !planner.draining(); } };
 }
 
 void report(const Result &result) {
@@ -173,6 +213,41 @@ private:
     }
 };
 
+/// Calibrate at the start of an extrusion move of G-code and return there, keeping the state of the move
+void calibrate_before_extrusion([[maybe_unused]] PhysicalToolIndex tool, int16_t temperature) {
+    const xyze_pos_t start = current_position;
+    const xyze_pos_t move_destination = destination;
+    const feedRate_t move_feedrate = feedrate_mm_s;
+
+#if HAS_AUTO_RETRACT()
+    // The extrusion would deretract it anyway
+    buddy::auto_retract().maybe_deretract_to_nozzle();
+#endif
+#if HAS_FILAMENT_TRACKER()
+    // What the G-code retracted, its extrusion accounts for that
+    const float retracted = buddy::filament_tracker().get_retracted_distance(tool).value_or(0);
+#endif
+
+    const Result result = pressure_advance_calibration::run(temperature, silent_callbacks());
+    report(result);
+    if (result.error == Error::none) {
+        pressure_advance_calibration::save(result.pressure_advance, result.nozzle_temperature);
+    }
+
+    if (!planner.draining()) {
+        // The extrusion wipes the filament left hanging from the nozzle
+        do_blocking_move_to_xy(start);
+        do_blocking_move_to_z(start.z);
+#if HAS_FILAMENT_TRACKER()
+        mapi::restore_retracted_distance(retracted, buddy::standard_feedrates::current_extruder(buddy::standard_feedrates::Extruder::retract));
+#endif
+    }
+    current_position.e = start.e;
+    sync_plan_position_e();
+    destination = move_destination;
+    feedrate_mm_s = move_feedrate;
+}
+
 } // namespace
 
 void pressure_advance_calibration::run_wizard(std::optional<int16_t> nozzle_temperature) {
@@ -180,25 +255,44 @@ void pressure_advance_calibration::run_wizard(std::optional<int16_t> nozzle_temp
 }
 
 bool pressure_advance_calibration::should_offer_after_load() {
-    if (!config_store().pressure_advance_calibrate_after_load.get() || planner.draining()) {
-        return false;
-    }
-#if HAS_MMU2()
-    // The MMU loads a filament at every tool change
-    if (MMU2::mmu2.Enabled()) {
-        return false;
-    }
-#endif
-    const auto tool = VirtualToolIndex::currently_selected_opt();
-    if (!tool) {
-        return false;
-    }
-    const FilamentType filament = FilamentType::for_tool(*tool);
-    if (filament == FilamentType::none || filament.parameters().is_flexible) {
+    if (!config_store().pressure_advance_calibrate_after_load.get() || planner.draining() || !can_calibrate_loaded_filament()) {
         return false;
     }
     log_info(PressureAdvanceCalibration, "offering the calibration after a filament load");
     return true;
+}
+
+void pressure_advance_calibration::on_print_start() {
+    print_start_pending = true;
+}
+
+void pressure_advance_calibration::before_extrusion() {
+    if (!print_start_pending) {
+        return;
+    }
+    const auto tool = PhysicalToolIndex::currently_selected_opt();
+    const auto virtual_tool = VirtualToolIndex::currently_selected_opt();
+    if (!tool || !virtual_tool || !marlin_server::is_printing() || planner.draining()) {
+        print_start_pending = false;
+        return;
+    }
+    const FilamentType filament = FilamentType::for_tool(*virtual_tool);
+    const int16_t temperature = Hotend::for_tool(*tool).nozzle_target_temp();
+    if (filament != FilamentType::none && temperature <= filament.parameters().nozzle_preheat_temperature) {
+        // Not printing yet, e.g. a wipe at the probing temperature
+        return;
+    }
+    print_start_pending = false;
+
+    if (!config_store().pressure_advance_calibrate_on_print_start.get() || !can_calibrate_loaded_filament()) {
+        return;
+    }
+    if (const auto saved_temperature = saved_calibration_temperature(); saved_temperature && std::abs(*saved_temperature - temperature) <= print_start_temperature_tolerance) {
+        log_info(PressureAdvanceCalibration, "print start: calibrated at %d C, printing at %d C", *saved_temperature, temperature);
+        return;
+    }
+    log_info(PressureAdvanceCalibration, "print start: calibrating at %d C", temperature);
+    calibrate_before_extrusion(*tool, temperature);
 }
 
 /** \addtogroup G-Codes
@@ -222,7 +316,7 @@ bool pressure_advance_calibration::should_offer_after_load() {
  *
  *#### Parameters
  *
- * - `S` - Silent: no dialogs, only measure and print the result
+ * - `S` - Silent: no dialogs, only measure and print the result; gives up when the print is stopped
  * - `A` - Save and use the measured value (silent mode only; the wizard asks)
  * - `R` - Nozzle temperature [°C]; by default the one of the saved calibration of the loaded filament,
  *         or its print temperature. The wizard offers it for a change.
@@ -241,7 +335,7 @@ void PrusaGcodeSuite::M1572() {
         return;
     }
 
-    const Result result = pressure_advance_calibration::run(nozzle_temperature);
+    const Result result = pressure_advance_calibration::run(nozzle_temperature, silent_callbacks());
     report(result);
     if (result.error == Error::none && parser.seen('A')) {
         pressure_advance_calibration::save(result.pressure_advance, result.nozzle_temperature);

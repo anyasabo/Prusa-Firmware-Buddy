@@ -12,6 +12,7 @@
 #include "heap.h"
 #include <utils/variant_utils.hpp>
 #include <adc.hpp>
+#include <option/has_fork_diagnostics.h>
 #include <option/has_door_sensor.h>
 #include <option/has_local_bed.h>
 #include <option/has_cyphal_metrics.h>
@@ -90,6 +91,7 @@ void RecordRuntimeStats() {
         int count = uxTaskGetSystemState(task_statuses, std::size(task_statuses), &total_run_time);
         release_assert(count); // increase task_statuses size if this fails
 
+#if HAS_FORK_DIAGNOSTICS() // not on the MINI (ProjectOptions.cmake)
         // EXPERIMENT (upload-experiments): CPU time of each task since the last record, in
         // permille of the run-time counter (FreeRTOSConfig.h, the 32-bit DWT cycle counter;
         // unsigned differences are correct while the interval is shorter than the ~25.6 s wrap),
@@ -142,6 +144,7 @@ void RecordRuntimeStats() {
         std::copy(std::begin(new_handle), std::end(new_handle), std::begin(prev_handle));
         std::copy(std::begin(new_counter), std::end(new_counter), std::begin(prev_counter));
         std::copy(std::begin(new_cum), std::end(new_cum), std::begin(prev_cum));
+#endif
 
         for (int idx = 0; idx < count; idx++) {
             const char *task_name = task_statuses[idx].pcTaskName;

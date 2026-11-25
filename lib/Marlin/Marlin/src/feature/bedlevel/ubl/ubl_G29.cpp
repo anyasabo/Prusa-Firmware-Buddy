@@ -756,8 +756,11 @@
     // does not hold the 36 rows of the XL mesh.
     using PointSet = std::bitset<GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y>;
     const auto point_bit = [](int x, int y) { return static_cast<size_t>(x * GRID_MAX_POINTS_Y + y); };
-    // The points that failed, to log their fill after the walk.
-    PointSet failed_points;
+    // The points that failed, to log their fill after the walk. Static: on the XL a set is 164 B, and
+    // the walk calls the probe code, which uses much of the Marlin task stack. Only the Marlin task
+    // runs G29.
+    static PointSet failed_points;
+    failed_points.reset();
     bool any_failed = false;
     int failed_in_a_row = 0;
     // After this many failed points in sequence, stop: the probe itself is not working.
@@ -839,7 +842,8 @@
       // The fills write only empty points, and the border, which no pass probes.
       // Not after a stop for failures in sequence: the rest of the mesh is empty then, and a fill
       // from a partial mesh would not show what a fill from a full mesh gives.
-      PointSet empty_points;
+      static PointSet empty_points;
+      empty_points.reset();
       for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++)
         for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++)
           if (std::isnan(z_values[fx][fy]))

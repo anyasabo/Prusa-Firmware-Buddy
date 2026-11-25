@@ -1307,3 +1307,21 @@ else()
   set(HAS_EXTRA_EXPERIMENTAL_SETTINGS NO)
 endif()
 define_boolean_option(HAS_EXTRA_EXPERIMENTAL_SETTINGS ${HAS_EXTRA_EXPERIMENTAL_SETTINGS})
+
+# EXPERIMENT (fork): the diagnostic experiment code (the "upx-" runtime switches of the upload
+# fixes, their metrics, the tcpip busy and network latency records, the GUI CPU profile and M9959).
+# The MINI does not get it: with it, the MINI image does not fit into the flash (5.5 KB too large in
+# the English-Japanese image of anya.5). Without it, the upload fixes stay on at their boot values.
+set_feature_for_printers_master_board(
+  HAS_FORK_DIAGNOSTICS
+  "COREONE"
+  "COREONE_INDX"
+  "COREONEL"
+  "COREONEL_INDX"
+  "MK4"
+  "MK3.5"
+  "XL"
+  "iX"
+  "XL_DEV_KIT"
+  "UNITTESTS"
+  )

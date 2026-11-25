@@ -10,6 +10,7 @@
 #include "printers.h"
 #include "MarlinPin.h"
 #include "metric.h"
+#include <option/has_fork_diagnostics.h>
 #include <option/has_gearbox_alignment.h>
 #include <option/has_loadcell.h>
 #include <option/has_local_accelerometer.h>
@@ -391,9 +392,11 @@ bool GcodeSuite::process_parsed_command_custom(bool no_ok) {
             PrusaGcodeSuite::M9933();
             break;
 
+#if HAS_FORK_DIAGNOSTICS()
         case 9959: // EXPERIMENT
             PrusaGcodeSuite::M9959();
             break;
+#endif
 
 #if HAS_LOCAL_ACCELEROMETER() || HAS_REMOTE_ACCELEROMETER()
         case 9958: // EXPERIMENT

@@ -1,5 +1,6 @@
 // EXPERIMENT (upload-experiments branch): see buddy/upload_experiment.hpp.
 #include <buddy/upload_experiment.hpp>
+#include <option/has_fork_diagnostics.h>
 
 #include "metric.h"
 #include <buddy/rx_stats.h>
@@ -21,6 +22,9 @@ LOG_COMPONENT_REF(WUI);
 namespace upload_experiment {
 
 void apply_from_path(const char *path) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     const char *p = path ? strstr(path, "upx-") : nullptr;
     if (!p) {
         return;
@@ -150,6 +154,9 @@ namespace {
 } // namespace
 
 void record_timing() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     ++uploads_done;
     // One log line for each upload with the main values: a metric keeps only the last upload of
     // each 30 s scrape (EXPERIMENT, metrics survey E6).
@@ -194,6 +201,9 @@ void record_timing() {
 }
 
 void report_memory() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     static uint32_t last_ms = 0;
     const uint32_t now = ticks_ms();
     if (now - last_ms < 5000) {
@@ -250,6 +260,9 @@ static void report_cumulative() {
 }
 
 void report_net_lat() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     report_cumulative();
     static uint32_t last_ms = 0;
     const uint32_t now = ticks_ms();
@@ -279,6 +292,9 @@ void report_net_lat() {
 }
 
 void report_usb_io() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     static uint32_t last_ms = 0;
     static bool started = false;
     static struct buddy_usb_stats last {};
@@ -371,6 +387,9 @@ namespace {
 } // namespace
 
 void record_http_step(uint32_t ms, uint8_t handler_before, uint8_t handler_after) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     Window done;
     if (http_window.add(ms, handler_before, handler_after, &done)) {
         METRIC_DEF(metric_http_blk, "http_blk", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
@@ -383,6 +402,9 @@ void record_http_step(uint32_t ms, uint8_t handler_before, uint8_t handler_after
 } // namespace upload_experiment
 
 extern "C" void buddy_tcpip_busy_record(uint32_t ms, uint8_t kind, uint32_t fn) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     using upload_experiment::Window;
     upload_experiment::report_usb_io();
     upload_experiment::report_net_lat();
@@ -398,6 +420,9 @@ extern "C" void buddy_tcpip_busy_record(uint32_t ms, uint8_t kind, uint32_t fn) 
 }
 
 extern "C" void buddy_net_lat_record(uint8_t kind, uint32_t ms) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     if (kind > 1) {
         return;
     }

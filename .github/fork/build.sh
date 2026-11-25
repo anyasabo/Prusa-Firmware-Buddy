@@ -47,13 +47,18 @@ presets=("${@:-coreonel}")
 out="$here/build/package"
 for p in "${presets[@]}"; do
     [ -n "${prefix[$p]:-}" ] || { echo "unknown preset: $p (known: ${all[*]})" >&2; exit 1; }
-    # A second build of the same commit differs in the build date (__DATE__), so a label must not
-    # get two different images with the same version. Use a new label for a new build.
+    # One label is for one build of one commit. Use a new label for a new build.
     [ ! -e "$out/${prefix[$p]}_$label.bbf" ] || { echo "exists: $out/${prefix[$p]}_$label.bbf (use a new label)" >&2; exit 1; }
 done
 
 cd "$src"
 build=$(git rev-list --count HEAD)
+# Reproducible images: GCC takes __DATE__ and __TIME__ from SOURCE_DATE_EPOCH
+# (https://reproducible-builds.org/docs/source-date-epoch/). Marlin prints "Compiled: " __DATE__
+# at boot (lib/Marlin/Marlin/src/Marlin.cpp). With the commit time, two builds of one commit give
+# the same bytes. Without it, they differ in that string and in the digest of the .bbf.
+: "${SOURCE_DATE_EPOCH:=$(git log -1 --format=%ct HEAD)}"
+export SOURCE_DATE_EPOCH
 jobs=$(build-jobs 2>/dev/null || nproc)
 py=python3
 [ -x .venv/bin/python ] && py=.venv/bin/python

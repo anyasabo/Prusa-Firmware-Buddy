@@ -20,7 +20,10 @@ One script builds `anya/main` or any topic branch worktree (a topic branch has n
 ```sh
 flock /workspaces/prusa/.heavy.lock .github/fork/build.sh . anya.2
 flock /workspaces/prusa/.heavy.lock .github/fork/build.sh ../Prusa-Firmware-Buddy-eth pr.eth-rx-descriptors.1
+flock /workspaces/prusa/.heavy.lock .github/fork/build.sh . anya.5 all
 ```
+
+The default is the CORE One L. To build other printers, add presets after the label. `all` builds each printer that has a file in the upstream release (14 images). The table in `build.sh` gives the file name of each preset. The names are the upstream names, for example `MK4_MK4S_MK3.9_MK3.9S_anya.5.bbf`.
 
 The output is in `build/package/` of this tree. The version stays upstream (8.0.2 since upstream
 master dropped the 9.0.0 bump on 2026-11-16). The label goes after the build number:

@@ -29,9 +29,9 @@ The images for the other printers are built from the same code. Nobody tested th
 ## Also in this build (for diagnostics)
 
 - More metrics on by default (temperatures, fans, planner, heap, phase stepping stalls for each axis, `e_stall`). They go only to the metrics host that you set in the printer. The metric `tmc_e` (the state of the E motor driver) is off by default.
-- Test G-codes `M9958`, `M9959` and `M9961`. They do nothing unless you send them.
+- Test G-codes `M9958` (only on printers with an accelerometer), `M9959` and `M9961`. They do nothing unless you send them.
 - Runtime switches for the upload fixes. An upload whose file name contains `upx-` changes them. Do not use `upx-` in the names of your own files.
-- **MINI:** the flash of the MINI is full. Thus the MINI image does not have the runtime switches, the upload experiment metrics, the GUI CPU profile and `M9959`. The upload fixes are on.
+- **MINI:** the flash of the MINI is full. Thus the MINI image does not have the runtime switches, the upload experiment metrics, the GUI CPU profile, `M9958` and `M9959`. The upload fixes are on.
 
 ## Files
 

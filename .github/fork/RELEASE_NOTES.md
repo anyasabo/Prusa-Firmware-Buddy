@@ -31,20 +31,21 @@ The images for the other printers are built from the same code. Nobody tested th
 - More metrics on by default (temperatures, fans, planner, heap, phase stepping stalls for each axis, `e_stall`). They go only to the metrics host that you set in the printer. The metric `tmc_e` (the state of the E motor driver) is off by default.
 - Test G-codes `M9958`, `M9959` and `M9961`. They do nothing unless you send them.
 - Runtime switches for the upload fixes. An upload whose file name contains `upx-` changes them. Do not use `upx-` in the names of your own files.
+- **MINI:** the flash of the MINI is full. Thus the MINI image does not have the runtime switches, the upload experiment metrics, the GUI CPU profile and `M9959`. The upload fixes are on.
 
 ## Files
 
 | Printer | File |
 | --- | --- |
-| CORE One L | `COREONEL_anya.6.bbf` |
-| CORE One | `COREONE_COREONE+GEN2_anya.6.bbf` |
-| CORE One with INDX | `COREONE_COREONE+GEN2_INDX_anya.6.bbf` |
-| MK4, MK4S, MK3.9, MK3.9S | `MK4_MK4S_MK3.9_MK3.9S_anya.6.bbf` |
-| MK3.5, MK3.5S | `MK3.5_MK3.5S_anya.6.bbf` |
-| XL | `XL_XL+_anya.6.bbf` |
-| MINI, MINI+ | `MINI_english-<language>_anya.6.bbf`. Select the file with your second language. |
+| CORE One L | `COREONEL_anya.7.bbf` |
+| CORE One | `COREONE_COREONE+GEN2_anya.7.bbf` |
+| CORE One with INDX | `COREONE_COREONE+GEN2_INDX_anya.7.bbf` |
+| MK4, MK4S, MK3.9, MK3.9S | `MK4_MK4S_MK3.9_MK3.9S_anya.7.bbf` |
+| MK3.5, MK3.5S | `MK3.5_MK3.5S_anya.7.bbf` |
+| XL | `XL_XL+_anya.7.bbf` |
+| MINI, MINI+ | `MINI_english-<language>_anya.7.bbf`. Select the file with your second language. |
 
-The names are the same as the names of the official 8.0.2 files. Each `.elf` file is for crash dumps and debuggers. `SHA256SUMS-anya.6.txt` has the checksums.
+The names are the same as the names of the official 8.0.2 files. Each `.elf` file is for crash dumps and debuggers. `SHA256SUMS-anya.7.txt` has the checksums.
 
 ## Install
 

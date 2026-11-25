@@ -1,5 +1,6 @@
 // EXPERIMENT: see include/buddy/cpu_prof.h.
 #include <buddy/cpu_prof.h>
+#include <option/has_fork_diagnostics.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -49,12 +50,18 @@ uint32_t to_ms(uint64_t cycles) {
 } // namespace
 
 extern "C" void buddy_prof_switched_in(void *tcb) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     if (tcb == prof_tcb) {
         prof_in_at = DWT->CYCCNT;
     }
 }
 
 extern "C" void buddy_prof_switched_out(void *tcb) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     if (tcb == prof_tcb) {
         prof_cycles = prof_cycles + (DWT->CYCCNT - prof_in_at);
     }
@@ -63,6 +70,9 @@ extern "C" void buddy_prof_switched_out(void *tcb) {
 namespace cpu_prof {
 
 void set_task_to_current() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     taskENTER_CRITICAL();
     prof_in_at = DWT->CYCCNT;
     prof_cycles = 0;
@@ -86,10 +96,16 @@ uint64_t now() {
 }
 
 void add(Section s, uint64_t cycles) {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     section_cycles[static_cast<size_t>(s)] += cycles;
 }
 
 void fold() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     const uint32_t p = buddy_phstep_isr_cycles;
     phstep_cycles += p - last_phstep;
     last_phstep = p;
@@ -101,6 +117,9 @@ void fold() {
 }
 
 void loop_done() {
+    if constexpr (!option::has_fork_diagnostics) {
+        return;
+    }
     ++loops;
     const uint32_t now_ms = ticks_ms();
     if (now_ms - last_report_ms < 1000) {

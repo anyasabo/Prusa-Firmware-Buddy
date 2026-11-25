@@ -8,6 +8,7 @@
 #include <option/has_gantry_squareness_check.h>
 #include <option/has_heaters_selftest_gcode.h>
 #include <option/has_esp.h>
+#include <option/has_fork_diagnostics.h>
 #include <option/has_toolchanger.h>
 #include <option/has_tool_mapping.h>
 #include <option/has_side_leds.h>
@@ -205,7 +206,9 @@ void M9202(); //< Clear precise homing calibration
 
 void M9933(); //< Cork for tracking when gcode finished executing
 void M9958(); //< EXPERIMENT: select and time the input shaper fitting
+#if HAS_FORK_DIAGNOSTICS()
 void M9959(); //< EXPERIMENT: minimum sleep of the GUI loop
+#endif
 
 #if HAS_CRASH_DETECTION()
 void M9944(); ///< Execute G-Code interrupt

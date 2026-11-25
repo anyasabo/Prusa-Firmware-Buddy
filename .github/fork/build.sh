@@ -47,7 +47,8 @@ presets=("${@:-coreonel}")
 out="$here/build/package"
 for p in "${presets[@]}"; do
     [ -n "${prefix[$p]:-}" ] || { echo "unknown preset: $p (known: ${all[*]})" >&2; exit 1; }
-    # One label is for one build of one commit. Use a new label for a new build.
+    # The label goes into the version, and a published file must not change. Use a new label for a
+    # new build.
     [ ! -e "$out/${prefix[$p]}_$label.bbf" ] || { echo "exists: $out/${prefix[$p]}_$label.bbf (use a new label)" >&2; exit 1; }
 done
 
@@ -66,6 +67,9 @@ mkdir -p "$out"
 
 for p in "${presets[@]}"; do
     dir=build/${p}_release_boot
+    # A fresh directory: ninja does not track SOURCE_DATE_EPOCH, so an old directory can keep the
+    # __DATE__ of an earlier build. ccache keeps the rebuild fast.
+    rm -rf -- "${dir:?}"
     "$py" utils/build.py --preset "$p" --build-type release --bootloader yes \
         --version-suffix "+$build.$label" --version-suffix-short "+$build" --no-build
     # The ninja that CMake configured. With two ninja versions in .dependencies, a glob can find the other one.

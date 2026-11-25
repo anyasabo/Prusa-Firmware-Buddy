@@ -24,6 +24,7 @@
 #include "config_store/store_instance.hpp"
 #include <option/has_crash_detection.h>
 #include <option/has_power_panic.h>
+#include <bitset>
 
 #if ENABLED(AUTO_BED_LEVELING_UBL)
 
@@ -751,9 +752,12 @@
     bool is_initial_probe = true;
     int num_of_probed_points = 0;
 
-    // M9961: the points that failed, to log their fill after the walk (bit y of word x).
-    static_assert(GRID_MAX_POINTS_Y <= 32);
-    uint32_t failed_points[GRID_MAX_POINTS_X] = { 0 };
+    // M9961: one bit for each mesh point, bit x * GRID_MAX_POINTS_Y + y. A uint32_t for each column
+    // does not hold the 36 rows of the XL mesh.
+    using PointSet = std::bitset<GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y>;
+    const auto point_bit = [](int x, int y) { return static_cast<size_t>(x * GRID_MAX_POINTS_Y + y); };
+    // The points that failed, to log their fill after the walk.
+    PointSet failed_points;
     bool any_failed = false;
     int failed_in_a_row = 0;
     // After this many failed points in sequence, stop: the probe itself is not working.
@@ -800,7 +804,7 @@
         // M9961: leave the point empty and go on. A failed probe can leave the nozzle low, so go
         // up to the height of the first probe move before the move to the next point. An
         // absolute height: failures in sequence must not add up.
-        SBI(failed_points[x], y);
+        failed_points.set(point_bit(x, y));
         any_failed = true;
         log_warning(Marlin, "MBL point at %.2f %.2f failed, continuing (M9961)", (double)pos.x, (double)pos.y);
         do_blocking_move_to_z(std::max<float>(current_position.z, Z_CLEARANCE_BEFORE_PROBING), MMM_TO_MMS(Z_PROBE_SPEED_FAST));
@@ -835,19 +839,19 @@
       // The fills write only empty points, and the border, which no pass probes.
       // Not after a stop for failures in sequence: the rest of the mesh is empty then, and a fill
       // from a partial mesh would not show what a fill from a full mesh gives.
-      uint32_t empty_points[GRID_MAX_POINTS_X] = { 0 };
+      PointSet empty_points;
       for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++)
         for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++)
           if (std::isnan(z_values[fx][fy]))
-            SBI(empty_points[fx], fy);
+            empty_points.set(point_bit(fx, fy));
       bicubic_fill_mesh();
       smart_fill_wlsf(POW(10.0f, (3.13f - 3.10f) * 100.0f)); // the weight of G29 P3.13
       for (int fx = 0; fx < GRID_MAX_POINTS_X; fx++) {
         for (int fy = 0; fy < GRID_MAX_POINTS_Y; fy++) {
-          if (TEST(failed_points[fx], fy)) {
+          if (failed_points.test(point_bit(fx, fy))) {
             log_info(Marlin, "MBL fill at %.2f %.2f: %f", (double)mesh_index_to_xpos(fx), (double)mesh_index_to_ypos(fy), (double)z_values[fx][fy]);
           }
-          if (TEST(empty_points[fx], fy)) {
+          if (empty_points.test(point_bit(fx, fy))) {
             z_values[fx][fy] = NAN;
           }
         }

@@ -1,0 +1,2 @@
+spool_join.cpp includes "../../../feature/nozzle_cleaner/include/nozzle_cleaner.hpp". With this directory
+on the include path, that name resolves to stub_include/feature/nozzle_cleaner/include/nozzle_cleaner.hpp.

@@ -970,6 +970,8 @@ static void cycle() {
 
 #if HAS_LOADCELL() && HAS_LOADCELL_HX717()
     // Only the local HX717 streams all the time. Before FSensors step(): it reads samples_stale().
+    // A fault raises the redscreen only in a printing state. Then the E-stall detector depends on the samples.
+    // A fault while paused raises it when the print continues.
     loadcell.check_health(is_printing_state(server.print_state));
 #endif
 

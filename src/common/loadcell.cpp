@@ -252,7 +252,9 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
     if (loadcellRaw != undefined_value) {
         this->loadcellRaw = loadcellRaw;
         this->undefinedCnt = 0;
+#if HAS_LOADCELL_HX717()
         health.feed(loadcellRaw);
+#endif
     } else {
         if (!HAS_LOADCELL_HX717() || (!sys_debugger_attached() || DEBUGGING(ERRORS))) {
             // see comment in hx717mux: only enable additional safety checks if HX717 is multiplexed
@@ -407,6 +409,7 @@ void Loadcell::HomingSafetyCheck() {
     }
 }
 
+#if HAS_LOADCELL_HX717()
 void Loadcell::check_health(bool printing) {
     using Fault = buddy::LoadcellHealth::Fault;
     const Fault fault = health.check(ticks_us());
@@ -415,12 +418,12 @@ void Loadcell::check_health(bool printing) {
     if (fault == Fault::none || !printing) {
         return;
     }
-#if HAS_POWER_PANIC()
+    #if HAS_POWER_PANIC()
     if (power_panic::ac_fault_triggered) {
         // The power is going down: the HX717 can stop before the MCU
         return;
     }
-#endif
+    #endif
     if (sys_debugger_attached() && !DEBUGGING(ERRORS)) {
         // A halt of the MCU stops the sample ISR. Same rule as for the undefined samples in ProcessSample().
         return;
@@ -437,6 +440,7 @@ void Loadcell::check_health(bool printing) {
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
     }
 }
+#endif
 
 bool Loadcell::wait_for_fresh_sample(uint32_t timeout_us, uint32_t max_age_us) {
     const uint32_t start = ticks_us();

@@ -113,6 +113,10 @@
 #include <option/has_xl_can.h>
 #include <option/has_modular_bed.h>
 #include <option/has_loadcell.h>
+#include <option/has_loadcell_hx717.h>
+#if HAS_LOADCELL() && HAS_LOADCELL_HX717()
+    #include <loadcell.hpp>
+#endif
 #include <option/has_nfc.h>
 #include <option/has_ht_hotend.h>
 #include <option/has_sheet_profiles.h>
@@ -966,6 +970,14 @@ static void cycle() {
 
 #if HAS_INDX()
     IndxHotend::process_pending_thermal_runaway();
+#endif
+
+#if HAS_LOADCELL() && HAS_LOADCELL_HX717()
+    // Only the local HX717 streams all the time. Before FSensors step(): it reads samples_stale().
+    // A fault raises the redscreen only in a printing state. Then the E-stall detector depends on the samples.
+    // A fault while paused raises it when the print continues. During Load_unload (M600, runout), a person
+    // can push on the nozzle or the filament (same exemption as for the emergency stop above).
+    loadcell.check_health(is_printing_state(server.print_state) && !fsm_states.is_active(ClientFSM::Load_unload));
 #endif
 
     FSensors_instance().step();

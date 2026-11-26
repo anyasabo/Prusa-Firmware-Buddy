@@ -171,6 +171,9 @@ float Loadcell::Tare(TareMode mode) {
         }
 
         offset = tareSum / requestedTareCount;
+#if HAS_LOADCELL_HX717()
+        tare_valid.store(true);
+#endif
 
         // Wait till the loadcell reports first sample with the new offset applied (BFW-7791)
         WaitBarrier();
@@ -186,6 +189,9 @@ void Loadcell::Clear() {
     loadcellRaw = undefined_value;
     undefinedCnt = -UNDEFINED_INIT_MAX_CNT;
     offset = 0;
+#if HAS_LOADCELL_HX717()
+    tare_valid.store(false);
+#endif
     tare_generation.store(last_source_generation.load());
     reset_filters();
     reset_endstops();
@@ -266,6 +272,12 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
     }
 
     const float tared_z_load = get_tared_z_load(loadcellRaw, scale, offset);
+
+#if HAS_LOADCELL_HX717()
+    if (loadcellRaw != undefined_value) {
+        health.feed(loadcellRaw, buddy::LoadcellHealth::load_plausible(tared_z_load, highPrecision, tare_valid.load(std::memory_order_relaxed)));
+    }
+#endif
 
 #if RTT_METRICS_ENABLED()
     rtt_metrics::sample_loadcell_tared_z({ tared_z_load });
@@ -361,16 +373,10 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
     }
 
-    if (Endstops::is_z_probe_enabled()) {
-#if 0
-    // #error dead code found by automatic analyses (see BFW-5461)
-      // TODO: temporarily disabled for release until true overloads are resolved
-      // load is negative, so flip the signs accordingly just below
-        if ((isfinite(failsOnLoadAbove) && loadForEndstops < -failsOnLoadAbove)
-            || (isfinite(failsOnLoadBelow) && loadForEndstops > -failsOnLoadBelow))
-            fatal_error("LOADCELL", "Loadcell overload");
-#endif
-    }
+    // There is no overload check here. failsOnLoadAbove (set by FailureOnLoadAboveEnforcer during probe
+    // moves) is stored, but not enforced. Upstream disabled the check in v5.0.0-alpha1 "until true
+    // overloads are resolved" (BFW-5461) and its code referred to a variable out of scope.
+    // To add it again, first find the real peak loads of a probe on the printers.
 
     // push sample for analysis
     // If the sample is nan, the analysis should detect it and fail
@@ -412,6 +418,39 @@ void Loadcell::HomingSafetyCheck() {
     }
 }
 
+#if HAS_LOADCELL_HX717()
+void Loadcell::check_health(bool printing) {
+    using Fault = buddy::LoadcellHealth::Fault;
+    const Fault fault = health.check(ticks_us());
+    health_fault.store(fault);
+
+    if (fault == Fault::none || !printing) {
+        return;
+    }
+    #if HAS_POWER_PANIC()
+    if (power_panic::ac_fault_triggered) {
+        // The power is going down: the HX717 can stop before the MCU
+        return;
+    }
+    #endif
+    if (sys_debugger_attached() && !DEBUGGING(ERRORS)) {
+        // A halt of the MCU stops the sample ISR. Same rule as for the undefined samples in ProcessSample().
+        return;
+    }
+
+    switch (fault) {
+    case Fault::none:
+        break;
+    case Fault::no_samples:
+        log_error(Loadcell, "No sample for %" PRIu32 " ms", buddy::LoadcellHealth::sample_timeout_us / 1000);
+        fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_TIMEOUT);
+    case Fault::implausible_value:
+        log_error(Loadcell, "Raw value constant or implausible for %" PRIu32 " ms, last %" PRId32 ", offset %" PRId32, buddy::LoadcellHealth::implausible_timeout_us / 1000, health.get_last_raw(), offset);
+        fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
+    }
+}
+#endif
+
 bool Loadcell::wait_for_fresh_sample(uint32_t timeout_us, uint32_t max_age_us) {
     const uint32_t start = ticks_us();
     while (true) {
@@ -433,6 +472,7 @@ bool Loadcell::wait_for_fresh_sample(uint32_t timeout_us, uint32_t max_age_us) {
  * @brief Create object enforcing error when positive load value is too big
  *
  * Sets grams threshold when created, restores to original when destroyed.
+ * @note Nothing enforces the threshold at the moment, see the comment in ProcessSample().
  * @param grams
  * @param enable Enable condition. Useful if you want to create enforcer based on condition.
  *              You can not put object simply inside if block, because you unintentionally also

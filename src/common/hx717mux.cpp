@@ -9,6 +9,8 @@
 // dependency between Loadcell and HX717Mux
 static_assert(HX717::undefined_value == Loadcell::undefined_value);
 static_assert(std::is_same_v<decltype(HX717::undefined_value), decltype(Loadcell::undefined_value)>);
+static_assert(HX717::min_value == buddy::LoadcellHealth::rail_min);
+static_assert(HX717::max_value == buddy::LoadcellHealth::rail_max);
 
 namespace buddy::hw {
 

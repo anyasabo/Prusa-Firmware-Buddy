@@ -8,9 +8,11 @@
 #include <bsod.h>
 #include <limits>
 #include "probe_analysis.hpp"
+#include "loadcell_health.hpp"
 #include <atomic>
 #include <printers.h>
 #include <option/has_indx.h>
+#include <option/has_loadcell_hx717.h>
 
 class Loadcell {
 public:
@@ -133,6 +135,18 @@ public:
 
     /// Checks loadcell sample freshness during a probe/homing session; stops Z (failed probe) if samples stop arriving.
     void HomingSafetyCheck();
+
+#if HAS_LOADCELL_HX717()
+    // Only the local HX717 streams all the time. On the XL and INDX, a puppy stops the load cell on purpose.
+
+    /// Run the health checks of the sample stream (@see buddy::LoadcellHealth).
+    /// Call periodically from the default task, also when no print runs, so that the state stays current.
+    /// @param printing If true, a fault raises a redscreen (except during power panic or a debug session).
+    void check_health(bool printing);
+
+    /// True if the last check_health() found no new sample for LoadcellHealth::sample_timeout_us.
+    bool samples_stale() const { return health_fault.load() == buddy::LoadcellHealth::Fault::no_samples; }
+#endif
 
     /// Wait until a sample no older than max_age_us has arrived, or timeout_us elapses.
     /// Bails early on planner draining / stepper stopping / a tripped probe-safety (@see probe_should_abort()).
@@ -401,6 +415,17 @@ private:
     /// means the head reset since the tare, so the tare is stale.
     std::atomic<uint32_t> tare_generation { 0 };
     static_assert(std::atomic<decltype(tare_generation)::value_type>::is_always_lock_free, "Lock free type must be used from ISR.");
+
+#if HAS_LOADCELL_HX717()
+    /// Health checks of the sample stream: fed from the ISR, evaluated by check_health()
+    buddy::LoadcellHealth health;
+    std::atomic<buddy::LoadcellHealth::Fault> health_fault { buddy::LoadcellHealth::Fault::none };
+    static_assert(std::atomic<buddy::LoadcellHealth::Fault>::is_always_lock_free);
+
+    /// True after a tare completed: then offset is the untared value at zero load
+    std::atomic<bool> tare_valid { false };
+    static_assert(std::atomic<bool>::is_always_lock_free, "Lock free type must be used from ISR.");
+#endif
 
     /// True only during a probe/homing session: gates the immediate safety stop.
     std::atomic<bool> probe_safety_armed { false };

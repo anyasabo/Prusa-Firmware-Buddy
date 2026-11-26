@@ -34,7 +34,9 @@ inline bool within_limits(Value value) {
  * @param filtered_value current filtered value from ADC
  * @param fs_ref_nins_value Reference value with filament NOT inserted
  * @param fs_ref_ins_value Reference value with filament inserted
+ * @param previous_state State from the previous evaluation, for the hysteresis
+ * @param samples_stale True if the sensor gives no new samples, so filtered_value is frozen
  */
-FilamentSensorState evaluate_state(Value filtered_value, Value fs_ref_nins_value, Value fs_ref_ins_value, FilamentSensorState previous_state);
+FilamentSensorState evaluate_state(Value filtered_value, Value fs_ref_nins_value, Value fs_ref_ins_value, FilamentSensorState previous_state, bool samples_stale = false);
 
 } // namespace FSensorADCEval

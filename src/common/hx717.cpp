@@ -117,11 +117,13 @@ int32_t HX717::ReadValue(Channel nextChannel, uint32_t readyTimestamp) {
         result |= 0xFF000000;
     }
 
-    if (IsValueReady() || result < min_value || result > max_value) {
-        // DOUT should automatically switch off after a correct readout. If that doesn't happen, and/or if
-        // the final result is out of spec, this means we have a communication issue.
-        // Final result can never be out of spec as we read exactly 24 bits and any possible
-        // 24-bit value is valid.
+    // Any 24-bit value is in [min_value, max_value] after the sign extension, so a range check cannot
+    // find a communication error. A saturated input gives min_value or max_value: that is a valid reading.
+    // On the xBuddy, LoadcellHealth finds a value that stays at a rail.
+
+    if (IsValueReady()) {
+        // DOUT should automatically switch off after a correct readout. If that doesn't happen,
+        // this means we have a communication issue.
         goto reset;
     }
 

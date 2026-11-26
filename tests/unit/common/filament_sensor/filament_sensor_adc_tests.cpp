@@ -89,6 +89,12 @@ void FSBasicTest(int32_t fsRefNins, int32_t fsRefIns, int32_t noFil, int32_t has
     CHECK(evaluate_state(filtered_value_not_ready, fsRefNins, fsRefIns, FilamentSensorState::HasFilament) == FilamentSensorState::NotInitialized);
     CHECK(evaluate_state(noFil, ref_value_not_calibrated, fsRefIns, FilamentSensorState::HasFilament) == FilamentSensorState::NotCalibrated);
     CHECK(evaluate_state(lower_limit - 1, fsRefNins, fsRefIns, FilamentSensorState::HasFilament) == FilamentSensorState::NotConnected);
+
+    // The samples are stale (the HX717 stopped, for example the cable is off): the last value is frozen.
+    CHECK(evaluate_state(hasFil, fsRefNins, fsRefIns, FilamentSensorState::HasFilament, true) == FilamentSensorState::NotConnected);
+    CHECK(evaluate_state(noFil, fsRefNins, fsRefIns, FilamentSensorState::NoFilament, true) == FilamentSensorState::NotConnected);
+    CHECK(evaluate_state(hasFil, fsRefNins, fsRefIns, FilamentSensorState::HasFilament, false) == FilamentSensorState::HasFilament);
+    CHECK(evaluate_state(filtered_value_not_ready, fsRefNins, fsRefIns, FilamentSensorState::NotInitialized, true) == FilamentSensorState::NotConnected);
 }
 
 TEST_CASE("FilamentSensor basic test", "[filament_sensor]") {

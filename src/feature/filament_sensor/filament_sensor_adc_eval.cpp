@@ -4,7 +4,12 @@
 
 namespace FSensorADCEval {
 
-FilamentSensorState evaluate_state(Value filtered_value, Value fs_ref_nins_value, Value fs_ref_ins_value, FilamentSensorState previous_state) {
+FilamentSensorState evaluate_state(Value filtered_value, Value fs_ref_nins_value, Value fs_ref_ins_value, FilamentSensorState previous_state, bool samples_stale) {
+    // A frozen value tells nothing about the filament, also if it was never initialized
+    if (samples_stale) {
+        return FilamentSensorState::NotConnected;
+    }
+
     if (filtered_value == filtered_value_not_ready) {
         return FilamentSensorState::NotInitialized;
     }

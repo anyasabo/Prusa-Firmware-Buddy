@@ -14,6 +14,11 @@
 #include <config_store/store_instance.hpp>
 #include <option/has_adc_side_fsensor.h>
 #include <feature/filament_sensor/calibrator/filament_sensor_calibrator_adc.hpp>
+#include <option/has_loadcell.h>
+#include <option/has_loadcell_hx717.h>
+#if HAS_LOADCELL() && HAS_LOADCELL_HX717()
+    #include <loadcell.hpp>
+#endif
 
 static_assert(std::is_same_v<FSensorADC::Value, FSensorADCEval::Value>);
 
@@ -33,9 +38,19 @@ void FSensorADC::cycle() {
 
     const auto filtered_value { fs_filtered_value.load() }; // store value - so interrupt cannot change it during evaluation
 
+#if HAS_LOADCELL() && HAS_LOADCELL_HX717()
+    // The sensor is channel B of the load cell HX717. If the HX717 stops (for example the cable is off),
+    // no interrupt occurs and filtered_value stays frozen at its last value.
+    // Channel A (the load cell) also gets the samples while channel B pauses for high precision mode,
+    // so the load cell stream is the right signal.
+    const bool samples_stale = loadcell.samples_stale();
+#else
+    const bool samples_stale = false;
+#endif
+
     // disabled FS will not enter cycle, but load_settings can disable it too
     // so better not try to change state when sensor is disabled
-    state = FSensorADCEval::evaluate_state(filtered_value, fs_ref_nins_value, fs_ref_ins_value, state);
+    state = FSensorADCEval::evaluate_state(filtered_value, fs_ref_nins_value, fs_ref_ins_value, state, samples_stale);
 }
 
 void FSensorADC::set_filtered_value_from_IRQ(Value filtered_value) {

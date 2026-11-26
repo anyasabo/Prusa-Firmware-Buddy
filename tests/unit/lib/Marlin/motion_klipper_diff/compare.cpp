@@ -229,6 +229,79 @@ double IsEpsilonBound::at(double time_us) const {
     return mm * steps_per_mm_;
 }
 
+namespace {
+    struct Pulse {
+        double t, a;
+        int axis; // logical X = 0, Y = 1
+    };
+
+    // The pulses of one logical axis as init_input_shaper_pulses() makes them: reversed, negated
+    // and centered on their weighted mean time. No shaper: one pulse at 0.
+    void add_pulses(std::vector<Pulse> &out, const std::optional<input_shaper::AxisConfig> &c, int axis) {
+        if (!c) {
+            out.push_back({ 0., 1., axis });
+            return;
+        }
+        const input_shaper::Shaper s = input_shaper::get(c->damping_ratio, c->frequency, c->vibration_reduction, c->type);
+        double sum_a = 0., mean_t = 0.;
+        for (int i = 0; i < s.num_pulses; ++i) {
+            sum_a += s.a[i];
+        }
+        for (int i = 0; i < s.num_pulses; ++i) {
+            mean_t += s.a[i] / sum_a * -s.t[i];
+        }
+        for (int i = s.num_pulses - 1; i >= 0; --i) {
+            out.push_back({ -s.t[i] - mean_t, s.a[i] / sum_a, axis });
+        }
+    }
+} // namespace
+
+IsPulseMergeBound::IsPulseMergeBound(const Config &config, const std::vector<Segment> &segments, int axis) {
+    if (axis > 1 || (!config.shaper[0] && !config.shaper[1])) {
+        return; // the merge is only for the CoreXY steppers A and B, and only with a shaper
+    }
+    std::vector<Pulse> pulses;
+    add_pulses(pulses, config.shaper[0], 0);
+    add_pulses(pulses, config.shaper[1], 1);
+    std::stable_sort(pulses.begin(), pulses.end(), [](const Pulse &x, const Pulse &y) { return x.t < y.t; });
+    // The same walk as adjust_input_shaper_pulses_to_match_time_pulses(): a pulse within 10 us of
+    // the last kept pulse moves to its time.
+    std::array<double, 2> moved {}; // sum of amplitude * shift (s) of each logical axis
+    double kept_t = pulses.front().t;
+    for (size_t i = 1; i < pulses.size(); ++i) {
+        const double shift = pulses[i].t - kept_t;
+        if (shift <= 10e-6) {
+            moved[pulses[i].axis] += pulses[i].a * shift;
+        } else {
+            kept_t = pulses[i].t;
+        }
+    }
+    if (moved[0] == 0. && moved[1] == 0.) {
+        return;
+    }
+    const double span_s = pulses.back().t - pulses.front().t;
+    steps_per_mm_ = config.steps_per_mm[axis];
+    for (const Segment &s : segments) {
+        if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
+            continue;
+        }
+        const double v = std::max(std::abs(s.start_v), std::abs(s.start_v + 2. * s.half_accel * s.move_time));
+        // A = X + Y and B = X - Y: the errors of X and Y add up in both
+        const double mm = moved[0] * v * std::abs(s.axes_r[0]) + moved[1] * v * std::abs(s.axes_r[1]);
+        ranges_.push_back({ (s.print_time - span_s) * 1e6, (s.print_time + s.move_time + span_s) * 1e6, mm });
+    }
+}
+
+double IsPulseMergeBound::at(double time_us) const {
+    double mm = 0.;
+    for (const Range &r : ranges_) {
+        if (r.from_us <= time_us && time_us <= r.to_us) {
+            mm = std::max(mm, r.mm);
+        }
+    }
+    return mm * steps_per_mm_;
+}
+
 AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_result, const KlipperResult &klipper_result, int axis) {
     AxisComparison c;
     const auto &buddy = buddy_result.steps.axis[axis];
@@ -242,7 +315,8 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
 
     const PaErrorBound pa = axis == 3 ? PaErrorBound(config, buddy_result.segments) : PaErrorBound(Config { .pressure_advance = 0.f }, {});
     const IsEpsilonBound is_eps(config, buddy_result.segments, axis);
-    const auto tolerance = [&](double t_us) { return pa.at(t_us) + is_eps.at(t_us); };
+    const IsPulseMergeBound is_merge(config, buddy_result.segments, axis);
+    const auto tolerance = [&](double t_us) { return pa.at(t_us) + is_eps.at(t_us) + is_merge.at(t_us); };
     const auto q = [&](double t_us) { return klipper_result.position_steps(axis, t_us); };
 
     // Each Buddy step: Klipper's exact position at the step time (or up to 1 us later) is near the

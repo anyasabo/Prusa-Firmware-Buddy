@@ -68,3 +68,6 @@ add_subdirectory(module)
 add_subdirectory(mock)
 add_subdirectory(feature)
 add_subdirectory(hw)
+
+# Fuzz harnesses (tests/fuzz) share this directory's defines, include paths and stubs.
+add_subdirectory(${CMAKE_SOURCE_DIR}/tests/fuzz ${CMAKE_BINARY_DIR}/tests/fuzz)

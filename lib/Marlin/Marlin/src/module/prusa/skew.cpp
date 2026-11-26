@@ -10,14 +10,19 @@
 
 namespace {
 
-/// Calls \p change (which changes the skew) and keeps the machine position, as set_bed_leveling_enabled() does
+/// Calls \p change (which changes the skew) and keeps the machine position: the nozzle does not move, and
+/// current_position (XYZ) changes.
+///
+/// Unlike set_bed_leveling_enabled(), this takes the planner position and does not sync the planner from
+/// current_position. In the edge band of skew() and unskew() (COORDINATE_OKAY), to_machine_pos(to_native_pos(m))
+/// is not m, so a sync_plan_position() would move the planner position away from the real stepper position. One
+/// example is the CORE One L nozzle cleaner touchpoint (machine Y -7.5). skew_tests.cpp tests this.
 template <typename F>
 void keep_machine_position(const F &change) {
     planner.synchronize();
-    const auto machine_position = current_machine_position();
+    const MachinePosXYZ machine_position = planner.get_machine_position_mm().xyz();
     change();
-    set_current_position(to_native_pos(machine_position));
-    sync_plan_position();
+    current_position.set(to_native_pos(machine_position));
 }
 
 constexpr skew_factor_t no_skew { 0, 0, 0 };
@@ -44,6 +49,10 @@ void load_skew_factor() {
         return;
     }
 
+    set_skew_factor(factor);
+}
+
+void set_skew_factor(const skew_factor_t &factor) {
     if (factor != planner.skew_factor) {
         keep_machine_position([&] { planner.skew_factor = factor; });
     }

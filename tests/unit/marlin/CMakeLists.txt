@@ -18,6 +18,17 @@ target_include_directories(
 target_link_libraries(machine_pos_conv_tests buddy_utils)
 add_catch_test(machine_pos_conv_tests)
 
+add_executable(
+  skew_tests ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/module/machine_pos_conv.cpp
+             ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src/module/prusa/skew.cpp skew_tests.cpp
+  )
+target_include_directories(
+  skew_tests PRIVATE stub_include_skew stub_include_pos_conv
+                     ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src
+  )
+target_link_libraries(skew_tests buddy_utils)
+add_catch_test(skew_tests)
+
 add_executable(vector_tests vector_tests.cpp)
 target_include_directories(vector_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src)
 target_link_libraries(vector_tests buddy_utils)

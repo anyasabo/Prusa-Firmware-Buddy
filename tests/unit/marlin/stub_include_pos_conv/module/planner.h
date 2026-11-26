@@ -7,6 +7,12 @@
 inline struct Planner : PlannerSkew {
     static constexpr bool leveling_active = true;
 
+    /// The planner position (machine coordinates), see Planner::get_machine_position_mm()
+    static inline MachinePosXYZE position_float {};
+
+    static void synchronize() {}
+    static MachinePosXYZE get_machine_position_mm() { return position_float; }
+
     static inline float z_fade_height = 0;
     static inline float inverse_z_fade_height = 0;
 

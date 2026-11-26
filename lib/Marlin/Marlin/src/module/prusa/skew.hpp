@@ -17,6 +17,9 @@ skew_factor_t stored_skew_factor();
 /// Later calls keep the machine position: the nozzle does not move, current_position changes.
 void load_skew_factor();
 
+/// Sets planner.skew_factor (M852) and keeps the machine position. It waits for the queued moves first.
+void set_skew_factor(const skew_factor_t &factor);
+
 /// Turns the skew off (planner.skew_disabled) until the matching restore_skew(). Calls can nest.
 /// The machine position stays the same. planner.skew_factor does not change, so an M852 in the meantime is kept.
 /// Use it for moves along the machine axes, for example homing.

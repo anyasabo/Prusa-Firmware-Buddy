@@ -1,0 +1,18 @@
+# Error codes of buddy-error-codes.yaml that no firmware source uses (utils/check_error_codes_used.py).
+# Each entry needs a reason. Remove an entry when the code gets a use: the check fails until then.
+# Audit 2026-11-26 at v8.0.2.
+
+# Missing checks: a raise site is wanted.
+ERR_SYSTEM_LOADCELL_TIMEOUT  # no load cell sample timeout during a print (fork branch anya/loadcell-health raises it)
+ERR_ELECTRO_INDX_HEAD_COIL_FAULTY  # the coil current is checked only in the self test (heaters_selftest.cpp)
+ERR_MECHANICAL_DOCK_CALIBRATION_FROM_MENU_NEEDED  # no raise site found (XL, INDX)
+ERR_SYSTEM_PUPPY_NO_ADDR  # no raise site found
+
+# No raise site needed.
+ERR_ELECTRO_I2C_RX_ERROR  # receive errors raise the TX codes (st25dv64k.cpp, i2c.cpp)
+ERR_ELECTRO_I2C_RX_BUSY  # as above
+ERR_ELECTRO_I2C_RX_TIMEOUT  # as above
+ERR_ELECTRO_I2C_RX_UNDEFINED  # as above
+ERR_SYSTEM_LED_ANIMATION_BAD_SPACE_MANAGEMENT  # no raise site found, not safety
+ERR_SYSTEM_BBF_ALLOCATION_FAILED  # no raise site found, not safety
+ERR_SYSTEM_BBF_INIT_FAILED  # no raise site found, not safety

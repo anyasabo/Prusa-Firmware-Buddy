@@ -102,4 +102,21 @@ private:
     double steps_per_mm_ = 0;
 };
 
+/// Bound of the position error (steps) of A or B from the CoreXY pulse merge at `time_us`. Buddy
+/// puts the X and Y pulses on one time grid, and moves a pulse that is up to 10 us after the pulse
+/// before it to that time (adjust_input_shaper_pulses_to_match_time_pulses()). A moved pulse with
+/// amplitude a and shift d moves its axis by up to a * d * |v|. Klipper does not merge.
+class IsPulseMergeBound {
+public:
+    IsPulseMergeBound(const Config &config, const std::vector<Segment> &segments, int axis);
+    double at(double time_us) const;
+
+private:
+    struct Range {
+        double from_us, to_us, mm;
+    };
+    std::vector<Range> ranges_;
+    double steps_per_mm_ = 0;
+};
+
 } // namespace motion_diff

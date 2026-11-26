@@ -22,7 +22,7 @@ The Klipper side is the raw itersolve output, which is exact to about 1 ns. The 
 Two Buddy approximations are allowed in addition:
 
 - Pressure advance (`PaErrorBound`): Buddy samples the PA position every h = `smooth_time / 40`, filters the samples and interpolates linearly. Each jump J of the PA position adds J / 40. Each jump Δv of the PA speed adds `smooth_time` × Δv / 4800. Both apply within `smooth_time` / 2 + h of the jump, also at a halt (the start of the ending empty move). `scripts/pa_bounds.py` checks the two terms. A constant acceleration a adds h² × a / 8 everywhere.
-- Input shaper (`IsEpsilonBound`): Buddy sets a micro segment acceleration with |half_accel| ≤ 0.1 mm/s² to zero and keeps the average speed, and speeds below 1e-4 mm/s to zero. In a micro segment of duration T, this is off by up to 0.1 × T² / 4 + 1e-4 × T. T is at most the longest move segment near the step.
+- Input shaper (`IsEpsilonBound`): Buddy sets a micro segment acceleration with |half_accel| ≤ 0.1 mm/s² to zero and keeps the average speed. If the speed then changes sign, it sets the speed to 0. Thus the error is up to |half_accel| × T². It also sets speeds below 1e-4 mm/s to zero: up to 1e-4 × T. T is the segment length if the stepper acceleration of the segment is below the epsilon. Else T is the pulse span S, because only a micro segment across a segment boundary can have a small acceleration. `regression_is_epsilon_bound.cpp` tests both cases.
 
 The pairing of the steps by boundary gives only statistics (time differences, steps without a partner).
 

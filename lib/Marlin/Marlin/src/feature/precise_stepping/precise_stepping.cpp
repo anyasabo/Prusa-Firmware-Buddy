@@ -463,7 +463,9 @@ void classic_step_generator_init(const move_t &move, classic_step_generator_t &s
 STEPPING_INLINE step_event_info_t step_generator_next_step_event(step_generator_state_t &step_generator_state, const uint8_t axis) {
     step_event_info_t new_step_event = (*step_generator_state.next_step_func[axis])(static_cast<move_segment_step_generator_t &>(*step_generator_state.step_generator[axis]), step_generator_state);
     if (new_step_event.status == STEP_EVENT_INFO_STATUS_GENERATED_VALID) {
-        // Keep the direction and activity of this step with the step. The step is emitted later,
+        // a new valid step has been produced: update the cached axis activity flags
+        step_generator_state.step_generator[axis]->step_flags = step_generator_state.step_generator[axis]->move_step_flags;
+        // Also keep the direction and activity of this step with the step. The step is emitted later,
         // after the generator has computed its next step, which can be in the other direction
         // (pressure advance reverses between two steps without an event in between).
         new_step_event.flags |= step_generator_state.step_generator[axis]->move_step_flags;
@@ -517,12 +519,6 @@ static bool generate_next_step_event(step_event_i32_t &step_event, step_generato
 
         step_event.flags = step_state.step_events[old_nearest_step_event_idx].flags;
         debug_assert(step_event.flags); // ensure flags are non-zero
-
-        if (step_status == STEP_EVENT_INFO_STATUS_GENERATED_VALID) {
-            // The step is emitted now: update the cached axis direction and activity flags
-            const StepEventFlag_t axis_flags_mask = (STEP_EVENT_FLAG_X_DIR | STEP_EVENT_FLAG_X_ACTIVE) << old_nearest_step_event_idx;
-            step_state.step_generator[old_nearest_step_event_idx]->step_flags = step_event.flags & axis_flags_mask;
-        }
 
         if (step_state.left_insert_start_of_move_segment) {
             step_event.flags |= STEP_EVENT_FLAG_BEGINNING_OF_MOVE_SEGMENT;
@@ -1441,9 +1437,18 @@ StepGeneratorStatus PreciseStepping::process_one_move_segment_from_queue() {
                 check_step_time(new_step_event);
 #endif
 
-                // Update the current axis flags and merge them into the new step
+                // Update the current axis flags and merge them into the new step. The axis of the step
+                // keeps the direction that the step was generated with: its cached flags can already
+                // be those of its next step. The other axes take their cached flags, so that a
+                // direction change comes with the event before the step, as before.
                 update_step_generator_state_current_flags();
-                new_step_event.flags |= step_generator_state.current_flags;
+                StepEventFlag_t own_axis_mask = 0;
+                for (uint8_t axis = 0; axis != PS_AXIS_COUNT; ++axis) {
+                    if (new_step_event.flags & (STEP_EVENT_FLAG_STEP_X << axis)) {
+                        own_axis_mask |= (STEP_EVENT_FLAG_X_DIR | STEP_EVENT_FLAG_X_ACTIVE) << axis;
+                    }
+                }
+                new_step_event.flags |= step_generator_state.current_flags & ~own_axis_mask;
 
                 if (!step_generator_state.buffered_step.flags) {
                     // no previous buffer: replace

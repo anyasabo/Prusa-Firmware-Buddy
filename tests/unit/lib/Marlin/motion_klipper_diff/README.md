@@ -34,7 +34,7 @@ After a halt, PreciseStepping starts again at time 0 and E 0. For Klipper, the d
 `scenario.cpp` makes only inputs inside these ranges. Inputs outside them are not compared with Klipper:
 
 - Input shaper: `frequency_safe_min` to `frequency_safe_max` (10 to 100 Hz), damping 0 to 0.3, vibration reduction 10 to 30.
-- Pressure advance 0.005 to 0.2, smooth time 0.01 to 0.12 s. Below 0.01 s, see `anya/pa-smooth-time-min`. Above 0.12 s, the `check_step_time()` debug check of v8.0.2 fails.
+- Pressure advance 0.005 to 0.2, smooth time 0.01 to 0.2 s (the range of `M572 W` on the fork, branch `anya/pa-smooth-time-min`). Above 0.12 s, the `check_step_time()` debug check of v8.0.2 fails, so the scenarios need the fix of `anya/pa-end-of-motion`.
 - Speeds and accelerations that the planner can make: both ends of a block are reachable within it, and a block starts at the end speed of the block before. The junctions are not limited by the geometry.
 - The driver checks that Buddy takes the configuration unchanged. The only change is the rounding of the PA sample period to whole µs, and Klipper gets the same rounded smooth time.
 

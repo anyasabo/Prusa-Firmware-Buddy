@@ -129,21 +129,20 @@ PaErrorBound::PaErrorBound(const Config &config, const std::vector<Segment> &seg
 
     double max_a = 0.;
     for (size_t i = 0; i < segments.size(); ++i) {
+        // The ending empty move (a halt) stays in the loop: E stops there, so the PA speed can jump
+        // (fuzz stop r2, the end of a deceleration with pa * a_e = -165 mm/s). Its speed and
+        // acceleration are 0, so it adds nothing else.
         const Segment &s = segments[i];
-        if (s.move_time > 1e6) {
-            continue; // ending empty move
-        }
         max_a = std::max(max_a, std::abs(a_e(s)));
         if (i > 0) {
             const Segment &prev = segments[i - 1];
             const double dp = std::abs(p_jump(s, false) - p_jump(prev, true));
             const double dq = std::abs(q(s, false) - q(prev, true));
             // A position jump J moves to the next sample (up to h late). The smoothed jump rises with
-            // a slope of at most J / (st / 2) (triangle window); the review measured J / 40 as the bound
-            // of the step position (/workspaces/prusa/.work/motion-review/scripts/pa_jump.py). A speed
-            // jump dq bends the smoothed curve with dq / (st / 2); linear interpolation between samples
-            // is off by h^2 / 8 of that, plus the sampled kernel error: st * dq / 4800
-            // (scripts/pa_kink.py). One fuzz input exceeds this bound (motion-audit.md, open item).
+            // a slope of at most J / (st / 2) (triangle window). A speed jump dq bends the smoothed
+            // curve with dq / (st / 2), and linear interpolation between samples cuts the bend.
+            // scripts/pa_bounds.py compares the sampled and the exact smoothing over all jump phases:
+            // the largest errors are exactly J / 40 and st * dq / 4800.
             if (dp > 0. || dq > 0.) {
                 jumps_.push_back({ s.print_time * 1e6, dp / 40. + st * dq / 4800. });
             }

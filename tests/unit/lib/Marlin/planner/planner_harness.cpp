@@ -30,6 +30,7 @@ namespace {
 void reset(const Settings &s) {
     planner.init();
     taken_blocks.clear();
+    idle_hook = nullptr; // a test that threw can leave its hook
     position_jumps.clear();
 
     user_planner_settings_t u = planner.user_settings;

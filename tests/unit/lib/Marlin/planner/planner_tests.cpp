@@ -130,10 +130,12 @@ TEST_CASE("planner: arcs of short segments") {
     require_clean(r.finish());
 }
 
-TEST_CASE("planner: random move sequences") {
-    const uint32_t seed = GENERATE(range(1u, 41u));
-    CAPTURE(seed);
-    Runner r;
+namespace {
+void random_sequence(uint32_t seed, int16_t flow) {
+    CAPTURE(seed, flow);
+    Settings s;
+    s.flow_percentage = flow;
+    Runner r(s);
     r.rng.seed(seed);
     std::mt19937 &g = r.rng;
     std::uniform_real_distribution<float> u(0, 1);
@@ -173,6 +175,17 @@ TEST_CASE("planner: random move sequences") {
         }
     }
     require_clean(r.finish());
+}
+} // namespace
+
+TEST_CASE("planner: random move sequences") {
+    random_sequence(GENERATE(range(1u, 41u)), 100);
+}
+
+// The E of each section between two G92 must be the commanded E times the flow, within one
+// mini-step. See "M221 flow scales the total E of many short moves".
+TEST_CASE("planner: random move sequences with M221", "[!shouldfail][known_bug]") {
+    random_sequence(GENERATE(range(1u, 21u)), GENERATE(int16_t(95), int16_t(107)));
 }
 
 namespace {

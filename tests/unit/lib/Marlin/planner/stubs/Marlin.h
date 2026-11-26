@@ -1,5 +1,5 @@
 #pragma once
-// Stand-in for Marlin.h: stepper enables and idle(). planner_fakes.cpp counts the calls.
+// Stand-in for Marlin.h: stepper enables and idle(). planner_fakes.cpp defines idle().
 #include "inc/MarlinConfig.h"
 
 void idle(bool waiting = false, bool no_stepper_sleep = false);

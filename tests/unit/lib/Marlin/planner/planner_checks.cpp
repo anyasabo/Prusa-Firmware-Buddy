@@ -103,6 +103,16 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
     const auto &set = Planner::settings; // the working settings (user settings with the HW limits)
 
     xyze_msteps_t pos {};
+    // M221: the E of each section between two G92 is the commanded E times e_factor, within one
+    // mini-step. The unscaled planner E at the start of the section, and the sum of the scaled E.
+    const double e_factor = Planner::e_factor[VirtualToolIndex {}];
+    int64_t section_start_e = 0, section_e = 0;
+    const auto check_section = [&](size_t index, int32_t end_e) {
+        const double commanded = double(end_e - section_start_e) * e_factor;
+        if (std::abs(double(section_e) - commanded) > 1.) {
+            f.add(index, "E mini-steps of the section before G92 differ from the commanded E x e_factor", section_e, commanded);
+        }
+    };
     size_t next_jump = 0;
     const planner_harness::BlockCopy *prev = nullptr;
     const auto apply_jumps = [&](size_t index) {
@@ -114,6 +124,9 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
                 }
                 r.lost_at_g92[i] += j.commanded_before[i] - j.before[i];
             }
+            check_section(index, j.before.e);
+            section_start_e = j.after.e;
+            section_e = 0;
             pos = j.after;
         }
     };
@@ -128,9 +141,13 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
         for (int i = 0; i < XYZE_N; ++i) {
             pos[i] += (b.direction_bits & (1 << i)) ? -b.msteps[i] : b.msteps[i];
         }
+        section_e += (b.direction_bits & (1 << E_AXIS)) ? -b.msteps.e : b.msteps.e;
         const double v0 = b.initial_speed, v1 = b.final_speed, vn = b.nominal_speed, a = b.acceleration, len = g.length;
 
-        if (std::abs(len - b.millimeters) > 1e-4 * len + 1e-6) {
+        // An E-only block has the length of the scaled E before the rounding (M221): up to one
+        // mini-step more or less.
+        const double len_tolerance = g.xyz ? 0. : 1. / double(Planner::settings.axis_msteps_per_mm[E_AXIS]);
+        if (std::abs(len - b.millimeters) > 1e-4 * len + 1e-6 + len_tolerance) {
             f.add(n, "block length differs from the mini-steps", b.millimeters, len);
         }
         if (!(v0 >= 0 && v1 >= 0 && vn > 0 && a > 0)) {
@@ -181,6 +198,7 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
         prev = &b;
     }
     apply_jumps(blocks.size());
+    check_section(blocks.size(), planner.position.e);
 
     for (int i = 0; i < XYZE_N; ++i) {
         if (pos[i] != planner.position[i] && (i != E_AXIS || s.flow_percentage == 100)) {

@@ -21,6 +21,7 @@ enum class Expect {
     log_only, // acknowledge and log, no redscreen
     code, // redscreen with an error code from buddy-error-codes.yaml
     text, // redscreen with a text (ErrCode::ERR_UNDEF)
+    redscreen, // a redscreen of any kind
 };
 
 struct Case {
@@ -44,6 +45,9 @@ void check(const Case &c) {
         REQUIRE(redscreen.has_value());
         CHECK(redscreen->code == c.code);
         CHECK(redscreen->text == nullptr);
+        break;
+    case Expect::redscreen:
+        CHECK(redscreen.has_value());
         break;
     case Expect::text:
         REQUIRE(redscreen.has_value());
@@ -78,13 +82,13 @@ TEST_CASE("indx_fault: the board and TPIS ambient temperatures give their redscr
     check({ raw(FaultStatusMask::tpis_ambient_max_temp), Expect::code, ErrCode::ERR_TEMPERATURE_INDX_HEAD_TPIS_AMBIENT_MAXTEMP_ERR });
 }
 
-TEST_CASE("indx_fault: the nozzle temperature faults give a hotend redscreen", "[indx_fault][!shouldfail][known_bug]") {
+TEST_CASE("indx_fault: the nozzle temperature faults give a hotend redscreen", "[indx_fault]") {
     check({ raw(FaultStatusMask::nozzle_max_temp), Expect::code, ErrCode::ERR_TEMPERATURE_HOTEND_MAXTEMP_ERROR });
     check({ raw(FaultStatusMask::nozzle_min_temp), Expect::code, ErrCode::ERR_TEMPERATURE_HOTEND_MINTEMP_ERROR });
     check({ raw(FaultStatusMask::tpis_invalid_timeout), Expect::code, ErrCode::ERR_TEMPERATURE_HOTEND_MINTEMP_ERROR });
 }
 
-TEST_CASE("indx_fault: the crash faults of the head give a redscreen", "[indx_fault][!shouldfail][known_bug]") {
+TEST_CASE("indx_fault: the crash faults of the head give a redscreen", "[indx_fault]") {
     check({ raw(FaultStatusMask::hard_fault), Expect::text });
     check({ raw(FaultStatusMask::stack_overflow), Expect::text });
     check({ raw(FaultStatusMask::assert_failed), Expect::text });
@@ -92,22 +96,22 @@ TEST_CASE("indx_fault: the crash faults of the head give a redscreen", "[indx_fa
     check({ raw(FaultStatusMask::watchdog_reset), Expect::text });
 }
 
-TEST_CASE("indx_fault: an unknown bit gives a redscreen", "[indx_fault][!shouldfail][known_bug]") {
+TEST_CASE("indx_fault: an unknown bit gives a redscreen", "[indx_fault]") {
     check({ raw(FaultStatusMask::undefined_error), Expect::text });
     // Bit 15 has no enumerator.
     check({ uint16_t(1u << 15), Expect::text });
 }
 
-TEST_CASE("indx_fault: each of the 16 bits has a decision", "[indx_fault][!shouldfail][known_bug]") {
+TEST_CASE("indx_fault: each of the 16 bits has a decision", "[indx_fault]") {
     // Only these bits are log only. Each other bit, alone, gives a redscreen.
     const uint16_t log_only = raw(FaultStatusMask::pin_reset) | raw(FaultStatusMask::power_reset);
     for (unsigned i = 0; i < 16; ++i) {
         const auto bit = static_cast<uint16_t>(1u << i);
-        check({ bit, (bit & log_only) ? Expect::log_only : Expect::text });
+        check({ bit, (bit & log_only) ? Expect::log_only : Expect::redscreen });
     }
 }
 
-TEST_CASE("indx_fault: the cause of a panic wins over the watchdog reset", "[indx_fault][!shouldfail][known_bug]") {
+TEST_CASE("indx_fault: the cause of a panic wins over the watchdog reset", "[indx_fault]") {
     // A panic in an interrupt latches its cause bit and stops the head. The watchdog then resets the
     // head, and the bootstrap of the main board resets it with the reset pin. The main board reads
     // all three bits after the restart.

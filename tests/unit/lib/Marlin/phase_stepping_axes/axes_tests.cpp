@@ -108,3 +108,34 @@ TEST_CASE("phase_stepping axes: a change of belt type changes the distance per p
     CHECK(std::abs(steps_2gt - 10000) <= 1);
     CHECK(std::abs(steps_15gt - 10158) <= 1);
 }
+
+TEST_CASE("phase_stepping axes: M92 changes the steps/mm that phase stepping uses", "[phase_stepping][belts][m92]") {
+    boot_with_xy_steps(coreone_2gt);
+
+    // M92 X120 Y120: the planner changes and calls refresh_positioning(). M92 does not write
+    // the config store. Then M92 calls initialize_axis_motor_params().
+    for (int axis : { X_AXIS, Y_AXIS }) {
+        planner.settings.axis_steps_per_mm[axis] = 120.f;
+    }
+    planner.refresh_positioning();
+    initialize_axis_motor_params();
+
+    for (AxisEnum axis : { X_AXIS, Y_AXIS }) {
+        // The classic stepper makes 1200 steps for 10 mm. Phase stepping must do the same.
+        CHECK(std::abs(pos_to_steps(axis, 10.f) - planner_steps(axis, 10.f)) <= 1);
+        CHECK(rev_to_mm(axis, 1.f) == Catch::Approx(200 * 16 / 120.f).margin(0.001));
+    }
+}
+
+TEST_CASE("phase_stepping axes: follow the step generators when the settings change without a refresh", "[phase_stepping][m92]") {
+    // Motion_Parameters::reset() (G28, ramming, ...) writes planner.settings.axis_steps_per_mm
+    // but does not call refresh_positioning(). The classic step generators keep the old
+    // planner.mm_per_step. Phase stepping must use the same value.
+    boot_with_xy_steps(coreone_2gt);
+    planner.settings.axis_steps_per_mm[X_AXIS] = 120.f;
+    planner.refresh_positioning();
+    planner.settings.axis_steps_per_mm[X_AXIS] = coreone_2gt;
+    initialize_axis_motor_params();
+
+    CHECK(std::abs(pos_to_steps(X_AXIS, 10.f) - 1200) <= 1);
+}

@@ -50,14 +50,13 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
 
 std::string describe(const AxisComparison &c);
 
-/// The largest jump of the pressure advance position (pa * E velocity) at a segment boundary, in E
-/// steps. Buddy samples the PA position every smooth_time / 40 and filters the samples, so a jump moves
-/// to the next sample: the position error is up to jump / 20 (the slope of the smoothed jump is
-/// jump / (smooth_time / 2), times one sample period). Klipper integrates the jump exactly.
-double pa_jump_steps(const Config &config, const std::vector<Segment> &segments);
+/// Bound of the position error (E steps) of the pressure advance step generator against Klipper. Buddy
+/// samples the PA position every smooth_time / 40, filters the samples and interpolates linearly
+/// between the filter outputs. Klipper integrates exactly. See the terms in compare.cpp.
+double pa_error_bound_steps(const Config &config, const std::vector<Segment> &segments);
 
 /// Checks one axis of a run against Klipper. Returns an empty string if the axis agrees, else the
-/// reason. `allowed_err_steps` is the extra position error that is allowed (pa_jump_steps / 20 for E).
+/// reason. `allowed_err_steps` is the extra position error that is allowed (pa_error_bound_steps() for E).
 std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps = 0.);
 
 } // namespace motion_diff

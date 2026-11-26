@@ -114,21 +114,40 @@ std::string describe(const AxisComparison &c) {
     return buf;
 }
 
-double pa_jump_steps(const Config &config, const std::vector<Segment> &segments) {
+double pa_error_bound_steps(const Config &config, const std::vector<Segment> &segments) {
     if (config.pressure_advance <= 0.f) {
-        return 0.;
+        return 0.; // classic step generator on E: no sampling
     }
+    const double pa = config.pressure_advance;
+    const double st = config.smooth_time;
+    const double h = st / 40.; // sample period (create_pressure_advance_params())
     // As is_pressure_advance_active(): extrusion together with X or Y motion
-    const auto pa_velocity = [&](const Segment &s, bool at_end) {
-        const bool active = s.axes_r[3] > 0. && (s.axes_r[0] != 0. || s.axes_r[1] != 0.);
-        const double v = s.start_v + (at_end ? 2. * s.half_accel * s.move_time : 0.);
-        return active ? config.pressure_advance * v * s.axes_r[3] : 0.;
-    };
-    double max_jump = 0.;
-    for (size_t i = 1; i < segments.size(); ++i) {
-        max_jump = std::max(max_jump, std::abs(pa_velocity(segments[i], false) - pa_velocity(segments[i - 1], true)));
+    const auto active = [](const Segment &s) { return s.axes_r[3] > 0. && (s.axes_r[0] != 0. || s.axes_r[1] != 0.); };
+    // PA position p = e + pa * v_e (if active), its speed q = v_e + pa * a_e (if active)
+    const auto v_e = [](const Segment &s, bool at_end) { return (s.start_v + (at_end ? 2. * s.half_accel * s.move_time : 0.)) * s.axes_r[3]; };
+    const auto a_e = [](const Segment &s) { return 2. * s.half_accel * s.axes_r[3]; };
+    const auto p_jump = [&](const Segment &s, bool at_end) { return active(s) ? pa * v_e(s, at_end) : 0.; };
+    const auto q = [&](const Segment &s, bool at_end) { return v_e(s, at_end) + (active(s) ? pa * a_e(s) : 0.); };
+
+    double max_p_jump = 0., max_q_jump = 0., max_a = 0.;
+    for (size_t i = 0; i < segments.size(); ++i) {
+        const Segment &s = segments[i];
+        if (s.move_time > 1e6) {
+            continue; // ending empty move
+        }
+        max_a = std::max(max_a, std::abs(a_e(s)));
+        if (i > 0) {
+            const Segment &prev = segments[i - 1];
+            max_p_jump = std::max(max_p_jump, std::abs(p_jump(s, false) - p_jump(prev, true)));
+            max_q_jump = std::max(max_q_jump, std::abs(q(s, false) - q(prev, true)));
+        }
     }
-    return max_jump * config.steps_per_mm[3];
+    // A position jump J moves to the next sample: error J * h / (st / 2) = J / 20.
+    // A speed jump dq: the smoothed curve bends with dq / (st / 2), linear interpolation between
+    // samples is off by h^2 / 8 of that: st * dq / 6400.
+    // A constant acceleration a: linear interpolation is off by h^2 * a / 8.
+    const double mm = max_p_jump / 20. + st * max_q_jump / 6400. + h * h * max_a / 8.;
+    return mm * config.steps_per_mm[3];
 }
 
 std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps) {

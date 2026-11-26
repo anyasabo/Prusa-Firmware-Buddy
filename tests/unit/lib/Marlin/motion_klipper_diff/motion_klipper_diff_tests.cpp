@@ -35,7 +35,7 @@ void print(const char *name, const Run &r) {
 /// check_axis() for the limits).
 void check_agreement(const Run &r) {
     REQUIRE(r.buddy.finished);
-    const double pa_err = pa_jump_steps(r.config, r.buddy.segments) / 20.;
+    const double pa_err = pa_error_bound_steps(r.config, r.buddy.segments);
     for (int i = 0; i < AXES; ++i) {
         INFO("axis " << axis_names[i] << ": " << describe(r.axis[i]));
         CHECK(check_axis(r.axis[i], r.buddy.final_count_position[i] - r.buddy.start_count_position[i], i == 3 ? pa_err : 0.) == "");
@@ -232,12 +232,25 @@ void print_scenario(const Scenario &s) {
 }
 
 // Run: MOTION_DIFF_SCENARIO=<n> motion_klipper_diff_tests "[dump]" (writes into the current directory).
-// n = -1: one extruding line with pressure advance.
+// n = -1: one extruding line with pressure advance. MOTION_DIFF_INPUT=<file>: a fuzz input.
 TEST_CASE("motion dump", "[.][dump]") {
     const char *env = std::getenv("MOTION_DIFF_SCENARIO");
+    const char *input = std::getenv("MOTION_DIFF_INPUT"); // a fuzz input file
     const int index = env ? std::atoi(env) : -1;
     Scenario s;
-    if (index < 0) {
+    if (input) {
+        std::vector<uint8_t> bytes;
+        if (FILE *f = std::fopen(input, "rb")) {
+            for (int c; (c = std::fgetc(f)) != EOF;) {
+                bytes.push_back(uint8_t(c));
+            }
+            std::fclose(f);
+        }
+        ByteReader in(bytes.data(), bytes.size());
+        ScenarioLimits limits;
+        limits.max_blocks = 8; // as tests/fuzz/motion_klipper.cpp
+        s = make_scenario(in, limits);
+    } else if (index < 0) {
         s.config.pressure_advance = 0.05f;
         s.config.smooth_time = 0.04f;
         s.blocks = { line(10, 0, 0.45, 120, 4000) };

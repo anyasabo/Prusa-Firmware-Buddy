@@ -44,7 +44,10 @@ The tests with `[!shouldfail][known_bug]` fail because of these defects:
 2. `JD_SMALL_SEGMENT_HANDLING`: the acos() approximation has an error of up to 0.033 rad and does not go below 0.033 rad. On an arc of radius 20 mm, at 1250 mm/s², 0.1 mm segments run at 61 mm/s and 0.3 mm segments at 105 mm/s. The centripetal limit is 158 mm/s.
 3. A move shorter than `MIN_STEPS_PER_SEGMENT` (6 steps) goes into the next move. A G92 directly after it discards it (up to 5 steps, 0.013 mm of E).
 
-Not a test failure, counted in `Report::exit_below_minimum_speed`: the planner plans the newest block to end at `MINIMUM_PLANNER_SPEED` (0.05 mm/s). A junction limit can be lower (an E-heavy junction with a tiny XYZ part). If the block before is busy, it cannot slow down to it, and the speed jumps by less than 0.05 mm/s along the path.
+Design limits, not test failures:
+
+- The queue has 32 blocks, and the newest block ends at `MINIMUM_PLANNER_SPEED`. Thus a full queue of short segments must be able to stop within 31 segments. At 1250 mm/s², 0.1 mm segments run at 88 mm/s at most. Klipper limits its lookahead by time, not by a number of moves.
+- Counted in `Report::exit_below_minimum_speed`: the planner plans the newest block to end at `MINIMUM_PLANNER_SPEED` (0.05 mm/s). A junction limit can be lower (an E-heavy junction with a tiny XYZ part). If the block before is busy, it cannot slow down to it, and the speed jumps by less than 0.05 mm/s along the path.
 
 ## Run
 

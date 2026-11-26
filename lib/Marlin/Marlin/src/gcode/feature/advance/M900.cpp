@@ -39,23 +39,31 @@
  *
  *#### Parameters
  *
- * - `T` - Tool
+ * - `T` - Tool. Must be the active tool (default): pressure advance is one setting for the
+ *         active tool, so a value for another tool is rejected and not applied.
  * - `K` - Set advance K factor
  *
- * With no parameters report Linear Advance K-factor(s)
+ * With no parameters report Linear Advance K-factor of the active tool
  */
 void GcodeSuite::M900() {
 
-  #if EXTRUDERS < 2
-    constexpr uint8_t tool_index = 0;
-  #else
-    const uint8_t tool_index = parser.intval('T', active_extruder);
-    if (tool_index >= EXTRUDERS) {
-      SERIAL_ECHOLNPGM("?T value out of range.");
+  // Slicer plugins (for example the Cura LinearAdvanceSettingPlugin) send `M900 K<k> T<n>` for
+  // each extruder. If the firmware applied each of them, the value of the last tool would
+  // replace the value of the active tool.
+  if (parser.seenval('T')) {
+    const int gcode_tool = parser.value_int();
+    const auto target = get_target_virtual_from_command();
+    const auto *const tool = std::get_if<VirtualToolIndex>(&target);
+    if (!tool) {
+      // The resolver reported the error
       return;
     }
-  #endif
-  static_cast<void>(tool_index); // TODO support multiple extruders
+    if (VirtualToolIndex::currently_selected_opt() != *tool) {
+      SERIAL_ECHO_START();
+      SERIAL_ECHOLNPAIR("M900 T", gcode_tool, " ignored: pressure advance applies only to the active tool");
+      return;
+    }
+  }
 
   if (parser.seenval('K')) {
     const float newK = parser.value_float();
@@ -77,16 +85,7 @@ void GcodeSuite::M900() {
   }
   else {
     SERIAL_ECHO_START();
-    #if EXTRUDERS < 2
-      SERIAL_ECHOLNPAIR("Advance K=", pressure_advance::get_axis_e_config().pressure_advance);
-    #else
-      SERIAL_ECHOPGM("Advance K");
-      LOOP_L_N(i, EXTRUDERS) {
-        SERIAL_CHAR(' '); SERIAL_ECHO(int(i));
-        SERIAL_CHAR('='); SERIAL_ECHO(pressure_advance::get_axis_e_config().pressure_advance);
-      }
-      SERIAL_EOL();
-    #endif
+    SERIAL_ECHOLNPAIR("Advance K=", pressure_advance::get_axis_e_config().pressure_advance);
   }
 }
 

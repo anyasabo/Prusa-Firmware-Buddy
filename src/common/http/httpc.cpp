@@ -66,11 +66,14 @@ namespace {
 
                 total_sent += written;
 
-                // FIXME: Wrap around check?
                 // FIXME: Conceptually, how do we handle timeouts? This is timeout
                 // for a single write. We may write multiple times per request.
                 // Also, what is the timeout in the tx?
-                if ((epoch_time + conn->get_timeout_s() * 1000) < ticks_ms()) {
+                //
+                // Compare the elapsed time, not epoch_time + timeout with now: the sum and
+                // ticks_ms() wrap each 2^32 ms (49.7 days). Unsigned subtraction is correct
+                // across the wrap. Tests: tests/unit/common/http/httpc_timeout.cpp.
+                if (ticks_ms() - epoch_time > static_cast<uint32_t>(conn->get_timeout_s()) * 1000) {
                     break;
                 }
             }

@@ -10,6 +10,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/common/http/websocket.cpp
   buffered_conn.cpp
   http_client.cpp
+  httpc_timeout.cpp
   websocket.cpp
   missing_functions.c
   mock_printer_model.cpp
@@ -29,6 +30,9 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/tests/unit/connect/mock
   )
 target_link_libraries(common_http_tests mbedTLS buddy_utils)
+# httpc_timeout.cpp controls the clock of httpc.cpp. The wrap is for the whole binary: in the other
+# tests the clock does not advance, so a tx() that never makes progress does not time out.
+target_link_options(common_http_tests PRIVATE -Wl,--wrap=ticks_ms)
 
 file(GLOB AUTOMATA_GENERATORS ${PROJECT_ROOT_DIR}/utils/gen-automata/*.py)
 

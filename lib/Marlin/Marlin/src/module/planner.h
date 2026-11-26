@@ -43,6 +43,7 @@
 #include "../feature/precise_stepping/precise_stepping.hpp"
 #include "../feature/phase_stepping/phase_stepping.hpp"
 #include "../feature/motordriver_util.h"
+#include "planner_skew.h"
 #include <bsod/bsod.h>
 
 // Value by which steps are multiplied to increase the precision of the Planner.
@@ -216,7 +217,8 @@ struct PlannerHints {
 
 struct PlannerMoveTools;
 
-class Planner {
+// Buddy: the skew correction (skew_factor, skew(), unskew()) is in the base class, see planner_skew.h
+class Planner : public PlannerSkew {
   public:
 
     /**

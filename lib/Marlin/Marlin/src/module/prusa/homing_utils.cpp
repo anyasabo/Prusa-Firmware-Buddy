@@ -8,6 +8,9 @@
 #include "../../module/endstops.h"
 #include "../stepper.h"
 #include <config_store/store_instance.hpp>
+#if ENABLED(SKEW_CORRECTION)
+    #include "skew.hpp"
+#endif
 
 #if HAS_WORKSPACE_OFFSET
 static workspace_xyz_t disable_workspace(bool do_x, bool do_y, bool do_z) {
@@ -54,6 +57,11 @@ bool disable_modifiers_if(bool condition, bool do_z) {
     set_bed_leveling_enabled(false);
 #endif
 
+#if ENABLED(SKEW_CORRECTION)
+    // Unlike leveling, enable_modifiers_if() always turns the skew on again
+    disable_skew();
+#endif
+
     sync_plan_position();
     return leveling_was_active;
 }
@@ -69,6 +77,12 @@ void enable_modifiers_if(bool condition, bool restore_leveling) {
     }
 #endif
     sync_plan_position();
+
+#if ENABLED(SKEW_CORRECTION)
+    // Last, after the syncs above: restore_skew() keeps the planner position. A sync with the skew on can move the
+    // planner position in the edge band of skew(), and measured axis ends (Measure_axis, G163) are often there.
+    restore_skew();
+#endif
 }
 
 Motion_Parameters reset_acceleration_if(bool condition) {

@@ -252,6 +252,19 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
   MachinePosXYZE machine_position;
   planner.get_axis_position_mm(machine_position);
 
+  #if ENABLED(SKEW_CORRECTION)
+    // Buddy: skew couples the axes. The native X depends on the machine X, Y and Z, and the native Y on the machine Y
+    // and Z. Marlin updates only the native position of this axis, so after a Z probe move, the next sync_plan_position()
+    // shifts X and Y by the Z distance times the skew factor. So take this axis from the steppers, keep the other axes
+    // at the machine position of current_position, and update all native XYZ.
+    if (axis <= Z_AXIS && planner.skew_active()) {
+      MachinePosXYZ machine_xyz = current_machine_position().xyz();
+      machine_xyz[axis] = machine_position[axis];
+      current_position.set(to_native_pos(machine_xyz));
+      return;
+    }
+  #endif
+
   const xyze_pos_t native_position = to_native_pos(machine_position);
   
   if (axis == ALL_AXES_ENUM)
@@ -275,7 +288,16 @@ void set_current_from_steppers() {
  * Suitable for homing, does not apply UBL.
  */
 void line_to_current_position(const feedRate_t &fr_mm_s/*=feedrate_mm_s*/) {
-  planner.buffer_line(current_position, fr_mm_s, PhysicalToolIndex::currently_selected());
+  #if ENABLED(SKEW_CORRECTION)
+    // Marlin applies all modifiers here (planner.buffer_line() -> apply_modifiers()). Buddy does not apply MBL here,
+    // but it must apply the skew. Without it, the planner XY differs from to_machine_pos(current_position), and a later
+    // sync_plan_position() shifts the position. Homing turns the skew off, so homing moves do not change.
+    MachinePosXYZE target = current_position.to_tag<MachinePosTag>();
+    planner.skew(target.x, target.y, target.z);
+    planner.buffer_line(target, fr_mm_s, PhysicalToolIndex::currently_selected());
+  #else
+    planner.buffer_line(current_position, fr_mm_s, PhysicalToolIndex::currently_selected());
+  #endif
 }
 
 void line_to_machine_pos(const MachinePosXYZE &target, feedRate_t fr_mm_s, const MoveHints &hints) {

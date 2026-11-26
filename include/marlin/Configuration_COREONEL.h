@@ -1071,6 +1071,31 @@ static constexpr float EXTRUDER_SERVICE_MOVE_E_FACTOR = static_cast<float>(CALIB
 
 // @section calibrate
 
+/**
+ * Bed Skew Compensation (same as upstream Marlin)
+ *
+ * This feature corrects for misalignment in the XYZ axes.
+ * Set the factors at runtime with M852 I J K (for example from a Calilantern print).
+ * The defaults are 0 (no correction). The factors are in the config store, see M852 W.
+ *
+ * Not on INDX yet: the tool offsets, docks and nozzle cleaner positions are not reviewed for skew.
+ */
+#if !HAS_INDX()
+    #define SKEW_CORRECTION
+#endif
+
+#if ENABLED(SKEW_CORRECTION)
+    #define XY_SKEW_FACTOR 0.0f
+    #define SKEW_CORRECTION_FOR_Z
+    #if ENABLED(SKEW_CORRECTION_FOR_Z)
+        #define XZ_SKEW_FACTOR 0.0f
+        #define YZ_SKEW_FACTOR 0.0f
+    #endif
+
+    // Enable this option for M852 to set skew at runtime
+    #define SKEW_CORRECTION_GCODE
+#endif
+
 //=============================================================================
 //============================= Additional Features ===========================
 //=============================================================================

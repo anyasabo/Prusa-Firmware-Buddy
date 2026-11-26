@@ -393,6 +393,11 @@ void resume_loop() {
 #if !HAS_CLASSIC_JERK
         planner.junction_deviation_mm = state_buf.planner.junction_deviation_mm;
 #endif
+#if ENABLED(SKEW_CORRECTION)
+        // Before the first set_position_mm() below, so the saved native positions convert as before the power loss.
+        // The factors can differ from the config store (M852 without W).
+        planner.skew_factor = state_buf.planner.skew_factor;
+#endif
 
 #if HAS_INDX()
         // active_extruder is not restored from EEPROM (the cache is invalidated
@@ -1109,6 +1114,10 @@ void ac_fault_isr() {
         }
 
         state_buf.planner.axis_e_config = pressure_advance::get_axis_e_config();
+
+#if ENABLED(SKEW_CORRECTION)
+        state_buf.planner.skew_factor = planner.skew_factor;
+#endif
 
 #if HAS_TOOLCHANGER()
         // Restore planner config if it was changed by toolchange

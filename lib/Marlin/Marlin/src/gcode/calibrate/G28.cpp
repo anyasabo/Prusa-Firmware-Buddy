@@ -77,6 +77,9 @@
 #include <option/has_dwarf.h>
 #include <option/has_print_sheet_detection.h>
 #include <option/has_toolchanger.h>
+#if ENABLED(SKEW_CORRECTION)
+  #include "../../module/prusa/skew.hpp"
+#endif
 #if HAS_TOOLCHANGER()
   #include <module/prusa/toolchanger.h>
 #endif
@@ -537,6 +540,12 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
 
   // Disable leveling before homing
   TERN_(HAS_LEVELING, set_bed_leveling_enabled(false));
+
+  #if ENABLED(SKEW_CORRECTION)
+    // Buddy: homing moves go along the machine axes and set machine positions, so turn the skew off.
+    // (Marlin homes with the skew on, its homing targets are out of the limits, so skew() does nothing there.)
+    TemporarySkewDisabler skew_disabler;
+  #endif
 
   // Reset to the XY plane
   TERN_(CNC_WORKSPACE_PLANES, workspace_plane = PLANE_XY);

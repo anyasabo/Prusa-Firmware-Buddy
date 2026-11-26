@@ -6,6 +6,7 @@
 #include <Marlin/src/module/motion.h>
 #include <Marlin/src/module/planner.h>
 #include <Marlin/src/module/probe.h>
+#include <module/prusa/skew.hpp>
 #include <Marlin/src/module/temperature.h>
 #include <option/has_toolchanger.h>
 #if HAS_TOOLCHANGER()
@@ -206,6 +207,13 @@ bool clean(CleanArgs args) {
         log_error(NozzleCleanerLite, "homing failed");
         return false;
     }
+
+#if ENABLED(SKEW_CORRECTION)
+    // The sequence moves along the machine axes, so turn the skew off, as G28 does. The CORE One L touchpoint
+    // (machine Y -7.5) is in the edge band of skew(), where to_machine_pos(to_native_pos(m)) is not m. With the skew
+    // on, each Z move and each sync_plan_position() of the Z probe moved Y by Z times the YZ factor.
+    TemporarySkewDisabler skew_disabler;
+#endif
 
     move_to_machine_pos_z(current_machine_position().z + travel_clearance_mm, leave_feedrate);
     move_to_machine_pos_xy(touchpoint_xy.x, touchpoint_xy.y, dive_feedrate);

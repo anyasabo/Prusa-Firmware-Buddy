@@ -137,7 +137,12 @@ double pa_error_bound_steps(const Config &config, const std::vector<Segment> &se
     const auto p_jump = [&](const Segment &s, bool at_end) { return active(s) ? pa * v_e(s, at_end) : 0.; };
     const auto q = [&](const Segment &s, bool at_end) { return v_e(s, at_end) + (active(s) ? pa * a_e(s) : 0.); };
 
-    double max_p_jump = 0., max_q_jump = 0., max_a = 0.;
+    // Jumps at the segment boundaries, with their time
+    struct Jump {
+        double time, p, q;
+    };
+    std::vector<Jump> jumps;
+    double max_a = 0.;
     for (size_t i = 0; i < segments.size(); ++i) {
         const Segment &s = segments[i];
         if (s.move_time > 1e6) {
@@ -146,9 +151,20 @@ double pa_error_bound_steps(const Config &config, const std::vector<Segment> &se
         max_a = std::max(max_a, std::abs(a_e(s)));
         if (i > 0) {
             const Segment &prev = segments[i - 1];
-            max_p_jump = std::max(max_p_jump, std::abs(p_jump(s, false) - p_jump(prev, true)));
-            max_q_jump = std::max(max_q_jump, std::abs(q(s, false) - q(prev, true)));
+            jumps.push_back({ s.print_time, std::abs(p_jump(s, false) - p_jump(prev, true)), std::abs(q(s, false) - q(prev, true)) });
         }
+    }
+    // The errors of all jumps within one smoothing window add up (for example a short retraction
+    // between two extrusions: a jump down and a jump up). Take the largest sum in a window of st.
+    double max_p_jump = 0., max_q_jump = 0.;
+    for (size_t i = 0; i < jumps.size(); ++i) {
+        double p_sum = 0., q_sum = 0.;
+        for (size_t j = i; j < jumps.size() && jumps[j].time - jumps[i].time <= st; ++j) {
+            p_sum += jumps[j].p;
+            q_sum += jumps[j].q;
+        }
+        max_p_jump = std::max(max_p_jump, p_sum);
+        max_q_jump = std::max(max_q_jump, q_sum);
     }
     // A position jump J moves to the next sample: error J * h / (st / 2) = J / 20.
     // A speed jump dq: the smoothed curve bends with dq / (st / 2), linear interpolation between

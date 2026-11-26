@@ -18,3 +18,22 @@ TEST_CASE("pressure advance: the smoothing tail at the end of motion makes its s
     CHECK(r.axis[3].buddy_net == 304);
     CHECK(check_axis(r.axis[3], r.buddy.final_count_position[3] - r.buddy.start_count_position[3]) == "");
 }
+
+TEST_CASE("pressure advance: sparse steps after the start of the ending move pass the debug check", "[motion_diff][regression]") {
+    // From a fuzz input: the last move is very slow, so the E steps of the smoothing tail come more
+    // than 65.5 ms after the step event before them. check_step_time() allowed only 65.5 ms after the
+    // last processed move when the ending empty move is the last move in the queue.
+    Config config;
+    config.steps_per_mm[3] = 550.f;
+    config.pressure_advance = 0.0944f;
+    config.smooth_time = 0.12f;
+    config.start_steps = { 60000, -4124, 93169 };
+    const Run r = run_both(config,
+        {
+            { .dx = 27.256, .de = 0.419261, .v_start = 0, .v_cruise = 180.491f, .v_end = 1, .accel = 4646.76f },
+            { .dx = -8.31528, .dy = -29.8713, .de = 1.1381, .v_start = 1, .v_cruise = 1, .v_end = 0, .accel = 50 },
+        });
+    // Before the fix, a debug_assert() in check_step_time() failed (an exception in this test).
+    // The E steps themselves also need the fix of anya/step-direction-at-emit to agree with Klipper.
+    CHECK(r.buddy.finished);
+}

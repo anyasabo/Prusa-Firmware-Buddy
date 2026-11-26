@@ -184,7 +184,7 @@ TEST_CASE("planner: random move sequences") {
 
 // The E of each section between two G92 must be the commanded E times the flow, within one
 // mini-step. See "M221 flow scales the total E of many short moves".
-TEST_CASE("planner: random move sequences with M221", "[!shouldfail][known_bug]") {
+TEST_CASE("planner: random move sequences with M221") {
     random_sequence(GENERATE(range(1u, 21u)), GENERATE(int16_t(95), int16_t(107)));
 }
 
@@ -200,10 +200,10 @@ int64_t sum_e_msteps() {
 }
 } // namespace
 
-// M221 (flow) scales the E of each block and rounds it to a mini-step (_populate_block()). The
-// rounding error does not carry to the next block. With many short print moves of the same E, the
-// errors add up in one direction.
-TEST_CASE("planner: M221 flow scales the total E of many short moves", "[!shouldfail][known_bug]") {
+// M221 (flow) scales the E of each block and rounds it to a mini-step (_populate_block()). Before
+// the fix, the rounding error did not carry to the next block. With many short print moves of the
+// same E, the errors added up in one direction: 14200 instead of 14440 mini-steps.
+TEST_CASE("planner: M221 flow scales the total E of many short moves") {
     Settings s;
     s.flow_percentage = 95;
     Runner r(s);

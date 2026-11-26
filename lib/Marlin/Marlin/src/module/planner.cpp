@@ -268,6 +268,7 @@ StrongIndexArray<float, VirtualToolIndex::count, VirtualToolIndex, VirtualToolIn
 // private:
 
 xyze_msteps_t Planner::position{0};
+float Planner::e_msteps_remainder = 0;
 
 uint32_t Planner::cutoff_long;
 
@@ -349,6 +350,7 @@ static float get_move_e_factor(const PlannerMoveTools &tools, const MoveHints &h
 void Planner::init() {
   position = {};
   position_float = {};
+  e_msteps_remainder = 0;
   previous_speed = {};
   previous_nominal_speed = 0;
   clear_block_buffer();
@@ -1276,7 +1278,26 @@ bool Planner::_populate_block(block_t * const block,
 
   const float e_fac = get_move_e_factor(tools, hints.move);
   const float e_msteps_float = de * e_fac;
-  const int32_t e_msteps = static_cast<int32_t>(std::abs(e_msteps_float) + 0.5f);
+  // The scaled E is a fraction of a mini-step. Round it with the remainder of the blocks before,
+  // and keep the new remainder (when the block is accepted, at the end).
+  // If each block rounds on its own, the errors of many short blocks with the same E (curves, infill)
+  // add up in one direction. Example: 0.01 mm of E at 380 steps/mm is 15.2 mini-steps, at M221 S95
+  // 14.44, rounded to 14: 3 % less E than M221 asks for.
+  // Klipper scales the E coordinate in float before the move, so it has no such error:
+  // https://github.com/Klipper3d/klipper/blob/29d4ec2d6d840ee839333306003a400da186d41d/klippy/extras/gcode_move.py#L142-L143
+  // Rejected: scale the E target position as Klipper. Then G92 E, the cold extrusion check and
+  // the flow change during a print all need the scaled position too.
+  // A block without E does not take the remainder: it must not make an E step.
+  // tests/unit/lib/Marlin/planner "M221 flow scales the total E of many short moves" fails without
+  // this.
+  const float e_msteps_carried = de ? e_msteps_float + e_msteps_remainder : 0.0f;
+  int32_t e_msteps_signed = static_cast<int32_t>(std::lround(e_msteps_carried));
+  if ((de > 0 && e_msteps_signed < 0) || (de < 0 && e_msteps_signed > 0)) {
+    // Only at e_factor 0 (M221 S0): then the carried value is the remainder alone, and
+    // lround(-0.5) is -1. Do not step against the direction bit.
+    e_msteps_signed = 0;
+  }
+  const int32_t e_msteps = std::abs(e_msteps_signed);
 
   // Clear all flags, including the "busy" bit
   block->flag.clear();
@@ -1887,6 +1908,9 @@ bool Planner::_populate_block(block_t * const block,
   // Update the position
   position = target;
   position_float = target_float;
+  if (de) {
+    e_msteps_remainder = e_msteps_carried - static_cast<float>(e_msteps_signed);
+  }
 
   // Movement was accepted
   return true;
@@ -2382,6 +2406,7 @@ void Planner::set_machine_position_mm_planner_only(const MachinePosXYZE &xyze) {
     last_extruder = active_extruder;
   #endif
   position_float = xyze;
+  e_msteps_remainder = 0; // G92 E: a new E origin
   position = {
     LROUND(xyze.x * settings.axis_msteps_per_mm[X_AXIS]),
     LROUND(xyze.y * settings.axis_msteps_per_mm[Y_AXIS]),
@@ -2434,6 +2459,7 @@ void Planner::set_e_position_mm(const float e, std::optional<uint8_t> e_axis_ind
   #endif
   position.e = LROUND(settings.axis_msteps_per_mm[*e_axis_index] * e);
   position_float.e = e;
+  e_msteps_remainder = 0; // G92 E: a new E origin
 
   if (processing())
     buffer_sync_block();

@@ -49,11 +49,11 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
     }
     if (limits.allow_pa && (flags & 64)) {
         c.pressure_advance = in.range(0.005f, 0.2f);
-        // 0.01 s: the minimum of the fix for M572 W0 (branch anya/pa-smooth-time-min, klipper-audit K2).
-        // 0.12 s: above, the PA steps at a halt often come more than 65.5 ms after the event before,
-        // and the debug_assert() in check_step_time() (precise_stepping.cpp) fails. Release builds do
-        // not have the check. Branch anya/pa-end-of-motion corrects the check.
-        c.smooth_time = in.range(0.01f, 0.12f);
+        // The range of M572 W with the fix for M572 W0 (branch anya/pa-smooth-time-min): 0.01 to 0.2 s.
+        // Above 0.12 s, the PA steps at a halt often come more than 65.5 ms after the event before.
+        // This needs the check_step_time() fix of branch anya/pa-end-of-motion, else its
+        // debug_assert() fails.
+        c.smooth_time = in.range(0.01f, 0.2f);
     }
     // Start anywhere on a CORE One L sized machine (A + B even: a whole number of X/Y mini-steps
     // per step pair, as after homing).

@@ -5,6 +5,8 @@
 
 #include <feature/precise_stepping/common.hpp>
 
+#include <stdexcept>
+
 namespace motion_diff {
 
 struct KlipperSession {
@@ -57,7 +59,10 @@ KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segm
             // speeds are float). Up to the next motion, or 1 s, then the tail sentinel holds it.
             move_t = i + 1 < segments.size() ? segments[i + 1].print_time - s.print_time : 1.;
         }
-        if (move_t <= 0.) {
+        if (move_t < 0.) {
+            throw std::runtime_error("move segments overlap in time"); // the trapq needs them in order
+        }
+        if (move_t == 0.) {
             continue;
         }
         kl_move m {};

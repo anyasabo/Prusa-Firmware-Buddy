@@ -59,3 +59,19 @@ TEST_CASE("comparator: a lost step fails", "[motion_diff][comparator]") {
     --buddy.final_count_position[A];
     CHECK(check_mutated(r, buddy) != "");
 }
+
+TEST_CASE("comparator: the E offset after a tie halt keeps a lost step", "[motion_diff][comparator]") {
+    // The session moves E by 303.5 steps from 100 (4 mini-steps for each step): a tie, so Buddy
+    // can end at 403 or 404. A Buddy end outside these two is a lost or extra step. Then the
+    // offset must not follow Buddy, else Klipper continues from the wrong position and the loss is
+    // never visible.
+    constexpr int m = 4;
+    CHECK(next_session_e_offset(100, 1214, m, 403) == 403);
+    CHECK(next_session_e_offset(100, 1214, m, 404) == 404);
+    CHECK(next_session_e_offset(100, 1214, m, 402) == 404);
+    CHECK(next_session_e_offset(100, -1214, m, -204) == -204);
+    CHECK(next_session_e_offset(100, -1214, m, -203) == -203);
+    CHECK(next_session_e_offset(100, -1214, m, -202) == -204);
+    // Not a tie: always the rounded commanded position
+    CHECK(next_session_e_offset(100, 1213, m, 402) == 403);
+}

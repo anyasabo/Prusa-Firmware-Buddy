@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
+#include <string>
 
 #include <config_store/store_instance.hpp>
 #include <feature/input_shaper/input_shaper.hpp>
@@ -194,19 +195,24 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
     int64_t time_offset_us = 0;
     double last_segment_end_s = 0.;
     // The motion continues after the last real segment of a session: the input shapers by their
-    // largest pulse time, pressure advance by its filter. Buddy finishes this tail before the halt,
+    // earliest pulse time, pressure advance by its filter. Buddy finishes this tail before the halt,
     // so the next session starts after it (Klipper's continuous motion then equals Buddy's).
     double tail_s = 0.;
     for (int i = 0; i < 3; ++i) {
         if (PreciseStepping::physical_axis_step_generator_types & (INPUT_SHAPER_STEP_GENERATOR_X << i)) {
             const input_shaper_pulses_t &p = InputShaper::logical_axis_pulses[i];
-            tail_s = std::max(tail_s, p.pulses[p.num_pulses - 1].t.to_seconds());
+            // The shaped position at time T is the sum of a_i * x(T + t_i), with the pulses in
+            // ascending order (kin_shaper.c calc_position()). Thus the motion ends at the segment
+            // end - t_0. The last pulse time is the lookback side: for a shaper that is not
+            // symmetric (MZV, ZVD), it is shorter.
+            tail_s = std::max(tail_s, -p.pulses[0].t.to_seconds());
         }
     }
     if (PreciseStepping::physical_axis_step_generator_types & PRESSURE_ADVANCE_STEP_GENERATOR_E) {
         tail_s = std::max(tail_s, PressureAdvance::pressure_advance_params.filter_total_time.to_seconds());
     }
     int64_t e_net_steps = 0;
+    int64_t last_step_us = 0;
     int64_t e_offset_steps = 0;
     int64_t session_start_e_msteps = group_start_e_msteps[0];
     bool first_session = true;
@@ -231,17 +237,24 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
                     // All events of the session before are consumed (reset_from_halt() needs empty queues).
                     time_offset_us = int64_t(std::ceil((last_segment_end_s + tail_s) * 1e6));
                     time_offset_s = double(time_offset_us) * 1e-6;
+                    if (last_step_us > time_offset_us) {
+                        // The comparison needs the steps in time order. Events without a step can
+                        // come later: they only keep the step ISR alive.
+                        throw std::runtime_error("Buddy made a step at " + std::to_string(last_step_us) + " us, after the end of the session and its tail at " + std::to_string(time_offset_us) + " us (segment end " + std::to_string(last_segment_end_s) + " s, tail " + std::to_string(tail_s) + " s)");
+                    }
                     now_us = time_offset_us; // the first event of the new session counts from its time 0
                     // E: PreciseStepping starts the session at the integer E step position of the halt
                     // and moves by the commanded E delta of the session before (in mini-steps, from
                     // the planner targets). Thus the offset adds the rounded delta of each session. On
                     // an exact half step (a tie), the last step can go either way: then take the E
                     // position of the Buddy steps.
-                    const size_t group = size_t(std::min<int>(result.sessions, int(group_start_e_msteps.size()) - 1));
+                    if (size_t(result.sessions) >= group_start_e_msteps.size()) {
+                        throw std::runtime_error("Buddy started more sessions than the blocks have halts");
+                    }
+                    const size_t group = size_t(result.sessions);
                     const int64_t delta_msteps = group_start_e_msteps[group] - session_start_e_msteps;
                     session_start_e_msteps = group_start_e_msteps[group];
-                    const bool tie = delta_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2 || -delta_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2;
-                    e_offset_steps = tie ? e_net_steps : e_offset_steps + std::llround(double(delta_msteps) / PLANNER_STEPS_MULTIPLIER);
+                    e_offset_steps = next_session_e_offset(e_offset_steps, delta_msteps, PLANNER_STEPS_MULTIPLIER, e_net_steps);
                     const int64_t e_steps = e_offset_steps;
                     e_offset_mm = double(e_steps) * double(Planner::mm_per_step[E_AXIS]);
                 }
@@ -268,6 +281,7 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
                     if (axis == E_AXIS) {
                         e_net_steps += negative ? -1 : 1;
                     }
+                    last_step_us = now_us;
                     if (double(now_us) >= config.record_from_us) {
                         result.steps.axis[axis].push_back({ double(now_us), !negative });
                     } else {

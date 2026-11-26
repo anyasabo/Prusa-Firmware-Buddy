@@ -1,4 +1,5 @@
 #include "axes.hpp"
+#include "lut.hpp"
 #include <array>
 #include <module/planner.h>
 #include <config_store/store_instance.hpp>

@@ -1,0 +1,2 @@
+#pragma once
+#define HAS_NOZZLE_THERMAL_COMPENSATION() 0

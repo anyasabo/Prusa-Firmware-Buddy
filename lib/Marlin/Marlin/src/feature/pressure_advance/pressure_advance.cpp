@@ -9,6 +9,7 @@
  * and can be fully run on a single 32-bit MCU with nearly identical results as the implementation in Klipper.
  */
 #include "pressure_advance.hpp"
+#include "pressure_advance_sampling.hpp"
 
 #include "../precise_stepping/precise_stepping.hpp"
 #include "../precise_stepping/internal.hpp"
@@ -110,10 +111,7 @@ pressure_advance_params_t create_pressure_advance_params(const pressure_advance:
     params.pressure_advance_value = config.pressure_advance;
 
     constexpr const uint16_t filter_length = PRESSURE_ADVANCE_MAX_FILTER_LENGTH;
-    // Round sampling_rate to whole microseconds so integer division by sampling_rate_us is exact.
-    const int64_t sr_us = (filter_length > 1)
-        ? llround(double(config.smooth_time) / (filter_length - 1) * 1e6)
-        : 1000; // 1 ms fallback when filter_length == 1
+    const int64_t sr_us = pressure_advance::sampling_interval_us(config.smooth_time, filter_length);
     debug_assert(sr_us > 0); // zero smooth_time would divide by zero in the sample-index math
     params.sampling_rate = TimeTicks::from_us(sr_us);
     params.sampling_rate_us = uint32_t(sr_us);

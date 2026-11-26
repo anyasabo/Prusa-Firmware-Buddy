@@ -6,6 +6,7 @@
 #include "../../gcode.h"
 #include "../../../module/stepper.h"
 #include "../../../feature/pressure_advance/pressure_advance_config.hpp"
+#include "../../../feature/pressure_advance/pressure_advance_sampling.hpp"
 
 static void dump_current_config() {
     if (const pressure_advance::Config &config = pressure_advance::get_axis_e_config(); config.pressure_advance <= 0.f) {
@@ -40,7 +41,7 @@ static void dump_current_config() {
  *
  * - `D` - Set the extruder number
  * - `S` - Set the pressure advance value. Range is 0. to 1.0 seconds. If zero the pressure advance is disabled
- * - `W` - Set a time range in seconds used for calculating the average extruder velocity for pressure advance. Range between 0. and 0.2 Default value is 0.04
+ * - `W` - Set a time range in seconds used for calculating the average extruder velocity for pressure advance. Range between 0.01 and 0.2 Default value is 0.04
  *
  * Without parameters prints the current pressure advance settings.
  */
@@ -67,10 +68,10 @@ void GcodeSuite::M572() {
     const bool seen_w = parser.seen('W');
     if (seen_w) {
         const float w = parser.value_float();
-        if (WITHIN(w, 0.f, 0.2f)) {
+        if (WITHIN(w, pressure_advance::smooth_time_min, pressure_advance::smooth_time_max)) {
             smooth_time = w;
         } else {
-            SERIAL_ECHO_MSG("?Pressure advance smooth time (W) value out of range (0-0.2)");
+            SERIAL_ECHO_MSG("?Pressure advance smooth time (W) value out of range (0.01-0.2)");
         }
     }
 

@@ -36,6 +36,10 @@ The junction limit uses the float positions of the planner (`position_float`), a
 
 The hand-written test cases are squares, retractions with Z hop and G92 E0, reversals, zero-length moves, and arcs of 0.02 to 2 mm segments. 40 random sequences have lengths from 0 to 100 mm.
 
+## End-to-end
+
+`planner_e2e.cpp` connects the real planner to the real PreciseStepping and sends the move segments to Klipper with the comparator of `motion_klipper_diff` (`compare_axis()`). The planner fills its queue, then the move ISR runs (1 ms each) until the motion halts. One motion, without a halt in the middle. A G92 E0 sync block moves the PreciseStepping E back by whole steps: the driver adds the jump to the Klipper E. Each stepper must agree with Klipper and end at the planner position.
+
 ## Defects found (v8.0.2)
 
 The tests with `[!shouldfail][known_bug]` fail because of these defects:
@@ -45,6 +49,8 @@ The tests with `[!shouldfail][known_bug]` fail because of these defects:
 3. A move shorter than `MIN_STEPS_PER_SEGMENT` (6 steps) goes into the next move. A G92 directly after it discards it (up to 5 steps, 0.013 mm of E).
 
 Not a test failure, counted in `Report::exit_below_minimum_speed`: the planner plans the newest block to end at `MINIMUM_PLANNER_SPEED` (0.05 mm/s). A junction limit can be lower (an E-heavy junction with a tiny XYZ part). If the block before is busy, it cannot slow down to it, and the speed jumps by less than 0.05 mm/s along the path.
+
+The end-to-end case with input shaper and pressure advance has `[!mayfail]`: E ends 3.5 steps short because of the defects M1 and M2 of `motion_klipper_diff`. With their fixes it passes.
 
 ## Run
 

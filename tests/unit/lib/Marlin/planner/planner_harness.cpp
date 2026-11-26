@@ -10,6 +10,7 @@ namespace planner_harness {
 namespace {
     std::vector<Taken> taken_blocks;
     std::vector<Jump> position_jumps;
+    void (*idle_hook)() = nullptr;
     struct FloatMove {
         MachinePosXYZE start, end;
     };
@@ -115,7 +116,15 @@ void take_all() {
 }
 
 void on_idle() {
-    take(1);
+    if (idle_hook) {
+        idle_hook();
+    } else {
+        take(1);
+    }
+}
+
+void set_idle_hook(void (*hook)()) {
+    idle_hook = hook;
 }
 
 const std::vector<Taken> &taken() {

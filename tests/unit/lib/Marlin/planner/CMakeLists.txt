@@ -135,6 +135,11 @@ target_compile_options(
   )
 target_link_libraries(planner_under_test PUBLIC bsod)
 
-add_executable(planner_tests planner_tests.cpp)
-target_link_libraries(planner_tests planner_under_test)
+# The end-to-end tests use the comparator and the Klipper oracle of motion_klipper_diff.
+add_executable(
+  planner_tests ${motion_diff_dir}/compare.cpp ${motion_diff_dir}/klipper_runner.cpp
+                planner_e2e.cpp planner_e2e_tests.cpp planner_tests.cpp
+  )
+target_include_directories(planner_tests PRIVATE ${motion_diff_dir})
+target_link_libraries(planner_tests planner_under_test motion_klipper_oracle)
 add_catch_test(planner_tests)

@@ -58,8 +58,10 @@ size_t take(size_t n);
 /// PreciseStepping takes all the blocks.
 void take_all();
 
-/// The planner waits in idle() when the queue is full. Then PreciseStepping takes one block.
+/// The planner waits in idle() when the queue is full. Then PreciseStepping takes one block, or
+/// the hook runs (the end-to-end test runs the real PreciseStepping there).
 void on_idle();
+void set_idle_hook(void (*hook)());
 
 const std::vector<Taken> &taken();
 

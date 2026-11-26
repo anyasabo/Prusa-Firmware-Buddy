@@ -11,7 +11,11 @@ add_library(
   esp_flash.cpp
   )
 
-add_dependencies(buddy-esp-serial-flasher esp-parts)
+# src/resources makes esp-parts. A host unit-test build with RESOURCES=NO (for example
+# PRINTER=COREONEL) also configures src/, but does not build it.
+if(RESOURCES)
+  add_dependencies(buddy-esp-serial-flasher esp-parts)
+endif()
 
 target_link_libraries(
   buddy-esp-serial-flasher PRIVATE STM32F4::HAL BuddyHeaders freertos logging FreeRTOS::CMSIS

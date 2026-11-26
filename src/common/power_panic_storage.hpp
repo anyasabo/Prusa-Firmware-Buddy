@@ -66,6 +66,10 @@ struct state_planner_t {
 
     float z_position;
     float max_printed_z;
+#if ENABLED(SKEW_CORRECTION)
+    /// M852 factors. A print can set them without W (only in RAM), so the resume needs them.
+    skew_factor_t skew_factor;
+#endif
 #if DISABLED(CLASSIC_JERK)
     float junction_deviation_mm;
 #endif

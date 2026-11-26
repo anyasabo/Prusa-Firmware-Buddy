@@ -1,0 +1,3 @@
+add_executable(loadcell_raw_window_tests loadcell_raw_window_tests.cpp)
+target_include_directories(loadcell_raw_window_tests PUBLIC ${CMAKE_SOURCE_DIR}/src/common)
+add_catch_test(loadcell_raw_window_tests)

@@ -37,6 +37,12 @@ METRIC_DEF(metric_loadcell_xy, "loadcell_xy", METRIC_VALUE_FLOAT, 0, METRIC_DISA
 METRIC_DEF(metric_loadcell_age, "loadcell_age", METRIC_VALUE_INTEGER, 0, METRIC_DISABLED);
 METRIC_DEF(metric_loadcell_value, "loadcell_value", METRIC_VALUE_FLOAT, 0, METRIC_DISABLED);
 METRIC_DEF(mbl, "mbl", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
+#if HAS_LOADCELL_HX717()
+// One record for each G28 that homes XY and then Z: the data to set a limit for the liveness check
+METRIC_DEF(metric_lc_live, "lc_live", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+// The raw level and noise of each second. The metric loadcell_value (each sample) is too large to keep on.
+METRIC_DEF(metric_lc_raw, "lc_raw", METRIC_VALUE_CUSTOM, 0, METRIC_ENABLED);
+#endif
 
 LOG_COMPONENT_REF(Loadcell);
 
@@ -276,6 +282,8 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
 #if HAS_LOADCELL_HX717()
     if (loadcellRaw != undefined_value) {
         health.feed(loadcellRaw, buddy::LoadcellHealth::load_plausible(tared_z_load, highPrecision, tare_valid.load(std::memory_order_relaxed)));
+        liveness.feed(loadcellRaw);
+        raw_second.feed(loadcellRaw);
     }
 #endif
 
@@ -424,6 +432,21 @@ void Loadcell::check_health(bool printing) {
     const Fault fault = health.check(ticks_us());
     health_fault.store(fault);
 
+    if (const uint32_t now_ms = ticks_ms(); !raw_second.is_active() || ticks_diff(now_ms, raw_second_start_ms) >= 1000) {
+        // The first call after boot only opens the first window
+        const bool had_window = raw_second.is_active();
+        const auto second = raw_second.stop();
+        raw_second.start();
+        raw_second_start_ms = now_ms;
+        if (!had_window) {
+            // Nothing to record
+        } else if (second.samples > 0) {
+            metric_record_custom(&metric_lc_raw, " n=%" PRIu32 "i,min=%" PRId32 "i,max=%" PRId32 "i", second.samples, second.min, second.max);
+        } else {
+            metric_record_custom(&metric_lc_raw, " n=0i");
+        }
+    }
+
     if (fault == Fault::none || !printing) {
         return;
     }
@@ -448,6 +471,17 @@ void Loadcell::check_health(bool printing) {
         log_error(Loadcell, "Raw value constant or implausible for %" PRIu32 " ms, last %" PRId32 ", offset %" PRId32, buddy::LoadcellHealth::implausible_timeout_us / 1000, health.get_last_raw(), offset);
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
     }
+}
+#endif
+
+#if HAS_LOADCELL_HX717()
+void Loadcell::end_liveness_window(bool xy_homed) {
+    if (!liveness.is_active()) {
+        return;
+    }
+    const auto result = liveness.stop();
+    log_info(Loadcell, "Liveness: spread %" PRId32 " counts in %" PRIu32 " samples during XY homing (%s)", result.spread(), result.samples, xy_homed ? "homed" : "failed");
+    metric_record_custom(&metric_lc_live, ",ok=%u s=%" PRId32 "i,n=%" PRIu32 "i,min=%" PRId32 "i,max=%" PRId32 "i", static_cast<unsigned>(xy_homed), result.spread(), result.samples, result.min, result.max);
 }
 #endif
 

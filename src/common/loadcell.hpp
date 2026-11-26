@@ -9,6 +9,7 @@
 #include <limits>
 #include "probe_analysis.hpp"
 #include "loadcell_health.hpp"
+#include "loadcell_raw_window.hpp"
 #include <atomic>
 #include <printers.h>
 #include <option/has_indx.h>
@@ -146,6 +147,15 @@ public:
 
     /// True if the last check_health() found no new sample for LoadcellHealth::sample_timeout_us.
     bool samples_stale() const { return health_fault.load() == buddy::LoadcellHealth::Fault::no_samples; }
+
+    /// Start to measure the response of the load cell to the head motion (@see buddy::LoadcellRawWindow).
+    /// Call before the XY homing.
+    void start_liveness_window() { liveness.start(); }
+
+    /// End the window of start_liveness_window(). Logs the result and records it in the metric lc_live.
+    /// Does nothing if no window is active.
+    /// @param xy_homed False if the XY homing failed or stopped: the window then has less motion
+    void end_liveness_window(bool xy_homed);
 #endif
 
     /// Wait until a sample no older than max_age_us has arrived, or timeout_us elapses.
@@ -421,6 +431,13 @@ private:
     buddy::LoadcellHealth health;
     std::atomic<buddy::LoadcellHealth::Fault> health_fault { buddy::LoadcellHealth::Fault::none };
     static_assert(std::atomic<buddy::LoadcellHealth::Fault>::is_always_lock_free);
+
+    /// Response to the head motion during the XY homing: fed from the ISR
+    buddy::LoadcellRawWindow liveness;
+
+    /// Raw values of the current second for the metric lc_raw: fed from the ISR, read by check_health()
+    buddy::LoadcellRawWindow raw_second;
+    uint32_t raw_second_start_ms { 0 };
 
     /// True after a tare completed: then offset is the untared value at zero load
     std::atomic<bool> tare_valid { false };

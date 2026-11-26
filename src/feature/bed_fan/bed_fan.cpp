@@ -1,7 +1,10 @@
 /// @file
 #include <feature/bed_fan/bed_fan.hpp>
 
+#include <metric.h>
 #include <option/has_ac_controller.h>
+#include <timing.h>
+#include <utils/timing/rate_limiter.hpp>
 
 #if HAS_AC_CONTROLLER()
     #include <puppies/ac_controller.hpp>
@@ -22,6 +25,23 @@ std::optional<uint8_t> BedFan::get_pwm() const {
 
 std::optional<std::array<uint16_t, 2>> BedFan::get_rpm() const {
     return buddy::puppies::ac_controller.get_bed_fan_rpm();
+}
+
+void BedFan::record_metric() const {
+    METRIC_DEF(metric_bed_fan, "bed_fan", METRIC_VALUE_CUSTOM, 0, METRIC_DISABLED);
+    static RateLimiter<uint32_t> should_record(1000);
+    if (!should_record.check(ticks_ms())) {
+        return;
+    }
+    // Both fans share one PWM. Without valid data from the AC controller, record nothing.
+    const auto pwm = get_pwm();
+    const auto rpm = get_rpm();
+    if (!pwm.has_value() || !rpm.has_value()) {
+        return;
+    }
+    for (size_t fan = 0; fan < rpm->size(); ++fan) {
+        metric_record_custom(&metric_bed_fan, ",fan=%u pwm=%ui,rpm=%ui", static_cast<unsigned>(fan + 1), *pwm, (*rpm)[fan]);
+    }
 }
 
 void BedFan::set_pwm(uint8_t pwm) {

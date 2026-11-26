@@ -30,6 +30,9 @@ public:
     /// You shouldn't need to call this manually, use bed_fan::Controller instead.
     void set_pwm(uint8_t pwm);
 
+    /// Record the PWM and the RPM of both fans in the metric bed_fan, at most once per second.
+    void record_metric() const;
+
 private:
     uint32_t start_timestamp_ms = 0; /// timestamp for calculating delay of error checking
 };

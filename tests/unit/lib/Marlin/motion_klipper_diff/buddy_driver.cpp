@@ -77,6 +77,21 @@ namespace {
 
         PreciseStepping::init_stepper();
         PreciseStepping::init();
+
+        // Klipper gets the raw configuration. Make sure that Buddy took it unchanged, except the
+        // documented rounding of the PA sample period, so that a future change of the Buddy input
+        // handling shows here and not as a step difference.
+        for (int i = 0; i < 3; ++i) {
+            if (input_shaper::current_config().axis[i] != config.shaper[i]) {
+                throw std::runtime_error("Buddy changed the input shaper configuration");
+            }
+        }
+        if (config.pressure_advance > 0.f) {
+            const double buddy_smooth_time = double(PressureAdvance::pressure_advance_params.sampling_rate_us) * 40e-6;
+            if (std::abs(buddy_smooth_time - effective_smooth_time(config.smooth_time)) > 1e-12) {
+                throw std::runtime_error("Buddy changed the pressure advance smooth time");
+            }
+        }
     }
 
     block_t make_block(const Block &b, std::array<int64_t, AXES> &position_msteps, std::array<double, AXES> &position_mm) {

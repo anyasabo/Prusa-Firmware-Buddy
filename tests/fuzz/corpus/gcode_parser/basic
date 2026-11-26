@@ -1,0 +1,6 @@
+G1 X10.5 Y-3 F1200 E.4
+M117 "quoted \"string\" here"
+G28 W
+M104 S215 T1
+M862.3 P "COREONEL"
+G29 P9 X10 Y-4 W32 H4

@@ -59,6 +59,8 @@ target_compile_options(
   motion_klipper_oracle PRIVATE -O2 -fno-strict-aliasing -Wno-attributes -Wno-sign-compare
   )
 target_link_libraries(motion_klipper_oracle PUBLIC m)
+# Klipper's list.h needs GNU C (typeof); klippy/chelper/__init__.py compiles with -std=gnu11.
+set_target_properties(motion_klipper_oracle PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 
 # The Buddy motion core, from the real sources, plus the drivers of both sides.
 add_library(

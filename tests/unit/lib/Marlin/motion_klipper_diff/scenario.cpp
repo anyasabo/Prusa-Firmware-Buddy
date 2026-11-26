@@ -49,8 +49,11 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
     }
     if (limits.allow_pa && (flags & 64)) {
         c.pressure_advance = in.range(0.005f, 0.2f);
-        // 0.01 s: the minimum of the fix for M572 W0 (branch anya/pa-smooth-time-min, klipper-audit K2)
-        c.smooth_time = in.range(0.01f, 0.2f);
+        // 0.01 s: the minimum of the fix for M572 W0 (branch anya/pa-smooth-time-min, klipper-audit K2).
+        // 0.12 s: above, the PA steps at a halt often come more than 65.5 ms after the event before,
+        // and the debug_assert() in check_step_time() (precise_stepping.cpp) fails. Release builds do
+        // not have the check. Branch anya/pa-end-of-motion corrects the check.
+        c.smooth_time = in.range(0.01f, 0.12f);
     }
     // Start anywhere on a CORE One L sized machine (A + B even: a whole number of X/Y mini-steps
     // per step pair, as after homing).
@@ -87,6 +90,7 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
         }
         blk.v_start = blk.v_cruise;
         blk.v_end = in.range(0.f, blk.v_cruise);
+        blk.halt_before = !s.blocks.empty() && (kind & 0xE0) == 0xE0; // 1 in 8: the planner queue runs dry
         s.blocks.push_back(blk);
     }
 
@@ -102,13 +106,16 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
     for (size_t i = s.blocks.size(); i-- > 0;) { // backward pass
         Block &b = s.blocks[i];
         b.v_start = std::min(b.v_start, std::sqrt(b.v_end * b.v_end + reach2(b)));
+        if (b.halt_before) {
+            b.v_start = 0.f;
+        }
         if (i > 0) {
             s.blocks[i - 1].v_end = std::min(s.blocks[i - 1].v_end, b.v_start);
         }
     }
     float v_prev = 0.f;
     for (Block &b : s.blocks) { // forward pass
-        b.v_start = v_prev;
+        b.v_start = b.halt_before ? 0.f : v_prev;
         b.v_end = std::min(b.v_end, std::sqrt(b.v_start * b.v_start + reach2(b)));
         v_prev = b.v_end;
     }

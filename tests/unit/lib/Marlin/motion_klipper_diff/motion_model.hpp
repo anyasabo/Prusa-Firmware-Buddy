@@ -2,7 +2,9 @@
 // Common types of the differential test: the motion that the test sends, and the steps that come out.
 
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -17,7 +19,16 @@ struct Block {
     double dx = 0, dy = 0, dz = 0, de = 0; // cartesian displacement (mm)
     float v_start = 0, v_cruise = 0, v_end = 0; // along the path (mm/s)
     float accel = 0; // along the path (mm/s^2)
+    // The motion stops before this block and PreciseStepping comes back to a halt (reset_from_halt()),
+    // as when the planner queue runs dry. v_start must be 0, and the block before must end at 0.
+    bool halt_before = false;
 };
+
+/// The smooth time that Buddy uses: create_pressure_advance_params() rounds the sample period
+/// (smooth_time / 40) to whole us. Klipper gets this value, so both smooth over the same window.
+inline double effective_smooth_time(float smooth_time) {
+    return double(std::llround(double(smooth_time) / 40. * 1e6)) * 40e-6;
+}
 
 struct Config {
     // CORE One L, 2GT belts, 16 microsteps (Configuration_COREONEL.h)
@@ -56,11 +67,20 @@ struct BuddyResult {
     std::array<int32_t, AXES> final_count_position {}; // Stepper::count_position_from_startup
     std::array<int32_t, AXES> start_count_position {};
     bool finished = false; // the pipeline came back to a halt
+    int sessions = 0; // motion from a halt to a halt (beginning empty moves)
 };
+
+struct KlipperSession; // owns the Klipper trapq and stepper kinematics after the run
 
 struct KlipperResult {
     Steps raw; // each step of itersolve
     Steps filtered; // after the rollback filter of Klipper stepcompress
+    std::shared_ptr<KlipperSession> session;
+    std::array<double, AXES> step_dist {}; // mm
+
+    /// The exact position of stepper `axis` at `time_us`, in steps (boundaries at k + 0.5, the same
+    /// grid as the Buddy step counter).
+    double position_steps(int axis, double time_us) const;
 };
 
 /// Input shaper pulses in the traditional definition, from the Buddy shaper definitions.

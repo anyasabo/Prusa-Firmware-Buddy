@@ -80,7 +80,8 @@ add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 # make the builds reproducible
 add_compile_options(-frandom-seed=BuddyFW)
 
-# Do not allow non-ascii identifiers and bidi shenanigans
+# Do not allow non-ascii identifiers and bidi shenanigans. GCC options: Clang (the host fuzz build,
+# tests/fuzz/README.md) rejects -fno-extended-identifiers.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
 endif()
@@ -333,12 +334,7 @@ endif()
 
 # split and gc sections
 add_compile_options(-ffunction-sections -fdata-sections)
-if(NOT APPLE)
-  add_link_options(-Wl,--gc-sections)
-else()
-  # ld64 spells it differently; only reachable for the host unit tests (PR #5411).
-  add_link_options(-Wl,-dead_strip)
-endif()
+add_link_options(-Wl,--gc-sections)
 
 # support _DEBUG macro (some code uses to recognize debug builds)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

@@ -1682,7 +1682,7 @@ bool Planner::_populate_block(block_t * const block,
        * Also always normalize when float position is not available and there is E component.
        */
       if (ENABLED(IS_CORE))
-        normalize_junction_vector(unit_vec);
+        (void)normalize_junction_vector(unit_vec); // A block has a length, so the vector is not marginal
       else
         unit_vec *= inverse_millimeters;
 
@@ -1705,9 +1705,13 @@ bool Planner::_populate_block(block_t * const block,
         else {
           NOLESS(junction_cos_theta, -0.999999f); // Check for numerical round-off to avoid divide by zero.
 
-          // Convert delta vector to unit vector
+          // The direction of the change of direction (the normal of the corner). On a straight line
+          // where only the E per mm changes a little, it is float noise: normalized, it can point
+          // along E, and then the E limit of M204 F slows the junction for no physical reason.
+          // Then use the block acceleration. tests/unit/lib/Marlin/planner "a straight line of
+          // short segments with small E changes is not slowed" fails without this.
           MachinePosXYZE junction_unit_vec = unit_vec - prev_unit_vec;
-          normalize_junction_vector(junction_unit_vec);
+          const bool has_direction = normalize_junction_vector(junction_unit_vec);
 
           // Cap the E term of the cornering acceleration as well. A junction belongs
           // to both blocks, so extrusion on either side of it bounds dq/dt here -
@@ -1716,7 +1720,7 @@ bool Planner::_populate_block(block_t * const block,
           // In mm/s^2, since the junction math works in mm-domain unit vectors.
           const float e_filament_accel_limit =
               (is_print_e_move || prev_is_print_e_move) ? settings.max_filament_acceleration_mm_per_s2 : 0.0f;
-          const float junction_acceleration = limit_value_by_axis_maximum(block->acceleration, junction_unit_vec, e_filament_accel_limit),
+          const float junction_acceleration = has_direction ? limit_value_by_axis_maximum(block->acceleration, junction_unit_vec, e_filament_accel_limit) : block->acceleration,
                       sin_theta_d2 = SQRT(0.5f * (1.0f - junction_cos_theta)); // Trig half angle identity. Always positive.
 
           vmax_junction_sqr = (junction_acceleration * junction_deviation_mm * sin_theta_d2) / (1.0f - sin_theta_d2);

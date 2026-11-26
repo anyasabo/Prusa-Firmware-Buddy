@@ -333,6 +333,12 @@ class Planner {
      */
     static xyze_msteps_t position;
 
+    /**
+     * The fraction of an E mini-step that the rounding of the scaled E of the blocks left
+     * (e_factor: M221 flow, M200). The next block with E adds it. See _populate_block().
+     */
+    static float e_msteps_remainder;
+
   private:
     /**
      * Speed of previous path line segment

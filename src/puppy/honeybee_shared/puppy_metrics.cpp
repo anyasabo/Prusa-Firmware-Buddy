@@ -62,7 +62,7 @@ void record_puppy_system() {
                 if (mem_is_heap_allocated(stack_base)) {
                     s = malloc_usable_size((void *)stack_base);
                 }
-                metric_record_custom(&stack, ",n=%.7s t=%i,m=%u", task_name, s, static_cast<unsigned>(task_statuses[idx].usStackHighWaterMark));
+                metric_record_custom(&stack, ",n=%.7s t=%i,m=%hu", task_name, s, task_statuses[idx].usStackHighWaterMark);
 
 #if configGENERATE_RUN_TIME_STATS
                 // #error dead code found by automatic analyses (see BFW-5461)

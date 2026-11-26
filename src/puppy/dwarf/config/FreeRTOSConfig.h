@@ -85,12 +85,12 @@
  *----------------------------------------------------------*/
 
 /* Section where include file can be added */
-#define traceTASK_SWITCHED_IN()                             \
-                                                            \
-    if (prvGetTCBFromHandle(NULL) == xIdleTaskHandles[0]) { \
-        SEGGER_SYSVIEW_OnIdle();                            \
-    } else {                                                \
-        SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB);  \
+#define traceTASK_SWITCHED_IN()                            \
+                                                           \
+    if (prvGetTCBFromHandle(NULL) == xIdleTaskHandle) {    \
+        SEGGER_SYSVIEW_OnIdle();                           \
+    } else {                                               \
+        SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB); \
     }
 
 #define traceTASK_SWITCHED_OUT()
@@ -111,18 +111,9 @@
 /* Ensure stdint is only used by the compiler, and not the assembler. */
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
     #include <stdint.h>
-    // FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
-    #ifdef __cplusplus
-extern "C" {
-    #endif
 extern uint32_t SystemCoreClock;
-    #ifdef __cplusplus
-}
-    #endif
 #endif
 
-// The ARM_CM0 port of FreeRTOS 11 needs this. This board does not use the MPU.
-#define configENABLE_MPU                 0
 #define configUSE_PREEMPTION             1
 #define configSUPPORT_STATIC_ALLOCATION  1
 #define configSUPPORT_DYNAMIC_ALLOCATION 1
@@ -194,20 +185,20 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
-// FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
-#ifdef __cplusplus
-extern "C" {
-#endif
 __attribute__((noreturn)) void fatal_error(const char *error, const char *module);
-#ifdef __cplusplus
-}
-#endif
 #define configASSERT(x)                          \
     if ((x) == 0) {                              \
         fatal_error("configASSERT", "freertos"); \
     }
 
-// The ARM_CM0 port of FreeRTOS 11 defines SVC_Handler, PendSV_Handler and SysTick_Handler (CMSIS names).
+/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
+standard names. */
+#define vPortSVCHandler    SVC_Handler
+#define xPortPendSVHandler PendSV_Handler
+
+/* IMPORTANT: This define is commented when used with STM32Cube firmware, when timebase is systick,
+              to prevent overwriting SysTick_Handler defined within STM32Cube HAL */
+// #define xPortSysTickHandler SysTick_Handler
 
 #include "SEGGER_SYSVIEW_FreeRTOS.h"
 

@@ -75,3 +75,24 @@ TEST_CASE("comparator: the E offset after a tie halt keeps a lost step", "[motio
     // Not a tie: always the rounded commanded position
     CHECK(next_session_e_offset(100, 1213, m, 402) == 403);
 }
+
+TEST_CASE("comparator: E steps 0.4 step late with pressure advance fail", "[motion_diff][comparator][!mayfail]") {
+    // The PA tolerance must stay small in a cruise: only the steps in the middle of the cruise move.
+    Config config;
+    config.pressure_advance = 0.05f;
+    config.smooth_time = 0.04f;
+    // [!mayfail]: on v8.0.2, M1 and M2 (motion_klipper_diff_tests.cpp) change the unmutated run.
+    const Run r = run_both(config, { line(60, 0, 3, 100, 2000) }); // E cruise from 50 ms to 600 ms
+    constexpr int E = 3;
+    const PaErrorBound pa(config, r.buddy.segments);
+    REQUIRE(pa.at(0.3e6) < 0.1);
+    REQUIRE(check_axis(r.axis[E]) == "");
+    BuddyResult buddy = r.buddy;
+    auto &steps = buddy.steps.axis[E];
+    for (size_t i = 0; i + 1 < steps.size(); ++i) {
+        if (steps[i].time_us > 0.2e6 && steps[i].time_us < 0.4e6) {
+            steps[i].time_us += 0.4 * (steps[i + 1].time_us - steps[i].time_us);
+        }
+    }
+    CHECK(check_axis(compare_axis(r.config, buddy, r.klipper, E)) != "");
+}

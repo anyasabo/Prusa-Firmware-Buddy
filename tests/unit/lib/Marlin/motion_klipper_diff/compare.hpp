@@ -9,9 +9,10 @@ namespace motion_diff {
 
 /// A step is in time if Klipper's exact position, at the Buddy step time or 1 us later (Buddy rounds
 /// the step times down to whole us), is less than this many steps from the boundary that the step
-/// crosses, plus the tolerances of the PA and IS bounds. All cases, the precision cases and the fuzz
-/// inputs stay within 0.02 step (motion-audit.md, D1 measured up to 0.2 step at extreme float
-/// conditions). A bias of 0.4 step must fail (harness_mutation_tests.cpp).
+/// crosses, plus the tolerances of the PA, IS and pulse merge bounds. With all firmware fixes, all
+/// cases, the fuzz inputs and the precision cases stay within 0.02 step (X/Y at A = 600 mm: 0.008).
+/// The exception is the float drift of E without a halt or G92 E0, a known firmware limit: E after
+/// 33 m is 3.9 steps off and fails. A bias of 0.4 step must fail (harness_mutation_tests.cpp).
 inline constexpr double STEP_POSITION_LIMIT = 0.25;
 
 /// At each crossing of Klipper's position (a boundary n + 0.5), the Buddy position is n or n + 1,

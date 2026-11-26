@@ -43,7 +43,8 @@ inline std::optional<AxisConfig> get_axis_config(const AxisConfig &config, const
 /// Clamps the frequency of @p params to the safe range. Sets @p clamped if the frequency changed.
 inline M593Params clamp_frequency(M593Params params, bool &clamped) {
     clamped = false;
-    if (params.axis.frequency != 0.) {
+    // `optional != 0.` is also true for an empty optional, so check that the frequency is given.
+    if (params.axis.frequency && *params.axis.frequency != 0.f) {
         const float original_frequency = *params.axis.frequency;
         const float clamped_frequency = clamp_frequency_to_safe_values(original_frequency);
         if (clamped_frequency != original_frequency) {

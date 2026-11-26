@@ -7,6 +7,11 @@
 #include <algorithm>
 #include <limits>
 
+// Serial output (core/serial.h). Only input_shaper::init() uses it, for a stored config out of
+// the limits. The macros drop their arguments, so axis_codes (core/utility.h) is not necessary.
+#define SERIAL_ECHO_START()    ((void)0)
+#define SERIAL_ECHOLNPAIR(...) ((void)0)
+
 #define BOARD_IS_DWARF() 0
 #define HAS_PLANNER()    1
 

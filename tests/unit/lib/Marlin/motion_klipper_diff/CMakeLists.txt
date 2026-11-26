@@ -20,10 +20,12 @@ set(real_files
     feature/precise_stepping/internal.hpp
     feature/precise_stepping/precise_stepping.cpp
     feature/precise_stepping/precise_stepping.hpp
+    feature/precise_stepping/resync.hpp
     feature/pressure_advance/pressure_advance.cpp
     feature/pressure_advance/pressure_advance.hpp
     feature/pressure_advance/pressure_advance_config.cpp
     feature/pressure_advance/pressure_advance_config.hpp
+    feature/pressure_advance/pressure_advance_sampling.hpp
     )
 foreach(f IN LISTS real_files)
   configure_file(${marlin_src}/${f} ${mirror}/${f} COPYONLY)
@@ -51,8 +53,11 @@ add_library(
   klipper_oracle.c
   )
 # Klipper's own build uses -O2 and these flags (scripts/buildcommands.py does not apply; see
-# klippy/chelper/__init__.py COMPILE_ARGS).
-target_compile_options(motion_klipper_oracle PRIVATE -O2 -fno-strict-aliasing -Wno-attributes)
+# klippy/chelper/__init__.py COMPILE_ARGS). The Klipper files are copied unchanged, so the warnings
+# of the unit test flags are not fixed there.
+target_compile_options(
+  motion_klipper_oracle PRIVATE -O2 -fno-strict-aliasing -Wno-attributes -Wno-sign-compare
+  )
 target_link_libraries(motion_klipper_oracle PUBLIC m)
 
 # The Buddy motion core, from the real sources, plus the drivers of both sides.

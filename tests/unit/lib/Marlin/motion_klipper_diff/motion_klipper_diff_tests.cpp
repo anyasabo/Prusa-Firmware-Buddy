@@ -106,13 +106,13 @@ TEST_CASE("motion diff: input shaper, X only and Z", "[motion_diff]") {
     check_agreement(r);
 }
 
-// Known defects of v8.0.2 that make these cases fail (see README.md, "Defects found"):
+// On v8.0.2, these cases fail because of these defects (README.md, "Defects found"):
 // - the pressure advance steps of the last smooth_time / 2 before a halt are lost,
 // - the last pressure advance step before a direction change has the new direction,
 // - a short extruder move just before a halt makes no steps,
 // - CoreXY: the Z input shaper is not in the lookback time when X or Y is shaped.
-// [!mayfail] reports them without failing the test run. Remove it when the fixes are in.
-TEST_CASE("motion diff: pressure advance", "[motion_diff][!mayfail]") {
+// The fixes are in this tree, and each fix has a regression_<topic>.cpp test.
+TEST_CASE("motion diff: pressure advance", "[motion_diff]") {
     Config config;
     config.pressure_advance = GENERATE(0.02f, 0.05f);
     config.smooth_time = 0.04f;
@@ -121,7 +121,7 @@ TEST_CASE("motion diff: pressure advance", "[motion_diff][!mayfail]") {
     check_agreement(r);
 }
 
-TEST_CASE("motion diff: everything on, print-like path", "[motion_diff][!mayfail]") {
+TEST_CASE("motion diff: everything on, print-like path", "[motion_diff]") {
     Config config;
     config.shaper[0] = shaper(Type::mzv, 52.4f);
     config.shaper[1] = shaper(Type::ei, 43.f, 0.08f);
@@ -250,7 +250,7 @@ TEST_CASE("motion dump", "[.][dump]") {
     dump_run(r);
 }
 
-TEST_CASE("motion diff: random scenarios", "[motion_diff][!mayfail]") {
+TEST_CASE("motion diff: random scenarios", "[motion_diff]") {
     for (int run = 0; run < 200; ++run) {
         const Scenario s = random_scenario(run);
         INFO("random scenario " << run);

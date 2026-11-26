@@ -5,6 +5,7 @@
 struct StubConfigStore {
     input_shaper::Config input_shaper_config {};
     input_shaper::Config get_input_shaper_config() const { return input_shaper_config; }
+    void set_input_shaper_config(const input_shaper::Config &config) { input_shaper_config = config; }
 };
 
 inline StubConfigStore &config_store() {

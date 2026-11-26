@@ -35,10 +35,9 @@ void print(const char *name, const Run &r) {
 /// check_axis() for the limits).
 void check_agreement(const Run &r) {
     REQUIRE(r.buddy.finished);
-    const double pa_err = pa_error_bound_steps(r.config, r.buddy.segments);
     for (int i = 0; i < AXES; ++i) {
         INFO("axis " << axis_names[i] << ": " << describe(r.axis[i]));
-        CHECK(check_axis(r.axis[i], r.buddy.final_count_position[i] - r.buddy.start_count_position[i], i == 3 ? pa_err : 0., r.buddy.sessions) == "");
+        CHECK(check_axis(r.axis[i]) == "");
     }
 }
 
@@ -125,6 +124,29 @@ TEST_CASE("motion diff: halts in the middle", "[motion_diff]") {
 // - a short extruder move just before a halt makes no steps,
 // - CoreXY: the Z input shaper is not in the lookback time when X or Y is shaped.
 // [!mayfail] reports them without failing the test run. Remove it when the fixes are in.
+TEST_CASE("motion diff: pressure advance, halt in the middle of a run", "[motion_diff][!mayfail]") {
+    // Defect M1: the PA steps after the last segment of a motion are lost at the halt. The next motion
+    // continues at the commanded E, so the loss shows in the second motion.
+    Config config;
+    config.pressure_advance = 0.05f;
+    config.smooth_time = 0.04f;
+    std::vector<Block> blocks = { { .de = 0.8, .v_start = 0, .v_cruise = 35, .v_end = 0, .accel = 1250 }, line(10, 5, 0.4, 120, 4000) };
+    blocks.back().halt_before = true;
+    const Run r = run_both(config, blocks);
+    print("PA halt", r);
+    check_agreement(r);
+}
+
+TEST_CASE("motion diff: pressure advance, direction changes inside a run", "[motion_diff][!mayfail]") {
+    // Defect M2: the last PA step before a direction change goes in the new direction.
+    Config config;
+    config.pressure_advance = 0.05f;
+    config.smooth_time = 0.04f;
+    const Run r = run_both(config, { line(10, 0, 0.45, 120, 4000), line(10, 10, 0, 200, 4000), line(-10, 0, 0.45, 120, 4000), line(5, -15, 0, 200, 4000) });
+    print("PA reversal", r);
+    check_agreement(r);
+}
+
 TEST_CASE("motion diff: pressure advance", "[motion_diff][!mayfail]") {
     Config config;
     config.pressure_advance = GENERATE(0.02f, 0.05f);

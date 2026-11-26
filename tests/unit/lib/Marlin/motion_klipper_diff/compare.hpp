@@ -1,5 +1,5 @@
 #pragma once
-// Compares the step times of two step generators.
+// Compares the steps of Buddy with Klipper's exact stepper position.
 #include "motion_model.hpp"
 
 #include <algorithm>
@@ -7,61 +7,75 @@
 
 namespace motion_diff {
 
-/// Klipper's default stepper `max_error` (klippy/stepper.py, 0.000025 s): Klipper itself sends step
-/// times that differ from its ideal times by up to this much. A difference below this limit cannot
-/// be told apart from Klipper's own output.
+/// A step is in time if Klipper's exact position, at the Buddy step time or 1 us later (Buddy rounds
+/// the step times down to whole us), is less than this many steps from the boundary that the step
+/// crosses. This is the time limit "half of the local step interval + 1 us", in position units.
+inline constexpr double STEP_POSITION_LIMIT = 0.5;
+
+/// At each crossing of Klipper's position, the Buddy position may differ by up to this many steps
+/// (one step that is late or early within STEP_POSITION_LIMIT).
+inline constexpr double HOLD_POSITION_LIMIT = 1.0;
+
+/// Klipper's default stepper `max_error` (25 us). Not a limit of this test (the Klipper side is the raw
+/// itersolve output); the regression tests of the fix branches compare time differences with it.
 inline constexpr double KLIPPER_MAX_ERROR_US = 25.;
 
-/// Near zero speed (ends of moves, direction changes of a shaped axis), a tiny position error is a
-/// large time error. There a step also agrees if its time error is below half of the local step
-/// interval: the step is still nearer to its own position than to the next step position.
-inline constexpr double MAX_ERR_STEPS = 0.5;
-
 /// Two crossings of the same step boundary in the same direction are paired only if they are this
-/// close in time. Larger time differences are reported as unmatched steps.
+/// close in time (for the statistics only).
 inline constexpr double PAIR_WINDOW_US = 20000.;
 
 struct AxisComparison {
+    // Statistics from the pairing of the steps by boundary (information only, not a limit)
     size_t buddy_steps = 0;
     size_t klipper_steps = 0;
     size_t matched = 0;
-    size_t unmatched_buddy = 0; // steps that Klipper does not make
-    size_t unmatched_klipper = 0; // steps that Buddy does not make (without the steps that Klipper rolls back)
-    int64_t buddy_net = 0; // net steps (positive - negative)
-    int64_t klipper_net = 0;
-    // time_buddy - time_klipper of the matched steps (us). Buddy floors to whole us, so the
-    // expected value is in (-1, 0].
-    double min_diff_us = 0, max_diff_us = 0, mean_abs_diff_us = 0;
-    double worst_time_us = 0; // Klipper time of the step with the largest |diff|
-    // matched steps with |diff| > KLIPPER_MAX_ERROR_US + 1 and more than MAX_ERR_STEPS of a step interval
-    size_t over_limit = 0;
-    // The time difference as a part of a step: |diff| / (local step interval of Klipper). It is the
-    // position error that the time difference causes. 1.0 = one whole step.
-    double max_err_steps = 0;
-    // The largest position difference (steps) at any time that the steps without a partner cause.
-    // Klipper steps that the rollback filter removes are not counted.
-    int64_t max_pos_diff = 0;
+    size_t unmatched_buddy = 0; // Buddy steps without a Klipper partner
+    size_t unmatched_klipper = 0; // Klipper steps (sent to the MCU) without a Buddy partner
+    double min_diff_us = 0, max_diff_us = 0, mean_abs_diff_us = 0; // time_buddy - time_klipper
     double max_abs_diff_us() const { return std::max(-min_diff_us, max_diff_us); }
+    int64_t buddy_net = 0; // net steps of Buddy (positive - negative), from the start
+    int64_t klipper_net = 0; // net steps of itersolve
+    int64_t stepper_net = 0; // Stepper::count_position_from_startup at the end - at the start
+
+    // Checks against Klipper's exact position (steps). Each "excess" is the amount beyond the limit:
+    // 0 or less agrees.
+    double step_excess = -1e9; // Buddy step too far from its boundary
+    double step_excess_time_us = 0;
+    double hold_excess = -1e9; // Buddy position too far from a Klipper crossing
+    double hold_excess_time_us = 0;
+    double end_excess = -1e9; // end positions
+    int64_t buddy_end = 0; // Buddy end position (steps)
+    double klipper_end = 0; // Klipper exact end position (steps)
 };
 
-/// Pairs the steps by the position at which they occur: the k-th crossing of a step boundary in one
-/// direction on one side is paired with the k-th crossing of the same boundary in the same direction
-/// on the other side. Thus one extra step pair (step and step back) on one side does not shift the
-/// rest of the comparison.
-/// buddy_start and klipper_start: net steps before the first step in the list.
-AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<Step> &klipper, int64_t buddy_start = 0, int64_t klipper_start = 0);
+/// Compares one stepper. Uses the pressure advance error bound (PaErrorBound) for E.
+AxisComparison compare_axis(const Config &config, const BuddyResult &buddy, const KlipperResult &klipper, int axis);
 
 std::string describe(const AxisComparison &c);
 
-/// Bound of the position error (E steps) of the pressure advance step generator against Klipper. Buddy
-/// samples the PA position every smooth_time / 40, filters the samples and interpolates linearly
-/// between the filter outputs. Klipper integrates exactly. See the terms in compare.cpp.
-double pa_error_bound_steps(const Config &config, const std::vector<Segment> &segments);
+/// Returns an empty string if the axis agrees, else the reason.
+std::string check_axis(const AxisComparison &c);
 
-/// Checks one axis of a run against Klipper. Returns an empty string if the axis agrees, else the
-/// reason. `allowed_err_steps` is the extra position error that is allowed (pa_error_bound_steps() for E).
-/// `sessions`: the number of motions from a halt to a halt. Each can end with one tie step (see
-/// check_axis()).
-std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps = 0., int sessions = 1);
+/// As check_axis(c), and also checks that the step events add up to `stepper_net` (the regression
+/// tests of the fix branches use this form; the other arguments are no longer used).
+std::string check_axis(const AxisComparison &c, int64_t stepper_net, double unused_allowed_err_steps = 0., int unused_sessions = 1);
+
+/// Bound of the position error (E steps) of the pressure advance step generator at `time_us`. Buddy
+/// samples the PA position every h = smooth_time / 40, filters the samples and interpolates linearly
+/// between the filter outputs. Klipper integrates exactly. See the terms in compare.cpp.
+class PaErrorBound {
+public:
+    PaErrorBound(const Config &config, const std::vector<Segment> &segments);
+    double at(double time_us) const;
+
+private:
+    struct Jump {
+        double time_us, mm;
+    };
+    std::vector<Jump> jumps_; // the error of each jump, valid within window_us of it
+    double window_us_ = 0;
+    double base_mm_ = 0; // constant acceleration term, everywhere
+    double steps_per_mm_ = 0;
+};
 
 } // namespace motion_diff

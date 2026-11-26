@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -62,9 +63,17 @@ struct BuddyResult {
     int sessions = 0; // motion from a halt to a halt (beginning empty moves)
 };
 
+struct KlipperSession; // owns the Klipper trapq and stepper kinematics after the run
+
 struct KlipperResult {
     Steps raw; // each step of itersolve
     Steps filtered; // after the rollback filter of Klipper stepcompress
+    std::shared_ptr<KlipperSession> session;
+    std::array<double, AXES> step_dist {}; // mm
+
+    /// The exact position of stepper `axis` at `time_us`, in steps (boundaries at k + 0.5, the same
+    /// grid as the Buddy step counter).
+    double position_steps(int axis, double time_us) const;
 };
 
 /// Input shaper pulses in the traditional definition, from the Buddy shaper definitions.

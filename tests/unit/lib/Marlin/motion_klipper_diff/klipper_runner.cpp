@@ -7,6 +7,22 @@
 
 namespace motion_diff {
 
+struct KlipperSession {
+    kl_session *s = nullptr;
+    KlipperSession() = default;
+    KlipperSession(const KlipperSession &) = delete;
+    KlipperSession &operator=(const KlipperSession &) = delete;
+    ~KlipperSession() {
+        if (s) {
+            kl_session_free(s);
+        }
+    }
+};
+
+double KlipperResult::position_steps(int axis, double time_us) const {
+    return kl_session_position(session->s, axis, time_us * 1e-6) / step_dist[axis];
+}
+
 KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segments, std::array<double, 3> start_pos_mm) {
     kl_params p {};
     p.corexy = 1;
@@ -52,15 +68,20 @@ KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segm
     for (auto &s : sc) {
         s = stepcompress_recorder_alloc();
     }
-    kl_generate_steps(&p, moves.data(), int(moves.size()), sc);
-
     KlipperResult result;
+    result.session = std::make_shared<KlipperSession>();
+    result.session->s = kl_session_create(&p, moves.data(), int(moves.size()));
+    for (auto &s : sc) {
+        s->record_from = p.record_from;
+    }
+    kl_session_generate(result.session->s, sc);
     for (int axis = 0; axis < AXES; ++axis) {
+        result.step_dist[axis] = p.step_dist[axis];
+        result.raw.skipped_net[axis] = sc[axis]->raw.skipped_net;
+        result.filtered.skipped_net[axis] = sc[axis]->filtered.skipped_net;
         for (int k = 0; k < sc[axis]->raw.count; ++k) {
             result.raw.axis[axis].push_back({ sc[axis]->raw.time[k] * 1e6, sc[axis]->raw.dir[k] != 0 });
         }
-        result.raw.skipped_net[axis] = sc[axis]->raw.skipped_net;
-        result.filtered.skipped_net[axis] = sc[axis]->filtered.skipped_net;
         for (int k = 0; k < sc[axis]->filtered.count; ++k) {
             result.filtered.axis[axis].push_back({ sc[axis]->filtered.time[k] * 1e6, sc[axis]->filtered.dir[k] != 0 });
         }

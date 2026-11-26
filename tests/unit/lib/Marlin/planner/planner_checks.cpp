@@ -142,12 +142,16 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
             pos[i] += (b.direction_bits & (1 << i)) ? -b.msteps[i] : b.msteps[i];
         }
         section_e += (b.direction_bits & (1 << E_AXIS)) ? -b.msteps.e : b.msteps.e;
-        const double v0 = b.initial_speed, v1 = b.final_speed, vn = b.nominal_speed, a = b.acceleration, len = g.length;
+        const double v0 = b.initial_speed, v1 = b.final_speed, vn = b.nominal_speed, a = b.acceleration;
+        // At a flow other than 100 %, the planner computes the E distance from the scaled E before
+        // the rounding: up to one mini-step more or less than the E of the block.
+        const double e_tol = s.flow_percentage == 100 ? 0. : 1. / double(Planner::settings.axis_msteps_per_mm[E_AXIS]);
+        const double len = g.xyz ? g.length : double(b.millimeters);
 
         // An E-only block has the length of the scaled E before the rounding (M221): up to one
         // mini-step more or less.
         const double len_tolerance = g.xyz ? 0. : 1. / double(Planner::settings.axis_msteps_per_mm[E_AXIS]);
-        if (std::abs(len - b.millimeters) > 1e-4 * len + 1e-6 + len_tolerance) {
+        if (std::abs(g.length - b.millimeters) > 1e-4 * g.length + 1e-6 + len_tolerance) {
             f.add(n, "block length differs from the mini-steps", b.millimeters, len);
         }
         if (!(v0 >= 0 && v1 >= 0 && vn > 0 && a > 0)) {
@@ -156,12 +160,12 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
         f.le(n, "entry speed above nominal", v0, vn);
         f.le(n, "exit speed above nominal", v1, vn);
         f.le(n, "nominal speed above the feed rate", vn, expected.max_fr);
-        // The planner plans the newest block to end at MINIMUM_PLANNER_SPEED. If the block before it is
-        // busy, its entry speed is fixed. A new block can have a junction limit below
-        // MINIMUM_PLANNER_SPEED (an E-heavy junction with a tiny XYZ part, see the README). Then the
-        // block cannot slow down to it, and the speed jumps by less than MINIMUM_PLANNER_SPEED.
+        // The planner assumes that each block starts and ends at MINIMUM_PLANNER_SPEED or more: it
+        // plans the newest block to end there, and the nominal_length flag assumes a start there.
+        // A junction limit can be lower (an E-heavy junction with a tiny XYZ part, see the README).
+        // Then the speed jumps by less than MINIMUM_PLANNER_SPEED.
         const double dv2 = std::abs(v1 * v1 - v0 * v0);
-        if (v1 < min_speed && dv2 > 2 * a * len * (1 + 1e-4) + 1e-4 && dv2 <= 2 * a * len + min_speed * min_speed) {
+        if ((v0 < min_speed || v1 < min_speed) && dv2 > 2 * a * len * (1 + 1e-4) + 1e-4 && dv2 <= 2 * a * len + min_speed * min_speed) {
             ++r.exit_below_minimum_speed;
         } else {
             f.le(n, "speed change not feasible over the block |v1^2 - v0^2| <= 2aL", dv2, 2 * a * len, 1e-4, 1e-4);
@@ -170,7 +174,7 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
         // M203: CoreXY motors run at |vx| + |vy| (the X limit), Z and E their own.
         f.le(n, "M203 XY (|vx|+|vy|)", vn * (std::abs(g.d[0]) + std::abs(g.d[1])) / len, set.max_feedrate_mm_s[X_AXIS], 1e-4);
         f.le(n, "M203 Z", vn * std::abs(g.d[2]) / len, set.max_feedrate_mm_s[Z_AXIS], 1e-4);
-        f.le(n, "M203 E", vn * std::abs(g.d[3]) / len, set.max_feedrate_mm_s[E_AXIS], 1e-4);
+        f.le(n, "M203 E", vn * std::max(std::abs(g.d[3]) - e_tol, 0.) / len, set.max_feedrate_mm_s[E_AXIS], 1e-4);
 
         // M204 and M201
         if (!g.xyz) {
@@ -181,10 +185,11 @@ Report check(const planner_harness::Settings &s, const std::vector<planner_harne
             f.le(n, b.msteps.e ? "M204 P" : "M204 T", a, b.msteps.e ? set.acceleration : set.travel_acceleration, 1e-4, 1e-3);
             static const char *const names[] = { "M201 X", "M201 Y", "M201 Z", "M201 E" };
             for (int i = 0; i < XYZE_N; ++i) {
-                f.le(n, names[i], a * std::abs(g.d[i]) / len, set.max_acceleration_mm_per_s2[i], 1e-4, 1e-3);
+                const double d = std::max(std::abs(g.d[i]) - (i == E_AXIS ? e_tol : 0.), 0.);
+                f.le(n, names[i], a * d / len, set.max_acceleration_mm_per_s2[i], 1e-4, 1e-3);
             }
             if (is_print_e_move(b) && set.max_filament_acceleration_mm_per_s2 > 0) {
-                f.le(n, "M204 F", a * g.d[3] / len, set.max_filament_acceleration_mm_per_s2, 1e-4, 1e-3);
+                f.le(n, "M204 F", a * std::max(g.d[3] - e_tol, 0.) / len, set.max_filament_acceleration_mm_per_s2, 1e-4, 1e-3);
             }
         }
 

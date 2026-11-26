@@ -80,8 +80,11 @@ add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 # make the builds reproducible
 add_compile_options(-frandom-seed=BuddyFW)
 
-# Do not allow non-ascii identifiers and bidi shenanigans
-add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
+# Do not allow non-ascii identifiers and bidi shenanigans. GCC options: Clang (the host fuzz build,
+# tests/fuzz/README.md) rejects -fno-extended-identifiers.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
+endif()
 
 add_compile_options(
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-register> $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>

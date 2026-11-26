@@ -95,6 +95,11 @@ struct state_planner_t {
 
     uint8_t marlin_debug_flags;
 
+#if ENABLED(SKEW_CORRECTION)
+    /// planner.skew_disabled in the AC fault ISR. If it is not 0, the saved native positions are without the skew.
+    uint8_t skew_disabled;
+#endif
+
 #if HAS_MOTOR_CURRENT_PROFILES()
     uint8_t current_profile { 0 };
 #endif
@@ -105,6 +110,9 @@ struct state_planner_t {
 
     // everything to target_nozzle is aligned - padding the remaining fields
     static constexpr int _size_to_pad = sizeof(target_nozzle) + sizeof(flow_percentage) + sizeof(marlin_debug_flags)
+#if ENABLED(SKEW_CORRECTION)
+        + sizeof(skew_disabled)
+#endif
 #if HAS_MOTOR_CURRENT_PROFILES()
         + sizeof(current_profile)
 #endif

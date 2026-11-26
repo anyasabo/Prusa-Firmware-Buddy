@@ -1,5 +1,6 @@
 /// Tests of the skew guards and the config store item (module/prusa/skew.cpp)
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <limits>
@@ -158,4 +159,30 @@ TEST_CASE("skew stored factors") {
 
     config_store().skew_factor.set({ std::numeric_limits<float>::quiet_NaN(), 0, 0 });
     CHECK(stored_skew_factor() == skew_factor_t { XY_SKEW_FACTOR, XZ_SKEW_FACTOR, YZ_SKEW_FACTOR });
+}
+
+TEST_CASE("skew native position saved with the skew off") {
+    // Power panic during G28, G29 or G12: the AC fault ISR saves native positions while the skew is off. The resume
+    // runs with the skew on, so it converts them. The result must go to the same machine position.
+    reset_state();
+    UBL::z_correction = 0.1f;
+    UBL::slope = { { { 0.001f, -0.0005f } } };
+    Planner::skew_factor = { 0.001f, 0.001f, -0.001f };
+    const float fade_height = GENERATE(0.0f, 10.0f);
+    Planner::set_z_fade_height(fade_height);
+    CAPTURE(fade_height);
+
+    for (const MachinePosXYZ m : { MachinePosXYZ { 150, 150, 30 }, MachinePosXYZ { 20, 280, 100 }, MachinePosXYZ { 280, 20, 0.2f }, MachinePosXYZ { 100, 100, 5 } }) {
+        CAPTURE(m.x, m.y, m.z);
+        Planner::skew_disabled = 1;
+        const xyz_pos_t saved = to_native_pos(m);
+        Planner::skew_disabled = 0;
+
+        const xyz_pos_t converted = native_pos_with_skew(saved);
+        const MachinePosXYZ back = to_machine_pos(converted);
+        CHECK_THAT(back.x, Catch::Matchers::WithinAbs(m.x, 1e-4f));
+        CHECK_THAT(back.y, Catch::Matchers::WithinAbs(m.y, 1e-4f));
+        CHECK_THAT(back.z, Catch::Matchers::WithinAbs(m.z, 1e-4f));
+        CHECK(converted.xy() != saved.xy()); // the conversion is necessary
+    }
 }

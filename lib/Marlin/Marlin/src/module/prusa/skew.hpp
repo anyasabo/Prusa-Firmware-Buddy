@@ -29,6 +29,11 @@ void disable_skew();
 /// Ends one disable_skew(). The machine position stays the same.
 void restore_skew();
 
+/// \returns the native position that goes to the same machine position with the skew on as \p native_without_skew
+/// went to with the skew off. Call it with the skew on. Power panic uses it for the positions that the AC fault ISR
+/// saved during a skew guard (G28, G29, G12). As unskew(), it does nothing in the edge band.
+xyz_pos_t native_pos_with_skew(const xyz_pos_t &native_without_skew);
+
 /// disable_skew() for the lifetime of the object
 class TemporarySkewDisabler {
 public:

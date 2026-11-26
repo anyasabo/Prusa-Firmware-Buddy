@@ -6,7 +6,7 @@
 #include <axes.hpp>
 #include <config_store/store_instance.hpp>
 #include <module/planner.h>
-#include <module/stepper/trinamic.h>
+#include <feature/motordriver_util.h>
 
 #include <cmath>
 #include <cstdlib>
@@ -31,7 +31,7 @@ void boot_with_xy_steps(float steps_per_mm) {
         stub_store.steps_per_unit[axis] = steps_per_mm;
         planner.settings.axis_steps_per_mm[axis] = steps_per_mm;
         // At boot, the drivers get the microsteps of the config store.
-        stub_drivers[axis].microsteps_ = stub_store.microsteps[axis];
+        stub_driver_microsteps[axis] = stub_store.microsteps[axis];
     }
     planner.refresh_positioning();
     initialize_axis_motor_params();
@@ -150,7 +150,7 @@ TEST_CASE("phase_stepping axes: M350 with M92 keeps the distance of one motor re
     // M350 X32 Y32 changes the drivers, not the config store. M92 X200 Y200 then keeps the
     // distance per motor revolution: 200 full steps x 32 microsteps / 200 steps/mm = 32 mm.
     for (int axis : { X_AXIS, Y_AXIS }) {
-        stub_drivers[axis].microsteps_ = 32;
+        stub_driver_microsteps[axis] = 32;
         planner.settings.axis_steps_per_mm[axis] = 200.f;
     }
     planner.refresh_positioning();
@@ -170,7 +170,7 @@ TEST_CASE("phase_stepping axes: M350 without M92 scales the distance as the clas
 
     // M350 X32 without M92: the classic stepper makes 100 steps for each mm, at 32 microsteps
     // for each full step. The motor turns half as much. Phase stepping must do the same.
-    stub_drivers[X_AXIS].microsteps_ = 32;
+    stub_driver_microsteps[X_AXIS] = 32;
     initialize_axis_motor_params();
 
     CHECK(rev_to_mm(X_AXIS, 1.f) == Catch::Approx(200 * 32 / coreone_2gt).margin(0.001));

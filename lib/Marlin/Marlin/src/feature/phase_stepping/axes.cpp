@@ -2,7 +2,7 @@
 #include "lut.hpp"
 #include <array>
 #include <module/planner.h>
-#include <module/stepper/trinamic.h>
+#include <feature/motordriver_util.h>
 #include <config_store/store_instance.hpp>
 #include <bsod/bsod.h>
 
@@ -57,26 +57,21 @@ static float planner_steps_per_unit(AxisEnum axis) {
 ///
 /// Phase stepping must be off for the axis: when it is on, the driver is at 256 microsteps
 /// (enable_phase_stepping()). All callers obey this (see axes.hpp).
-static int driver_microsteps(AxisEnum axis, int config_store_microsteps) {
-    const int microsteps = stepper_axis(axis).microsteps();
-    // TMCStepper decodes MRES, so the value is a power of two from 1 to 256. Keep the old
-    // source if that is not true, so that a bad driver read cannot divide by zero below.
-    if (microsteps < 1 || microsteps > 256) {
-        return config_store_microsteps;
-    }
-    return microsteps;
+/// stepper_microsteps() returns at least 1, so the division below is safe.
+static int driver_microsteps(AxisEnum axis) {
+    return stepper_microsteps(axis);
 }
 
 void phase_stepping::initialize_axis_motor_params() {
     int xy_steps_per_rev = get_has_400step_xy_motors() ? 400 : 200;
 
-    axis_motor_params[0] = AxisMotorParams::make_for_motor(xy_steps_per_rev, planner_steps_per_unit(X_AXIS), driver_microsteps(X_AXIS, get_microsteps_x()));
-    axis_motor_params[1] = AxisMotorParams::make_for_motor(xy_steps_per_rev, planner_steps_per_unit(Y_AXIS), driver_microsteps(Y_AXIS, get_microsteps_y()));
+    axis_motor_params[0] = AxisMotorParams::make_for_motor(xy_steps_per_rev, planner_steps_per_unit(X_AXIS), driver_microsteps(X_AXIS));
+    axis_motor_params[1] = AxisMotorParams::make_for_motor(xy_steps_per_rev, planner_steps_per_unit(Y_AXIS), driver_microsteps(Y_AXIS));
     if (opts::SUPPORTED_AXIS_COUNT > 2) {
-        axis_motor_params[2] = AxisMotorParams::make_for_motor(200, planner_steps_per_unit(Z_AXIS), driver_microsteps(Z_AXIS, get_microsteps_z()));
+        axis_motor_params[2] = AxisMotorParams::make_for_motor(200, planner_steps_per_unit(Z_AXIS), driver_microsteps(Z_AXIS));
     }
     if (opts::SUPPORTED_AXIS_COUNT > 3) {
-        axis_motor_params[3] = AxisMotorParams::make_for_motor(200, planner_steps_per_unit(E_AXIS), driver_microsteps(E_AXIS, get_microsteps_e()));
+        axis_motor_params[3] = AxisMotorParams::make_for_motor(200, planner_steps_per_unit(E_AXIS), driver_microsteps(E_AXIS));
     }
 }
 

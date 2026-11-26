@@ -164,3 +164,15 @@ buddy_add_fuzzer_from_test(
   SOURCES
   gcode_parser.cpp
   )
+
+# Motion core (precise_stepping, input_shaper, pressure_advance) against Klipper's step generation.
+# Not untrusted input: the oracle finds wrong steps, not only crashes. Slow (a few ms per input).
+buddy_add_fuzzer_from_test(
+  motion_klipper
+  TEST
+  motion_klipper_diff_tests
+  DROP
+  motion_klipper_diff_tests.cpp
+  SOURCES
+  motion_klipper.cpp
+  )

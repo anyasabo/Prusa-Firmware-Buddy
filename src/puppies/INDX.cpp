@@ -1,4 +1,5 @@
 #include <puppies/INDX.hpp>
+#include <puppies/indx_fault.hpp>
 
 #include <utility>
 
@@ -57,20 +58,12 @@ void Indx::handle_fault_status(indx_head::errors::FaultStatusMask fault) {
     }
 
     log_error(INDX, "Fault status: %d", std::to_underlying(fault));
-    auto has_fault = [=](indx_head::errors::FaultStatusMask tested) {
-        return std::to_underlying(fault) & std::to_underlying(tested);
-    };
-    if (has_fault(indx_head::errors::FaultStatusMask::board_min_temp)) {
-        fatal_error(ErrCode::ERR_TEMPERATURE_INDX_HEAD_BOARD_MINTEMP_ERR);
-    }
-    if (has_fault(indx_head::errors::FaultStatusMask::board_max_temp)) {
-        fatal_error(ErrCode::ERR_TEMPERATURE_INDX_HEAD_BOARD_MAXTEMP_ERR);
-    }
-    if (has_fault(indx_head::errors::FaultStatusMask::tpis_ambient_min_temp)) {
-        fatal_error(ErrCode::ERR_TEMPERATURE_INDX_HEAD_TPIS_AMBIENT_MINTEMP_ERR);
-    }
-    if (has_fault(indx_head::errors::FaultStatusMask::tpis_ambient_max_temp)) {
-        fatal_error(ErrCode::ERR_TEMPERATURE_INDX_HEAD_TPIS_AMBIENT_MAXTEMP_ERR);
+    if (const auto redscreen = indx_fault::redscreen_for_status(std::to_underlying(fault))) {
+        if (redscreen->code == ErrCode::ERR_UNDEF) {
+            fatal_error(redscreen->text, indx_fault::redscreen_title);
+        } else {
+            fatal_error(redscreen->code);
+        }
     }
 
     // Acknowledge the fault — write_general() will flush this and reset it to 0 after success.

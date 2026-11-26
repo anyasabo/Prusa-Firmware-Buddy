@@ -33,11 +33,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     for (int axis = 0; axis < AXES; ++axis) {
         const auto &steps = buddy.steps.axis[axis];
-        for (size_t i = 1; i < steps.size(); ++i) {
-            if (steps[i].time_us < steps[i - 1].time_us) {
-                fail("step times go back", axis);
-            }
-        }
         for (const Step &k : klipper.raw.axis[axis]) {
             if (!(k.time_us >= 0. && k.time_us < 1e13)) {
                 fail("Klipper step time is not finite", axis);

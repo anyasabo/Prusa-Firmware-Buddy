@@ -106,6 +106,19 @@ TEST_CASE("motion diff: input shaper, X only and Z", "[motion_diff]") {
     check_agreement(r);
 }
 
+TEST_CASE("motion diff: halts in the middle", "[motion_diff]") {
+    Config config;
+    config.shaper[0] = shaper(Type::mzv, 52.4f);
+    config.shaper[1] = shaper(Type::ei, 43.f);
+    std::vector<Block> blocks = { line(20, 5, 0.9, 200, 6000), line(-10, 10, 0.6, 150, 6000) };
+    blocks.back().halt_before = true; // the planner queue runs dry: reset_from_halt() between the lines
+    blocks.push_back(line(5, -20, 0.8, 250, 6000));
+    blocks.back().halt_before = true;
+    const Run r = run_both(config, blocks);
+    print("halts", r);
+    check_agreement(r);
+}
+
 // Known defects of v8.0.2 that make these cases fail (see README.md, "Defects found"):
 // - the pressure advance steps of the last smooth_time / 2 before a halt are lost,
 // - the last pressure advance step before a direction change has the new direction,

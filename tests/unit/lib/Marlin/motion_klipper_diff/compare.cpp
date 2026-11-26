@@ -52,6 +52,7 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
     const auto b = crossings(buddy, buddy_start, c.buddy_net);
     auto k = crossings(klipper, klipper_start, c.klipper_net);
 
+    std::vector<bool> klipper_matched(klipper.size(), false);
     double sum_abs = 0;
     bool first = true;
     for (const auto &[key, b_idx] : b) {
@@ -75,6 +76,7 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
             ++i;
             ++j;
             ++n;
+            klipper_matched[ki] = true;
             if (rolled_back(klipper, ki)) {
                 continue; // Klipper does not send this step: no time to compare
             }
@@ -100,7 +102,13 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
         c.matched += n;
         c.unmatched_buddy += b_idx.size() - n;
     }
-    c.unmatched_klipper = c.klipper_steps - c.matched;
+    // Klipper steps without a partner count only if Klipper sends them to the MCU. itersolve can make a
+    // step and a step back at the same time at a move boundary; stepcompress removes both.
+    for (size_t ki = 0; ki < klipper.size(); ++ki) {
+        if (!klipper_matched[ki] && !rolled_back(klipper, ki)) {
+            ++c.unmatched_klipper;
+        }
+    }
     c.mean_abs_diff_us = c.matched ? sum_abs / double(c.matched) : 0.;
     return c;
 }
@@ -162,12 +170,16 @@ std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allo
     // Steps near zero speed: Klipper or Buddy can make one extra step pair where the other does not.
     const size_t allowed_unmatched = 4 + 2 * size_t(std::ceil(allowed_err_steps));
     if (c.unmatched_buddy > allowed_unmatched || c.unmatched_klipper > allowed_unmatched) {
-        return "too many steps without a partner";
+        char buf[96];
+        std::snprintf(buf, sizeof(buf), "too many steps without a partner (allowed %zu)", allowed_unmatched);
+        return buf;
     }
     // One step per axis can land exactly on the end position of a move (a quarter-step tie, as above):
     // it happens at zero speed, so its time is not defined, up to the end of the shaped motion.
     if (c.max_err_steps > MAX_ERR_STEPS + allowed_err_steps && c.over_limit > 1) {
-        return "step times differ from Klipper";
+        char buf[96];
+        std::snprintf(buf, sizeof(buf), "step times differ from Klipper (allowed %.2f steps)", MAX_ERR_STEPS + allowed_err_steps);
+        return buf;
     }
     return {};
 }

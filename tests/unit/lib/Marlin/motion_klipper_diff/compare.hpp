@@ -26,7 +26,7 @@ struct AxisComparison {
     size_t klipper_steps = 0;
     size_t matched = 0;
     size_t unmatched_buddy = 0; // steps that Klipper does not make
-    size_t unmatched_klipper = 0; // steps that Buddy does not make
+    size_t unmatched_klipper = 0; // steps that Buddy does not make (without the steps that Klipper rolls back)
     int64_t buddy_net = 0; // net steps (positive - negative)
     int64_t klipper_net = 0;
     // time_buddy - time_klipper of the matched steps (us). Buddy floors to whole us, so the

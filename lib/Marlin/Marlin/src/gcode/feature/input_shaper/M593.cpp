@@ -79,6 +79,13 @@ static M593Params clamp_frequency(const M593Params &params) {
 static void M593_set_axis_config(const AxisEnum axis, const M593Params &params) {
     const AxisConfig &prev_config = current_config().axis[axis].value_or(axis_defaults[axis]);
     const std::optional<AxisConfig> next_config = get_axis_config(prev_config, clamp_frequency(params));
+    // The merge can be invalid although each given parameter is valid, for example a change to EI
+    // after M958 stored R 0 for ZV.
+    if (next_config && !is_valid_axis_config(*next_config)) {
+        SERIAL_ECHO_START();
+        SERIAL_ECHOLNPAIR("?Input shaper of axis ", axis_codes[axis], " not changed: D must be 0-0.99, and R 1-1000000 for EI types");
+        return;
+    }
     set_axis_config(axis, next_config);
     set_config_for_m74(axis, next_config);
 }
@@ -124,7 +131,7 @@ static void M593_internal(const M593Params &params) {
  *
  *#### Parameters
  *
- * - `D` - Set damping ratio. Range 0 to 1.
+ * - `D` - Set damping ratio. Range 0 to 0.99.
  * - `F` - Set frequency. Greater or equal to 0.
  *   - `0` - Default value is 0Hz = input shaper is disabled.
  * - `T` - Set type. Range 0 to 5
@@ -134,7 +141,7 @@ static void M593_internal(const M593Params &params) {
  *   - `3` - EI
  *   - `4` - 2HUMP_EI
  *   - `5` - 3HUMP_EI
- * - `R` - Set vibration reduction. Greater than 0. Default value is 20.
+ * - `R` - Set vibration reduction. Range 1 to 1000000. Default value is 20.
  * - `X` - X axis
  * - `Y` - Y axis
  * - `Z` - Z axis
@@ -153,10 +160,10 @@ void GcodeSuite::M593() {
 
     if (parser.seen('D')) {
         const float dr = parser.value_float();
-        if (WITHIN(dr, 0.f, 1.f)) {
+        if (input_shaper::is_valid_damping_ratio(dr)) {
             params.axis.damping_ratio = dr;
         } else {
-            SERIAL_ECHO_MSG("?Damping ratio (D) value out of range (0-1)");
+            SERIAL_ECHO_MSG("?Damping ratio (D) value out of range (0-0.99)");
         }
     }
 
@@ -180,10 +187,10 @@ void GcodeSuite::M593() {
 
     if (parser.seen('R')) {
         const float vr = parser.value_float();
-        if (vr > 0) {
+        if (input_shaper::is_valid_vibration_reduction(vr)) {
             params.axis.vibration_reduction = vr;
         } else {
-            SERIAL_ECHO_MSG("?Vibration reduction (X) must be greater than 0");
+            SERIAL_ECHO_MSG("?Vibration reduction (R) value out of range (1-1000000)");
         }
     }
 

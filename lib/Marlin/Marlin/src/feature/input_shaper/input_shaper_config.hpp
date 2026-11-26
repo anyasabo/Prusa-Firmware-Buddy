@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <utility>
 #include <printers.h>
 #include <utility_extensions.hpp>
 #include <utils/enum_array.hpp>
@@ -156,7 +157,9 @@ inline constexpr AxisConfig axis_z_default {
     .type = Type::null,
     .frequency = 0.,
     .damping_ratio = 0.,
-    .vibration_reduction = 0.,
+    // The EI shapers divide by the vibration reduction (v_tol = 1 / R). 0 gave NaN amplitudes
+    // for "M593 Z T3 F40". 20 is the default of the X and Y axes and of Klipper.
+    .vibration_reduction = 20.0f,
 };
 
 inline constexpr AxisConfig axis_defaults[3] = { axis_x_default, axis_y_default, axis_z_default };
@@ -200,6 +203,47 @@ constexpr float frequency_safe_max = 100.0;
 
 constexpr float clamp_frequency_to_safe_values(float frequency) {
     return std::clamp(frequency, frequency_safe_min, frequency_safe_max);
+}
+
+/// Largest damping ratio that M593 accepts. The shaper formulas divide by sqrt(1 - damping_ratio^2),
+/// and input_shaper::get() calls bsod() at 1. Klipper uses the same limit for its classic shapers
+/// (https://github.com/Klipper3d/klipper/commit/768b19e8be6458f43615423f48b74cf1e3ad1a9d).
+/// The lower Klipper limits for EI (0.4, 0.3, 0.2) are for its optimized EI formulas, not for the
+/// classic formulas here.
+constexpr float damping_ratio_max = 0.99f;
+
+/// Limits of the vibration reduction that M593 accepts. The EI shapers use v_tol = 1 / R, and their
+/// formulas are valid only for v_tol <= 1. Below 1, 2HUMP EI gives NaN amplitudes. From
+/// approximately 1e23, (1/R)^2 is 0 in float, and 2HUMP EI divides 0 by 0.
+constexpr float vibration_reduction_min = 1.f;
+constexpr float vibration_reduction_max = 1e6f;
+
+/// Returns true if the shaper of type @p type uses the vibration reduction (the EI shapers).
+constexpr bool uses_vibration_reduction(Type type) {
+    return type == Type::ei || type == Type::ei_2hump || type == Type::ei_3hump;
+}
+
+/// Returns true if M593 accepts the damping ratio @p damping_ratio (parameter D).
+constexpr bool is_valid_damping_ratio(float damping_ratio) {
+    return damping_ratio >= 0.f && damping_ratio <= damping_ratio_max;
+}
+
+/// Returns true if M593 accepts the vibration reduction @p vibration_reduction (parameter R).
+constexpr bool is_valid_vibration_reduction(float vibration_reduction) {
+    return vibration_reduction >= vibration_reduction_min && vibration_reduction <= vibration_reduction_max;
+}
+
+/// Returns true if @p type is a value of the enum.
+constexpr bool is_valid_type(Type type) {
+    return std::to_underlying(type) <= std::to_underlying(Type::last);
+}
+
+/// Returns true if M593 can apply @p config, the merge of the given parameters and the previous
+/// configuration of the axis.
+constexpr bool is_valid_axis_config(const AxisConfig &config) {
+    return is_valid_type(config.type)
+        && is_valid_damping_ratio(config.damping_ratio)
+        && (!uses_vibration_reduction(config.type) || is_valid_vibration_reduction(config.vibration_reduction));
 }
 
 } // namespace input_shaper

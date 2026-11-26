@@ -48,13 +48,21 @@ KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segm
 
     std::vector<kl_move> moves;
     moves.reserve(segments.size());
-    for (const Segment &s : segments) {
-        if ((s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) || s.move_time <= 0.) {
-            continue; // Klipper's tail sentinel holds the last position
+    for (size_t i = 0; i < segments.size(); ++i) {
+        const Segment &s = segments[i];
+        double move_t = s.move_time;
+        if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
+            // Keep the ending empty move: PreciseStepping takes each segment's start position from the
+            // exact planner position, and the segment before can end a little away from it (its
+            // speeds are float). Up to the next motion, or 1 s, then the tail sentinel holds it.
+            move_t = i + 1 < segments.size() ? segments[i + 1].print_time - s.print_time : 1.;
+        }
+        if (move_t <= 0.) {
+            continue;
         }
         kl_move m {};
         m.print_time = s.print_time;
-        m.move_t = s.move_time;
+        m.move_t = move_t;
         m.start_v = s.start_v;
         m.half_accel = s.half_accel;
         for (int i = 0; i < AXES; ++i) {

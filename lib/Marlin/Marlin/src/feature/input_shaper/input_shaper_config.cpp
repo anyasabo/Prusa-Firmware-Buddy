@@ -5,11 +5,22 @@
 
 #include "../../module/planner.h"
 #include <bsod/bsod.h>
+#include <logging/log.hpp>
+
+LOG_COMPONENT_REF(Marlin);
 
 namespace input_shaper {
 
+// The stored configuration can have values outside the limits (older firmware, a corrupt store).
+// The readers of the input shaper code clean it with sanitized_config():
+// - init() (boot, print end, M9200) cleans, logs a change and writes the clean values back once.
+// - current_config() cleans only. Its static initializer must not log or write the store.
+// - get_config_for_m74() cleans only, because power panic calls it in an ISR.
+// The GUI (MItem_input_shaper.cpp, screen_menu_input_shaper.cpp) reads and writes the raw store
+// for display and edits, and M1959 writes raw values. Those values reach the shaper only through
+// M9200 -> init() or set_axis_config(), which both clean them.
 Config &current_config() {
-    static Config config = config_store().get_input_shaper_config();
+    static Config config = sanitized_config(config_store().get_input_shaper_config());
     return config;
 }
 
@@ -34,7 +45,9 @@ void set_config_for_m74(const std::optional<WeightAdjustConfig> &next_config) {
 Config get_config_for_m74() {
     // M593 might not be issued at all. In that case, we should use value from EEPROM.
     auto result = config_for_m74;
-    const Config &eeprom_config = config_store().get_input_shaper_config();
+    // Power panic calls this function in ac_fault_isr() with the interrupts off, so it must not log
+    // or write the store (JournalItemBase::set() takes a mutex).
+    const Config eeprom_config = sanitized_config(config_store().get_input_shaper_config());
     LOOP_XYZ(i) {
         if (!result.axis[i]) {
             result.axis[i] = eeprom_config.axis[i];
@@ -177,8 +190,27 @@ static void set_logical_axis_config_internal(const AxisEnum axis, std::optional<
 }
 
 void init() {
+    const Config stored = config_store().get_input_shaper_config();
     auto &config = current_config();
-    config = config_store().get_input_shaper_config();
+    // Clean all axes before the first one is applied: on CoreXY, the X pass also builds the Y
+    // shaper from config.axis[Y_AXIS].
+    config = sanitized_config(stored);
+    bool changed = false;
+    LOOP_XYZ(i) {
+        if (stored.axis[i] && *stored.axis[i] != *config.axis[i]) {
+            log_warning(Marlin, "Input shaper: stored config of axis %c out of limits, replaced (type %d f %f d %f r %f)", axis_codes[i], //
+                int(stored.axis[i]->type), double(stored.axis[i]->frequency), double(stored.axis[i]->damping_ratio), double(stored.axis[i]->vibration_reduction));
+            SERIAL_ECHO_START();
+            SERIAL_ECHOLNPAIR("Input shaper: stored config of axis ", axis_codes[i], " out of limits, replaced");
+            changed = true;
+        }
+    }
+    if (changed) {
+        // Write the clean values back, so that the warning comes once and the store does not keep
+        // a value that this firmware cannot use. sanitized_config() is a fixed point, so the next
+        // init() finds no change.
+        config_store().set_input_shaper_config(config);
+    }
     LOOP_XYZ(i) {
         set_logical_axis_config_internal((AxisEnum)i, config.axis[i]);
     }
@@ -191,7 +223,10 @@ std::optional<AxisConfig> get_axis_config(const AxisEnum axis) {
 
 void set_axis_config(const AxisEnum axis, std::optional<AxisConfig> axis_config) {
     if (axis_config) {
-        axis_config->frequency = clamp_frequency_to_safe_values(axis_config->frequency);
+        // M593 rejects values outside the limits. The other callers (M74, M958, M1959, power
+        // panic) get the clean step of the stored configuration, not the bsod() of
+        // input_shaper::get().
+        axis_config = sanitized_axis_config(axis, *axis_config);
     }
     // For now, we must ensure that all queues are empty before changing input shapers parameters.
     // But later, it could be possible to wait just for block and move quests.
@@ -217,10 +252,6 @@ const char *to_string(Type type) {
 
 const char *to_short_string(Type type) {
     return filter_short_names.get_or(type, "UNK");
-}
-
-float clamp_frequency_to_safe_values(float frequency) {
-    return std::clamp(frequency, frequency_safe_min, frequency_safe_max);
 }
 
 } // namespace input_shaper

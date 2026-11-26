@@ -38,10 +38,10 @@ std::vector<float> y_at_x_homes() {
 
 // H1: G28 moves Y to HOMING_PREEMPTIVE_MOVE_Y (10 mm) before it homes X, to keep the carriage away
 // from the lever of the vent grille (G28.cpp, commit 84fe747bc). The lever is at Y -7
-// (automatic_chamber_vents.cpp, Y_LEVER of the CORE One L). corexy_rehome_xy() homes Y and then X
-// without this move, so X homes at Y -6 (Y_MIN_POS + the 2 mm backoff). The refinement retries
-// of G28 and the calibration call corexy_rehome_xy().
-TEST_CASE("corexy_rehome_xy homes X at the Y of G28", "[homing_corexy][H1][!shouldfail][known_bug]") {
+// (automatic_chamber_vents.cpp, Y_LEVER of the CORE One L). corexy_rehome_xy() must do the same
+// move: without it, X homes at Y -6 (Y_MIN_POS + the 2 mm backoff). The refinement retries of G28
+// and the calibration call corexy_rehome_xy().
+TEST_CASE("corexy_rehome_xy homes X at the Y of G28", "[homing_corexy][H1]") {
     SECTION("direct call") {
         fake::reset(150, 150);
         REQUIRE(corexy_rehome_xy(fr));

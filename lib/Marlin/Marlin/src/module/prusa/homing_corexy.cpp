@@ -937,6 +937,11 @@ bool corexy_rehome_xy(float fr_mm_s) {
             return false;
         }
     }
+#ifdef HOMING_PREEMPTIVE_MOVE_Y
+    // As G28: move Y away from the vent grille mechanism before X homes (84fe747bc). Without this
+    // move, X homes at the Y of the Y home (Y_MIN_POS + backoff), near the lever line.
+    do_blocking_move_to_y(HOMING_PREEMPTIVE_MOVE_Y);
+#endif
     if (!homeaxis(X_AXIS, fr_mm_s, false, nullptr, false)) {
         return false;
     }

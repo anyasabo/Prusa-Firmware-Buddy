@@ -1702,24 +1702,20 @@ bool Planner::_populate_block(block_t * const block,
           #if ENABLED(JD_SMALL_SEGMENT_HANDLING)
             // For small moves with >135° junction (octagon) find speed for approximate arc
             if (block->millimeters < 1 && junction_cos_theta < -0.7071067812f) {
-              // Fast acos(-t) approximation (max. error +-0.033rad = 1.89°)
-              // Based on MinMax polynomial published by W. Randolph Franklin, see
-              // https://wrf.ecse.rpi.edu/Research/Short_Notes/arcsin/onlyelem.html
-              //  acos( t) = pi / 2 - asin(x)
-              //  acos(-t) = pi - acos(t) ... pi / 2 + asin(x)
-
-              const float neg = junction_cos_theta < 0 ? -1 : 1,
-                          t = neg * junction_cos_theta,
-                          asinx =       0.032843707f
-                                + t * (-1.451838349f
-                                + t * ( 29.66153956f
-                                + t * (-131.1123477f
-                                + t * ( 262.8130562f
-                                + t * (-242.7199627f
-                                + t * ( 84.31466202f ) ))))),
-                          junction_theta = RADIANS(90) + neg * asinx; // acos(-t)
-
-              // NOTE: junction_theta bottoms out at 0.033 which avoids divide by 0.
+              // The deviation angle between the two blocks. The limit below is the centripetal
+              // acceleration on the arc of radius millimeters / junction_theta through the segments.
+              // Use the exact acos(). The polynomial of Marlin (MinMax approximation by W. Randolph
+              // Franklin) has an error of up to 0.033 rad and does not go below 0.033 rad. On a smooth
+              // curve of short segments the angle is much smaller: on a 20 mm radius of 0.1 mm
+              // segments it is 0.005 rad. Then the limit was 61 mm/s instead of 158 mm/s at 1250 mm/s^2.
+              // Rejected: the correction factor of upstream Marlin for small angles, which is still an
+              // approximation (#28433, https://github.com/MarlinFirmware/Marlin/blob/
+              // 05eab9b0232b4595a802c51dbac3a3b5f4181c50/Marlin/src/module/planner.cpp#L2611-L2637).
+              // acosf() runs once for each block.
+              // junction_cos_theta >= -0.999999 (above), so junction_theta >= 0.0014: no division by 0.
+              // tests/unit/lib/Marlin/planner "speed on an arc of short segments is the centripetal
+              // limit" fails without this.
+              const float junction_theta = acosf(-junction_cos_theta);
 
               const float limit_sqr = (block->millimeters * junction_acceleration) / junction_theta;
               NOMORE(vmax_junction_sqr, limit_sqr);

@@ -221,10 +221,11 @@ TEST_CASE("planner: a short move before G92 E0 is not lost", "[!shouldfail][know
 }
 
 // JD_SMALL_SEGMENT_HANDLING limits the junction of a block shorter than 1 mm to v^2 = L * a / theta,
-// the centripetal limit of the arc through the segments (radius L / theta). theta comes from a
-// polynomial approximation of acos() with an error of up to 0.033 rad, which does not go below
-// 0.033 rad. On a smooth curve of short segments, theta is much smaller.
-TEST_CASE("planner: speed on an arc of short segments is the centripetal limit", "[!shouldfail][known_bug]") {
+// the centripetal limit of the arc through the segments (radius L / theta). Before the fix, theta
+// came from a polynomial approximation of acos() with an error of up to 0.033 rad, which does not
+// go below 0.033 rad. On a smooth curve of short segments, theta is much smaller: 0.1 mm segments
+// ran at 61 mm/s, 0.3 mm segments at 105 mm/s.
+TEST_CASE("planner: speed on an arc of short segments is the centripetal limit") {
     const float seg = GENERATE(0.1f, 0.3f, 0.6f);
     CAPTURE(seg);
     Runner r;

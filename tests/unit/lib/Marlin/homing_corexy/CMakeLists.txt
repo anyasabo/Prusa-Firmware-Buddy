@@ -19,22 +19,6 @@ configure_file(
   COPYONLY
   )
 
-# GCC 15 and later reject the aggregate initialization of a two-element Vector ("ab_steps_t v = { a,
-# b }"): the default member initializers of the unused z and e components copy an UnusedComponent,
-# and its copy constructor is private. GCC 13.3 (the firmware toolchain of utils/bootstrap.py)
-# accepts it. The host compiler is GCC 16, so make the copy constructor public in a copy of
-# vector.hpp. core/types.h includes "vector.hpp" with a relative path, so copy it too.
-configure_file(${marlin_src}/core/types.h ${mirror}/core/types.h COPYONLY)
-file(READ ${marlin_src}/core/vector.hpp vector_hpp)
-string(REPLACE "    private:\n        // Try to prevent accidentally using UnusedComponent"
-               "    public:\n        // Try to prevent accidentally using UnusedComponent"
-               vector_hpp "${vector_hpp}"
-       )
-if(NOT vector_hpp MATCHES "public:\n        // Try to prevent")
-  message(FATAL_ERROR "core/vector.hpp changed: update the copy of the host tests")
-endif()
-file(CONFIGURE OUTPUT ${mirror}/core/vector.hpp CONTENT "${vector_hpp}" @ONLY)
-
 file(
   GLOB_RECURSE stubs
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/stubs

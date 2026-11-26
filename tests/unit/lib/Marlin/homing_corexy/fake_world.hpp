@@ -41,7 +41,8 @@ struct World {
     /// Steps added to the stop position of the next stall moves of one motor (a negative value is
     /// an early trigger). Each stall move of one motor takes one value.
     std::deque<int32_t> bump_noise;
-    /// Steps added to the stop position of the next homeaxis() calls
+    /// Steps added to the stop position of the next homeaxis() calls. A positive value is a late
+    /// stall: the rotor turns past the wall (skipped steps), and wall_crashes does not count it.
     std::deque<int32_t> home_noise;
 
     std::vector<Move> moves;
@@ -63,8 +64,9 @@ struct World {
 extern World world;
 
 /// Reset the world and all fakes. The carriage is at the machine position (x, y) mm, and the
-/// machine coordinates are exact (the walls are at X_MAX_POS and Y_MIN_POS).
-void reset(float x_mm, float y_mm, int phase_a = 0, int phase_b = 0);
+/// machine coordinates are exact (the walls are at X_MAX_POS and Y_MIN_POS). The XY motors have
+/// steps_per_mm (100 for the 2GT belt, 101.587 for the 1.5GT belt).
+void reset(float x_mm, float y_mm, int phase_a = 0, int phase_b = 0, float steps_per_mm = 100.f);
 
 /// Machine position of a rotor position, with the current stepper offsets
 float machine_x(int32_t a, int32_t b);

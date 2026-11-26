@@ -1,0 +1,3 @@
+add_executable(loadcell_health_tests loadcell_health_tests.cpp)
+target_include_directories(loadcell_health_tests PUBLIC ${CMAKE_SOURCE_DIR}/src/common)
+add_catch_test(loadcell_health_tests)

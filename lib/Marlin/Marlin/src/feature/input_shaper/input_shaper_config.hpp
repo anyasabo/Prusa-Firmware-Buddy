@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <printers.h>
@@ -197,6 +198,8 @@ constexpr float frequency_safe_max = 150.0;
 constexpr float frequency_safe_max = 100.0;
 #endif
 
-float clamp_frequency_to_safe_values(float frequency);
+constexpr float clamp_frequency_to_safe_values(float frequency) {
+    return std::clamp(frequency, frequency_safe_min, frequency_safe_max);
+}
 
 } // namespace input_shaper

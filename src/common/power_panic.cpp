@@ -375,6 +375,13 @@ void resume_loop() {
 
         marlin_debug_flags = state_buf.planner.marlin_debug_flags;
 
+#if ENABLED(SKEW_CORRECTION)
+        // Before the first set_position_mm(), so the saved native positions convert as before the power loss.
+        // planner.refresh_positioning() below is the first one. The factors can differ from the config store
+        // (M852 without W).
+        planner.skew_factor = state_buf.planner.skew_factor;
+#endif
+
         // planner settings
         planner.apply_settings(state_buf.planner.settings);
         // The saved settings have the steps/mm at the time of the fault. They can be different
@@ -392,11 +399,6 @@ void resume_loop() {
         }
 #if !HAS_CLASSIC_JERK
         planner.junction_deviation_mm = state_buf.planner.junction_deviation_mm;
-#endif
-#if ENABLED(SKEW_CORRECTION)
-        // Before the first set_position_mm() below, so the saved native positions convert as before the power loss.
-        // The factors can differ from the config store (M852 without W).
-        planner.skew_factor = state_buf.planner.skew_factor;
 #endif
 
 #if HAS_INDX()

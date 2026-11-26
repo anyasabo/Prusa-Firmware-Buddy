@@ -87,12 +87,12 @@
  *----------------------------------------------------------*/
 
 /* Section where include file can be added */
-#define traceTASK_SWITCHED_IN()                            \
-                                                           \
-    if (prvGetTCBFromHandle(NULL) == xIdleTaskHandle) {    \
-        SEGGER_SYSVIEW_OnIdle();                           \
-    } else {                                               \
-        SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB); \
+#define traceTASK_SWITCHED_IN()                             \
+                                                            \
+    if (prvGetTCBFromHandle(NULL) == xIdleTaskHandles[0]) { \
+        SEGGER_SYSVIEW_OnIdle();                            \
+    } else {                                                \
+        SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB);  \
     }
 
 #define traceTASK_SWITCHED_OUT()
@@ -113,7 +113,14 @@
 /* Ensure stdint is only used by the compiler, and not the assembler. */
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
     #include <stdint.h>
+    // FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
+    #ifdef __cplusplus
+extern "C" {
+    #endif
 extern uint32_t SystemCoreClock;
+    #ifdef __cplusplus
+}
+    #endif
 #endif
 
 #define configUSE_PREEMPTION             1
@@ -200,7 +207,14 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
+// FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
+#ifdef __cplusplus
+extern "C" {
+#endif
 __attribute__((noreturn)) void _bsod(const char *fmt, const char *file_name, int line_number, ...);
+#ifdef __cplusplus
+}
+#endif
 #define configASSERT(x)                                          \
     if ((x) == 0) {                                              \
         _bsod("freertos configASSERT", __FILE_NAME__, __LINE__); \

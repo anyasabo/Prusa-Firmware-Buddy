@@ -66,7 +66,7 @@ void GcodeSuite::M301() {
     Hotend &hotend = Hotend::for_tool(tool);
 
     HotendPIDConfig pid = hotend.nozzle_pid_config();
-    p.store_option_if_present('P', pid.Kp);
+    (void)p.store_option_if_present('P', pid.Kp);
     if (auto val = p.option<float>('I')) {
         pid.Ki = scalePID_i(*val);
     }
@@ -74,7 +74,7 @@ void GcodeSuite::M301() {
         pid.Kd = scalePID_d(*val);
     }
     #if ENABLED(PID_EXTRUSION_SCALING)
-    p.store_option_if_present('C', pid.Kc);
+    (void)p.store_option_if_present('C', pid.Kc);
     #endif
 
     hotend.set_nozzle_pid_config(pid);

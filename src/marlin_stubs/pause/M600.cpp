@@ -169,11 +169,11 @@ void M600_manual(const GCodeParser2 &p) {
     XYZval<float, LogicalPosTag> logical_park_point { NAN, NAN, NAN };
 
     // Lift Z axis
-    p.store_option_if_present('Z', logical_park_point.z);
+    (void)p.store_option_if_present('Z', logical_park_point.z);
 
     // Move XY axes to filament change position or given position
-    p.store_option_if_present('X', logical_park_point.x);
-    p.store_option_if_present('Y', logical_park_point.y);
+    (void)p.store_option_if_present('X', logical_park_point.x);
+    (void)p.store_option_if_present('Y', logical_park_point.y);
 
     const auto park_point = logical_park_point.asNative();
 

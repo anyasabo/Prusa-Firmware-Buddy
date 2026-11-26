@@ -1,6 +1,7 @@
 #include "render.hpp"
 #include "printer_type.hpp"
 
+#include <string>
 #include <client_response.hpp>
 #include <segmented_json_macros.h>
 #include <lfn.h>
@@ -950,9 +951,9 @@ tuple<JsonResult, size_t> PreviewRenderer::render(uint8_t *buffer, size_t buffer
 
     constexpr static const char *intro = "\"preview\":\"";
     constexpr static const char *outro = "\",";
-    constexpr static size_t intro_len = strlen(intro);
+    constexpr static size_t intro_len = std::char_traits<char>::length(intro);
     // Ending quote and comma
-    constexpr static size_t outro_len = strlen(outro);
+    constexpr static size_t outro_len = std::char_traits<char>::length(outro);
     // Don't bother with too small buffers to make the code easier. Extra char
     // for trying out there's some preview in there.
     constexpr static size_t min_len = intro_len + outro_len + encoded_chunk_size;

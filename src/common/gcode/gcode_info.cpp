@@ -457,7 +457,7 @@ void GCodeInfo::parse_gcode(GcodeBuffer::String cmd, uint32_t &gcode_counter) {
 
             if (!is_up_to_date(cmd.c_str())) {
                 info_.new_firmware_available = true;
-                strlcpy(info_.latest_fw_version.data(), cmd.c_str(), std::min(info_.latest_fw_version.capacity(), cmd.len() + 1 /* +1 for the null terminator */));
+                strlcpy(info_.latest_fw_version.data(), cmd.c_str(), std::min(decltype(info_.latest_fw_version)::capacity(), cmd.len() + 1 /* +1 for the null terminator */));
 
                 // Cut the string at the comment start
                 char *comment_start = strchr(info_.latest_fw_version.data(), ';');

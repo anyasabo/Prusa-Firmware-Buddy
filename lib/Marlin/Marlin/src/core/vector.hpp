@@ -30,9 +30,12 @@ public:
     public:
         constexpr UnusedComponent() = default;
 
+        // The copy constructor must be public: GCC 15 and newer copy a [[no_unique_address]] member
+        // from its default member initializer (CWG 2403), also in the aggregate init of a Vector.
+        constexpr UnusedComponent(const UnusedComponent &) = default;
+
     private:
         // Try to prevent accidentally using UnusedComponent, for example vector_xy.z = vector2_xy.z;
-        constexpr UnusedComponent(const UnusedComponent &) = default;
         constexpr UnusedComponent &operator=(const UnusedComponent &) = default;
     };
 

@@ -28,7 +28,7 @@ void M1980() {
     }
 
     door_sensor_calibration::RunArgs args;
-    p.store_option_if_present('O', args.ask_enable_only);
+    (void)p.store_option_if_present('O', args.ask_enable_only);
 
     door_sensor_calibration::run(args);
 }

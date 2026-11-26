@@ -4,6 +4,7 @@
 #include <cctype>
 #include <algorithm>
 #include <cstring>
+#include <string>
 #include <bsod/bsod.h>
 
 using namespace media_prefetch;
@@ -65,7 +66,7 @@ constexpr std::array prefix_dictionary {
 static_assert(prefix_dictionary.size() < 15); // - 1 for encoding a non-match
 
 // Must be sorted by length so that we hit the longest match first in the iteration
-static_assert(std::is_sorted(prefix_dictionary.begin(), prefix_dictionary.end(), [](auto a, auto b) { return strlen(a) > strlen(b); }));
+static_assert(std::is_sorted(prefix_dictionary.begin(), prefix_dictionary.end(), [](auto a, auto b) { return std::char_traits<char>::length(a) > std::char_traits<char>::length(b); }));
 
 } // namespace
 

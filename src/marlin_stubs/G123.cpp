@@ -37,10 +37,10 @@ void PrusaGcodeSuite::G123() {
     }
 
     xyze_float_t target_pos = current_position;
-    p.store_option_if_present('X', target_pos.x);
-    p.store_option_if_present('Y', target_pos.y);
-    p.store_option_if_present('Z', target_pos.z);
-    p.store_option_if_present('E', target_pos.e);
+    (void)p.store_option_if_present('X', target_pos.x);
+    (void)p.store_option_if_present('Y', target_pos.y);
+    (void)p.store_option_if_present('Z', target_pos.z);
+    (void)p.store_option_if_present('E', target_pos.e);
 
     static const xyze_float_t feedrate = xyze_float_t { { MANUAL_FEEDRATE } } / 60;
     static const xyze_float_t feedrate_inv = xyze_float_t { { { 1, 1, 1, 1 } } } / feedrate;

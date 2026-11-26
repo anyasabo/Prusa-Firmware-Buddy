@@ -13,7 +13,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -64,7 +64,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -115,7 +115,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -166,7 +166,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -217,7 +217,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -268,7 +268,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -319,7 +319,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -370,7 +370,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -421,7 +421,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -472,7 +472,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -523,7 +523,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -574,7 +574,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -625,7 +625,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -676,7 +676,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -727,7 +727,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -778,7 +778,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -829,7 +829,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -880,7 +880,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -931,7 +931,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -982,7 +982,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1033,7 +1033,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1080,7 +1080,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1127,7 +1127,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1174,7 +1174,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1221,7 +1221,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1272,7 +1272,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1323,7 +1323,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1374,7 +1374,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1425,7 +1425,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1476,7 +1476,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1527,7 +1527,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1578,7 +1578,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1629,7 +1629,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1680,7 +1680,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1731,7 +1731,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1782,7 +1782,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1833,7 +1833,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1884,7 +1884,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1935,7 +1935,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -1986,7 +1986,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2037,7 +2037,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2088,7 +2088,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2139,7 +2139,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2190,7 +2190,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2241,7 +2241,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2292,7 +2292,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2343,7 +2343,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2394,7 +2394,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2445,7 +2445,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2496,7 +2496,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2547,7 +2547,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2598,7 +2598,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2649,7 +2649,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2700,7 +2700,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2751,7 +2751,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2802,7 +2802,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2853,7 +2853,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2908,7 +2908,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -2963,7 +2963,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3018,7 +3018,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3073,7 +3073,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3120,7 +3120,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3167,7 +3167,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3214,7 +3214,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3261,7 +3261,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3312,7 +3312,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3363,7 +3363,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3414,7 +3414,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3465,7 +3465,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3512,7 +3512,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3559,7 +3559,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3606,7 +3606,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3653,7 +3653,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3704,7 +3704,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3755,7 +3755,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3806,7 +3806,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3857,7 +3857,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3904,7 +3904,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3951,7 +3951,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -3998,7 +3998,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4045,7 +4045,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4096,7 +4096,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4147,7 +4147,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4198,7 +4198,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4249,7 +4249,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4328,7 +4328,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4407,7 +4407,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4486,7 +4486,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4565,7 +4565,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4612,7 +4612,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4659,7 +4659,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4706,7 +4706,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4753,7 +4753,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4800,7 +4800,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4847,7 +4847,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4894,7 +4894,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4941,7 +4941,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -4988,7 +4988,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5035,7 +5035,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5082,7 +5082,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5129,7 +5129,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5180,7 +5180,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5231,7 +5231,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5282,7 +5282,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5333,7 +5333,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5380,7 +5380,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5427,7 +5427,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5474,7 +5474,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5521,7 +5521,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5568,7 +5568,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5615,7 +5615,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5662,7 +5662,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5709,7 +5709,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5756,7 +5756,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5803,7 +5803,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5850,7 +5850,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5897,7 +5897,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5944,7 +5944,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -5991,7 +5991,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6038,7 +6038,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6085,7 +6085,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6132,7 +6132,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6179,7 +6179,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6226,7 +6226,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6273,7 +6273,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6320,7 +6320,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6367,7 +6367,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6414,7 +6414,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6461,7 +6461,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6524,7 +6524,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6587,7 +6587,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6650,7 +6650,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6713,7 +6713,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6764,7 +6764,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6815,7 +6815,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6866,7 +6866,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6917,7 +6917,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -6968,7 +6968,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7019,7 +7019,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7070,7 +7070,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7121,7 +7121,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7176,7 +7176,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7231,7 +7231,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7286,7 +7286,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7341,7 +7341,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7396,7 +7396,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7451,7 +7451,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7506,7 +7506,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7561,7 +7561,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7616,7 +7616,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7671,7 +7671,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7726,7 +7726,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7781,7 +7781,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7836,7 +7836,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7891,7 +7891,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -7946,7 +7946,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8001,7 +8001,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8048,7 +8048,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8095,7 +8095,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8142,7 +8142,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8189,7 +8189,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8236,7 +8236,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8283,7 +8283,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8330,7 +8330,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8377,7 +8377,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8424,7 +8424,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8471,7 +8471,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8518,7 +8518,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8565,7 +8565,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8608,7 +8608,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8651,7 +8651,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8694,7 +8694,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8737,7 +8737,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8780,7 +8780,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8823,7 +8823,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8866,7 +8866,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8909,7 +8909,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8952,7 +8952,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -8995,7 +8995,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -9038,7 +9038,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "PRINTER": {
                     "type": "STRING",
@@ -9081,7 +9081,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "UNITTESTS_ENABLE": {
                     "type": "BOOL",
@@ -9096,7 +9096,7 @@
             "cacheVariables": {
                 "CMAKE_MAKE_PROGRAM": {
                     "type": "FILEPATH",
-                    "value": "${sourceDir}/.dependencies/ninja-1.10.2/ninja"
+                    "value": "${sourceDir}/.dependencies/ninja-1.13.2/ninja"
                 },
                 "UNITTESTS_ENABLE": {
                     "type": "BOOL",

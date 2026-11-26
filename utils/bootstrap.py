@@ -8,6 +8,8 @@
 #       them if they are not.
 #
 # pylint: disable=line-too-long
+import contextlib
+import hashlib
 import os
 import platform
 import shutil
@@ -36,31 +38,60 @@ running_in_venv = Path(sys.prefix).resolve() == venv_dir.resolve()
 # yapf: disable
 dependencies = {
     'ninja': {
-        'version': '1.10.2',
+        'version': '1.13.2',
         'url': {
-            'Linux': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip',
-            'Linux-aarch64': 'https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/ninja-v1.10.2-linux-aarch64.zip',
-            'Windows': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip',
-            'Darwin': 'https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-mac.zip',
+            'Linux': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip',
+            'Linux-aarch64': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux-aarch64.zip',
+            'Windows': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win.zip',
+            'Darwin': 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-mac.zip',
+        },
+        'sha256': {
+            'Linux': '5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6',
+            'Linux-aarch64': 'fd2cacc8050a7f12a16a2e48f9e06fca5c14fc4c2bee2babb67b58be17a607fc',
+            'Windows': '07fc8261b42b20e71d1720b39068c2e14ffcee6396b76fb7a795fb460b78dc65',
+            'Darwin': 'c99048673aa765960a99cf10c6ddb9f1fad506099ff0a0e137ad8960a88f321b',
         },
     },
     'cmake': {
-        'version': '3.28.3',
+        'version': '4.4.5',
         'url': {
-            'Linux': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-x86_64.tar.gz',
-            'Linux-aarch64': 'https://prusa-buddy-firmware-dependencies.s3.eu-central-1.amazonaws.com/cmake-3.28.3-Linux-aarch64.tar.gz',
-            'Windows': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-windows-x86_64.zip',
-            'Darwin': 'https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-macos-universal.tar.gz',
+            'Linux': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-x86_64.tar.gz',
+            'Linux-aarch64': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-aarch64.tar.gz',
+            'Windows': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-x86_64.zip',
+            'Darwin': 'https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-macos-universal.tar.gz',
+        },
+        'sha256': {
+            'Linux': 'ed85135c5a5135b45e50423cb406dea04ca3338da0b8ef3c9ede963559680be0',
+            'Linux-aarch64': '301d5063ab259577c1b57ce5490b1aab9ea5c56dc4c822f73499553dab94925f',
+            'Windows': '326c826486d46a23cf9d5a1c9ee3a567d427bdd02c4a34071937a2a675cff004',
+            'Darwin': '679e77a96b9ef9484cc6c1445255fc4f84206b48a65420efbedf16bdab55fbff',
         },
     },
     'gcc-arm-none-eabi': {
-        'version': '13.3.1',
-        'url': {
-            'Linux': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz',
-            'Linux-aarch64': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-aarch64-arm-none-eabi.tar.xz',
-            'Windows': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi.zip',
-            'Darwin': 'https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-darwin-x86_64-arm-none-eabi.tar.xz',
-        }
+        # Fork only: GCC 16.2 from the Arch Linux packages (arm-none-eabi-gcc 16.2.0-1,
+        # arm-none-eabi-binutils 2.47-1, arm-none-eabi-newlib 4.6.0.20260123-1), copied
+        # unchanged to a release of the fork. The packages are unpacked into one prefix.
+        # Host: Linux x86_64 with GLIBC 2.38 or newer, and libisl23, libmpc3, libmpfr6,
+        # libgmp10, zlib1g and libzstd1 (Ubuntu package names). objdump and readelf also need
+        # libdebuginfod1t64 (the build does not use them).
+        'version': '16.2.0',
+        'archives': {
+            'Linux-x86_64': [
+                {
+                    'url': 'https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/download/toolchain-arm-none-eabi-gcc-16.2.0-arch.1/arm-none-eabi-gcc-16.2.0-1-x86_64.pkg.tar.zst',
+                    'sha256': 'b3fca2319f030bafe17873b4cbcaef3d643043a99f18317cc2793bcaf563b702',
+                },
+                {
+                    'url': 'https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/download/toolchain-arm-none-eabi-gcc-16.2.0-arch.1/arm-none-eabi-binutils-2.47-1-x86_64.pkg.tar.zst',
+                    'sha256': 'b494d4e01cc35c4bcef8522c28d32a9b086460f1037eaaa7a046f2c378d0d7d1',
+                },
+                {
+                    'url': 'https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/download/toolchain-arm-none-eabi-gcc-16.2.0-arch.1/arm-none-eabi-newlib-4.6.0.20260123-1-any.pkg.tar.zst',
+                    'sha256': '52a414b03ef9a641b0d1e2009e093998954cbe95196cfac7649e47f97e23eda3',
+                },
+            ],
+        },
+        'strip_prefix': 'usr',
     },
     'clang-format': {
         'version': '16-83817c2f',
@@ -249,8 +280,108 @@ def extract_archive(filename: Path, directory: Path):
             extract_zip(obj, directory)
 
 
-def download_and_unzip(url: str, directory: Path):
-    """Download a compressed file and extract it at `directory`."""
+def verify_sha256(filename: Path, expected: str):
+    """Raise an error and remove `filename` if its SHA-256 is not `expected`."""
+    digest = hashlib.sha256()
+    with open(filename, 'rb') as file:
+        for chunk in iter(lambda: file.read(1 << 20), b''):
+            digest.update(chunk)
+    if digest.hexdigest() != expected.lower():
+        os.remove(filename)
+        raise RuntimeError(f'SHA-256 mismatch for {filename.name}: '
+                           f'expected {expected}, got {digest.hexdigest()}')
+
+
+@contextlib.contextmanager
+def open_zstd(filename: Path):
+    """Open a .zst file for reading, decompressed.
+
+    With an external decompressor, raise an error at the end if it failed. A stream that
+    stops early can end at a tar block boundary, and then tarfile reports no error.
+    """
+    try:
+        from compression import zstd  # Python 3.14 and newer
+    except ImportError:
+        zstd = None
+    if zstd:
+        with zstd.open(filename, 'rb') as file:
+            yield file
+        return
+    try:
+        import zstandard
+    except ImportError:
+        zstandard = None
+    if zstandard:
+        with open(filename, 'rb') as file:
+            yield zstandard.ZstdDecompressor().stream_reader(file)
+        return
+    if shutil.which('zstd'):
+        command = ['zstd', '-dc', str(filename)]
+    else:
+        # bootstrap() installs the pip packages (with zstandard) into the venv before the
+        # dependencies, but this script can run with another interpreter.
+        command = [
+            str(venv_bin_dir / 'python'), '-c',
+            'import sys, zstandard; zstandard.ZstdDecompressor().copy_stream('
+            'open(sys.argv[1], "rb"), sys.stdout.buffer)',
+            str(filename)
+        ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    try:
+        yield process.stdout
+        # tarfile stops at the end-of-archive blocks. Read the rest, so that the
+        # decompressor does not fail with a broken pipe.
+        while process.stdout.read(1 << 20):
+            pass
+    finally:
+        process.stdout.close()
+        returncode = process.wait()
+    if returncode != 0:
+        raise RuntimeError(
+            f'{command[0]} failed with exit code {returncode} for {filename.name}'
+        )
+
+
+def install_archives(archives, directory: Path, strip_prefix=None):
+    """Download, check and unpack several archives into one `directory`.
+
+    Each archive is a dict with 'url' and 'sha256'. Members that start with a
+    dot (package metadata such as .PKGINFO) are skipped. `strip_prefix` is removed
+    from the start of each member path (for example 'usr' of a Linux package).
+    """
+    shutil.rmtree(directory, ignore_errors=True)
+    temp_directory = directory.with_suffix('.temp')
+    shutil.rmtree(temp_directory, ignore_errors=True)
+    temp_directory.mkdir(parents=True)
+    for archive in archives:
+        file = Path(urlparse(archive['url']).path).name
+        filename = Path(dependencies_dir) / file
+        print('Downloading ' + file, end=' ')
+        download_url(url=archive['url'], filename=filename)
+        verify_sha256(filename, archive['sha256'])
+        print('done')
+        print('Extracting ' + file, end=' ')
+        if file.endswith('.zst'):
+            with open_zstd(filename) as fileobj, tarfile.open(
+                    fileobj=fileobj, mode='r|') as tar:
+                for member in tar:
+                    if member.name.startswith('.'):
+                        continue
+                    if hasattr(tarfile, 'tar_filter'):
+                        tar.extract(member, temp_directory, filter='tar')
+                    else:
+                        tar.extract(member, temp_directory)
+        else:
+            extract_archive(filename, temp_directory)
+        os.remove(filename)
+        print('done')
+    source = temp_directory / strip_prefix if strip_prefix else temp_directory
+    shutil.move(str(source), str(directory))
+    shutil.rmtree(temp_directory, ignore_errors=True)
+
+
+def download_and_unzip(url: str, directory: Path, sha256=None):
+    """Download a compressed file, check its SHA-256 (if given) and extract it at `directory`."""
     extract_dir = directory.with_suffix('.temp')
     shutil.rmtree(directory, ignore_errors=True)
     shutil.rmtree(extract_dir, ignore_errors=True)
@@ -263,6 +394,8 @@ def download_and_unzip(url: str, directory: Path):
     filename = Path(dependencies_dir) / file
 
     download_url(url=url, filename=filename)
+    if sha256 is not None:
+        verify_sha256(filename, sha256)
 
     print('done')
     print('Extracting ' + file, end=" ")
@@ -324,14 +457,28 @@ def install_dependency(dependency):
                                                       specs['version'])
     url = specs.get('url', None)
     files = specs.get('files', None)
-    if url is not None:
+    sha256 = specs.get('sha256', None)
+    archives = specs.get('archives', None)
+    if archives is not None:
+        key = f'{platform.system()}-{platform.machine()}'
+        if key not in archives:
+            raise RuntimeError(
+                f'{dependency} {specs["version"]} is not available for {key}')
+        install_archives(archives[key], installation_directory,
+                         specs.get('strip_prefix', None))
+    elif url is not None:
         if isinstance(url, dict):
             full_description = f'{platform.system()}-{platform.machine()}'
             if full_description not in url:
-                url = url[platform.system()]
+                key = platform.system()
             else:
-                url = url[full_description]
-        download_and_unzip(url=url, directory=installation_directory)
+                key = full_description
+            url = url[key]
+            if isinstance(sha256, dict):
+                sha256 = sha256[key]
+        download_and_unzip(url=url,
+                           directory=installation_directory,
+                           sha256=sha256)
     elif files is not None:
         os.mkdir(installation_directory)
         for file in files:

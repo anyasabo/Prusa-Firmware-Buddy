@@ -69,6 +69,14 @@ repos:
       language: python
       language_version: python3.12
       additional_dependencies: ['pyyaml==6.0.3', 'pytest==9.1.1']
+    - id: check-error-codes-used
+      name: check-error-codes-used
+      description: This hook fails if an error code of buddy-error-codes.yaml has no use in the firmware source.
+      entry: python utils/check_error_codes_used.py
+      pass_filenames: false
+      always_run: true
+      language: python
+      language_version: python3
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.

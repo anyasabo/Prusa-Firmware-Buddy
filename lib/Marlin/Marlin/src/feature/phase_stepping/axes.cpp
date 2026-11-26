@@ -28,16 +28,29 @@ struct AxisMotorParams {
 
 static std::array<AxisMotorParams, phase_stepping::opts::SUPPORTED_AXIS_COUNT> axis_motor_params;
 
+/// Steps/mm that the step generators use for the axis.
+///
+/// Take steps/mm from the planner, not from the config store. M92 changes only the planner,
+/// so the config store value made phase stepping ignore M92: the phase stepped axes moved at
+/// the config store steps/mm and wrote step counts that the planner read at the M92 value.
+/// Use planner.mm_per_step, not planner.settings.axis_steps_per_mm: the classic step
+/// generators (precise_stepping, input_shaper, pressure_advance) use mm_per_step, and only
+/// Planner::refresh_positioning() writes it. Motion_Parameters::reset() writes the settings
+/// without a refresh.
+static float planner_steps_per_unit(AxisEnum axis) {
+    return 1.f / planner.mm_per_step[axis];
+}
+
 void phase_stepping::initialize_axis_motor_params() {
     int xy_steps_per_rev = get_has_400step_xy_motors() ? 400 : 200;
 
-    axis_motor_params[0] = AxisMotorParams::make_for_motor(xy_steps_per_rev, get_steps_per_unit_x(), get_microsteps_x());
-    axis_motor_params[1] = AxisMotorParams::make_for_motor(xy_steps_per_rev, get_steps_per_unit_y(), get_microsteps_y());
+    axis_motor_params[0] = AxisMotorParams::make_for_motor(xy_steps_per_rev, planner_steps_per_unit(X_AXIS), get_microsteps_x());
+    axis_motor_params[1] = AxisMotorParams::make_for_motor(xy_steps_per_rev, planner_steps_per_unit(Y_AXIS), get_microsteps_y());
     if (opts::SUPPORTED_AXIS_COUNT > 2) {
-        axis_motor_params[2] = AxisMotorParams::make_for_motor(200, get_steps_per_unit_z(), get_microsteps_z());
+        axis_motor_params[2] = AxisMotorParams::make_for_motor(200, planner_steps_per_unit(Z_AXIS), get_microsteps_z());
     }
     if (opts::SUPPORTED_AXIS_COUNT > 3) {
-        axis_motor_params[3] = AxisMotorParams::make_for_motor(200, get_steps_per_unit_e(), get_microsteps_e());
+        axis_motor_params[3] = AxisMotorParams::make_for_motor(200, planner_steps_per_unit(E_AXIS), get_microsteps_e());
     }
 }
 

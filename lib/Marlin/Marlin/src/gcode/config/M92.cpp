@@ -171,7 +171,7 @@ void GcodeSuite::M92() {
   #endif
 
   #if HAS_PHASE_STEPPING()
-    // FIXME: Code above does not update config store, phstep takes data from config store
+    // Phase stepping takes steps/mm from the planner. It is disabled here (phstep_guard).
     phase_stepping::initialize_axis_motor_params();
   #endif
 

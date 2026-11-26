@@ -496,12 +496,7 @@ TEST_CASE("toolchanger_indx: power panic at each move of a pick from no tool", "
     CHECK(world.head_tool == 7);
 }
 
-// KNOWN BUG (fails, tagged [!shouldfail]): after_lock is stored after the dwell, before the nozzle check.
-// On resume, power_panic.cpp sets the target tool active, finish_pickup_after_lock() fails the nozzle check,
-// and the fallback tool_change() in resuming_begin() is a no-op because the target is already active.
-// On the printer, the in-print nozzle check (check_nozzle_presence_during_print(), 5 s period) then starts
-// the toolfall recovery. The stubs turn off HAS_TOOL_CRASH_RECOVERY, so this test does not see that.
-TEST_CASE("toolchanger_indx: power panic after a lock that did not grab the nozzle", "[power_panic][!shouldfail][known_bug]") {
+TEST_CASE("toolchanger_indx: power panic after a lock that did not grab the nozzle", "[power_panic]") {
     world.reset();
     world.printing = true;
     REQUIRE(change(T(1)));
@@ -524,9 +519,7 @@ TEST_CASE("toolchanger_indx: power panic after a lock that did not grab the nozz
     check_consistent();
 }
 
-// KNOWN BUG (fails, tagged [!shouldfail]): phase_ stays after_lock during the pickup retry (homing,
-// open_head, the second lock move). A power panic there resumes as if the nozzle were locked.
-TEST_CASE("toolchanger_indx: power panic during the retry after a failed pickup", "[power_panic][!shouldfail][known_bug]") {
+TEST_CASE("toolchanger_indx: power panic during the retry after a failed pickup", "[power_panic]") {
     world.reset();
     world.printing = true;
     REQUIRE(change(T(1)));
@@ -552,14 +545,13 @@ TEST_CASE("toolchanger_indx: power panic during the retry after a failed pickup"
     CHECK(world.head_tool == 6);
 }
 
-// KNOWN BUG (fails, tagged [!shouldfail]): in the DOCK_DWELL_MS wait after the lock move, the nozzle is
-// locked but the phase is before_lock. recover_before_lock() starts the toolchange again: G28 pulls the
-// nozzle out of the dock, then open_head() opens the lock away from the dock (see the sensor timeout test).
-// NEEDS A CHECK ON THE PRINTER, as the sensor timeout test.
-TEST_CASE("toolchanger_indx: power panic in the lock dwell - after the nozzle is locked", "[power_panic][!shouldfail][known_bug]") {
+TEST_CASE("toolchanger_indx: power panic in the lock dwell - after the nozzle is locked", "[power_panic]") {
     world.reset();
+    std::mt19937 rng(9);
+    set_offsets(rng);
     world.printing = true;
     REQUIRE(change(T(1)));
+    const xyz_pos_t logical_before = current_position.xyz() + hotend_currently_applied_offset;
 
     // The power fails in the DOCK_DWELL_MS wait after the lock move: the nozzle of tool 6 is
     // locked in the head, but the phase is still before_lock.
@@ -575,4 +567,10 @@ TEST_CASE("toolchanger_indx: power panic in the lock dwell - after the nozzle is
     CHECK(resume_after_power_panic());
     check_consistent();
     CHECK(world.head_tool == 6);
+
+    // The pickup returns to the position from before the toolchange, under the offset of tool 6
+    const xyz_pos_t logical_after = current_position.xyz() + hotend_currently_applied_offset;
+    CHECK_THAT(logical_after.x, WithinAbs(logical_before.x, eps));
+    CHECK_THAT(logical_after.y, WithinAbs(logical_before.y, eps));
+    CHECK_THAT(logical_after.z, WithinAbs(logical_before.z, eps));
 }

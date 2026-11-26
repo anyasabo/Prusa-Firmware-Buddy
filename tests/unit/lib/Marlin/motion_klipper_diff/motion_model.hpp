@@ -24,6 +24,23 @@ struct Block {
     bool halt_before = false;
 };
 
+/// The E position (steps) at which the next session starts. PreciseStepping starts a session at
+/// the integer E step position of the halt. The session before moved E by `delta_msteps` (the
+/// commanded delta, in planner mini-steps) from `offset_steps`. If the exact end is a whole step
+/// plus a half (a tie), the last step can go either way: then take Buddy's E position, but only if
+/// it is one of the two neighbours. Else a lost step would move the offset and never show.
+inline int64_t next_session_e_offset(int64_t offset_steps, int64_t delta_msteps, int msteps_per_step, int64_t buddy_e_steps) {
+    const int64_t end_msteps = offset_steps * msteps_per_step + delta_msteps;
+    const int64_t rem = end_msteps % msteps_per_step;
+    if (rem == msteps_per_step / 2 || rem == -msteps_per_step / 2) {
+        const int64_t lo = (end_msteps - (rem > 0 ? rem : msteps_per_step + rem)) / msteps_per_step;
+        if (buddy_e_steps == lo || buddy_e_steps == lo + 1) {
+            return buddy_e_steps;
+        }
+    }
+    return std::llround(double(end_msteps) / msteps_per_step);
+}
+
 /// The smooth time that Buddy uses: create_pressure_advance_params() rounds the sample period
 /// (smooth_time / 40) to whole us. Klipper gets this value, so both smooth over the same window.
 inline double effective_smooth_time(float smooth_time) {

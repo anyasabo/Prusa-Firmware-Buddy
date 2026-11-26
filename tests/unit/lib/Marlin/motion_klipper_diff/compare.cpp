@@ -1,5 +1,7 @@
 #include "compare.hpp"
 
+#include <feature/precise_stepping/common.hpp>
+
 #include <cmath>
 #include <cstdio>
 #include <map>
@@ -188,7 +190,7 @@ IsEpsilonBound::IsEpsilonBound(const Config &config, const std::vector<Segment> 
     const double span_us = 2.5 / f_min * 1e6;
     steps_per_mm_ = config.steps_per_mm[axis];
     for (const Segment &s : segments) {
-        if (s.move_time > 1e6) {
+        if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
             continue; // ending empty move
         }
         const double t = s.move_time;
@@ -274,7 +276,7 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
     }
     if (!buddy_result.segments.empty()) {
         const Segment &last = buddy_result.segments.back();
-        end_time = std::max(end_time, (last.move_time > 1e6 ? last.print_time : last.print_time + last.move_time) * 1e6);
+        end_time = std::max(end_time, (last.flags & MOVE_FLAG_ENDING_EMPTY_MOVE ? last.print_time : last.print_time + last.move_time) * 1e6);
     }
     end_time += 1e6;
     c.klipper_end = q(end_time);
@@ -307,7 +309,7 @@ std::string check_axis(const AxisComparison &c) {
     return {};
 }
 
-std::string check_axis(const AxisComparison &c, int64_t stepper_net, double, int) {
+std::string check_axis(const AxisComparison &c, int64_t stepper_net) {
     if (c.buddy_net != stepper_net) {
         return "the step events do not add up to the stepper position";
     }

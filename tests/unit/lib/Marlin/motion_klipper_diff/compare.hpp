@@ -62,9 +62,8 @@ std::string describe(const AxisComparison &c);
 /// Returns an empty string if the axis agrees, else the reason.
 std::string check_axis(const AxisComparison &c);
 
-/// As check_axis(c), and also checks that the step events add up to `stepper_net` (the regression
-/// tests of the fix branches use this form; the other arguments are no longer used).
-std::string check_axis(const AxisComparison &c, int64_t stepper_net, double unused_allowed_err_steps = 0., int unused_sessions = 1);
+/// As check_axis(c), and also checks that the step events add up to `stepper_net`.
+std::string check_axis(const AxisComparison &c, int64_t stepper_net);
 
 /// Bound of the position error (E steps) of the pressure advance step generator at `time_us`. Buddy
 /// samples the PA position every h = smooth_time / 40, filters the samples and interpolates linearly

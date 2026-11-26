@@ -44,3 +44,6 @@ target_include_directories(
   thermal_protection_tests PRIVATE stub_include_thermal ${CMAKE_SOURCE_DIR}/lib/Marlin/Marlin/src
   )
 add_catch_test(thermal_protection_tests)
+
+add_subdirectory(toolchanger_indx)
+add_subdirectory(tool_mapping)

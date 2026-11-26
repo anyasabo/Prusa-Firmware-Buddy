@@ -5,6 +5,7 @@
 /// ISR context, so keep everything it reaches short and non-blocking.
 
 #include "cpu_utils.hpp"
+#include <device/board.h>
 
 #include <option/rtt_metrics_enabled.h>
 #if RTT_METRICS_ENABLED()
@@ -13,6 +14,9 @@
 
 extern "C" void vApplicationTickHook() {
     cpu_utils::compute_cpu_load();
+#if !BOARD_IS_DWARF() && !BOARD_IS_MODULARBED() // the boards that send the metric (appmain.cpp)
+    cpu_utils::sample_inherited_priority();
+#endif
 #if RTT_METRICS_ENABLED()
     rtt_metrics::capture_stepper_positions();
 #endif

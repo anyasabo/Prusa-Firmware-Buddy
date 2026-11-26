@@ -9,12 +9,7 @@ extern "C" {
 extern TIM_HandleTypeDef htim1;
 static uint32_t s_SystemMicroseconds = 0;
 
-// interrupt from ARM-CORE timer
-void SysTick_Handler() {
-    // call FreeRtos's systick, as we have disabled its own SysTick_Handler
-    extern void xPortSysTickHandler();
-    xPortSysTickHandler();
-}
+// The SysTick interrupt handler (SysTick_Handler) is in the ARM_CM0 port of FreeRTOS (FreeRTOS 11 uses the CMSIS name).
 
 /**
  * @brief This function handles TIM1 break, update, trigger and commutation interrupts.

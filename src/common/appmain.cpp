@@ -102,6 +102,9 @@ LOG_COMPONENT_DEF(MMU2, logging::Severity::info);
 METRIC_DEF(metric_app_start, "app_start", METRIC_VALUE_EVENT, 0, METRIC_ENABLED);
 METRIC_DEF(metric_maintask_event, "maintask_loop", METRIC_VALUE_EVENT, 0, METRIC_DISABLED);
 METRIC_DEF(metric_cpu_usage, "cpu_usage", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
+/// Count of ticks since boot in which the running task had a priority inherited from a mutex.
+/// The increase in an interval is the time in ms that a task ran at an inherited priority.
+METRIC_DEF(metric_prio_inherit, "prio_inh", METRIC_VALUE_INTEGER, 1000, METRIC_ENABLED);
 
 void app_marlin_serial_output_write_hook(const uint8_t *buffer, int size) {
     if (SerialLoggingDisabler::is_logging_disabled()) {
@@ -224,6 +227,7 @@ void app_run(void) {
     while (1) {
         metric_record_event(&metric_maintask_event);
         metric_record_integer(&metric_cpu_usage, osGetCPUUsage());
+        metric_record_integer(&metric_prio_inherit, static_cast<int>(cpu_utils::inherited_priority_ticks()));
         marlin_server::loop();
     }
 }

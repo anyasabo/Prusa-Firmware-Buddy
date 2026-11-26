@@ -1,6 +1,6 @@
 /*
- * FreeRTOS Kernel V10.6.2
- * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS Kernel V11.3.1
+ * Copyright (C) 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * SPDX-License-Identifier: MIT
  *
@@ -47,8 +47,8 @@
 typedef void * CoRoutineHandle_t;
 
 /* Defines the prototype to which co-routine functions must conform. */
-typedef void (* crCOROUTINE_CODE)( CoRoutineHandle_t,
-                                   UBaseType_t );
+typedef void (* crCOROUTINE_CODE)( CoRoutineHandle_t xHandle,
+                                   UBaseType_t uxIndex );
 
 typedef struct corCoRoutineControlBlock
 {
@@ -246,7 +246,10 @@ void vCoRoutineSchedule( void );
  * \defgroup crSTART crSTART
  * \ingroup Tasks
  */
+
+/* *INDENT-OFF* */
 #define crEND()    }
+/* *INDENT-ON* */
 
 /*
  * These macros are intended for internal use by the co-routine implementation
@@ -525,7 +528,7 @@ void vCoRoutineSchedule( void );
  * functions used by tasks.
  *
  * crQUEUE_SEND_FROM_ISR() and crQUEUE_RECEIVE_FROM_ISR() can only be used to
- * pass data between a co-routine and and ISR, whereas xQueueSendFromISR() and
+ * pass data between a co-routine and ISR, whereas xQueueSendFromISR() and
  * xQueueReceiveFromISR() can only be used to pass data between a task and and
  * ISR.
  *
@@ -625,7 +628,7 @@ void vCoRoutineSchedule( void );
  * functions used by tasks.
  *
  * crQUEUE_SEND_FROM_ISR() and crQUEUE_RECEIVE_FROM_ISR() can only be used to
- * pass data between a co-routine and and ISR, whereas xQueueSendFromISR() and
+ * pass data between a co-routine and ISR, whereas xQueueSendFromISR() and
  * xQueueReceiveFromISR() can only be used to pass data between a task and and
  * ISR.
  *
@@ -745,6 +748,13 @@ void vCoRoutineAddToDelayedList( TickType_t xTicksToDelay,
  * the pending ready list.
  */
 BaseType_t xCoRoutineRemoveFromEventList( const List_t * pxEventList );
+
+
+/*
+ * This function resets the internal state of the coroutine module. It must be
+ * called by the application before restarting the scheduler.
+ */
+void vCoRoutineResetState( void ) PRIVILEGED_FUNCTION;
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

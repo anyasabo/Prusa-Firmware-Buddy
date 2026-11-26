@@ -173,8 +173,8 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
     // for Klipper continue: the next motion starts at the end of the last real segment plus the tail
     // below (whole us, so that the Buddy step times keep their us grid), and E at the commanded E of
     // the halt, rounded
-    // to a step (PreciseStepping drops the step fraction of E at a halt). Thus E steps that Buddy
-    // loses before a halt stay visible after it.
+    // to a step (PreciseStepping drops the step fraction of E at a halt, see below). Thus E steps that
+    // Buddy loses before a halt stay visible after it.
     double time_offset_s = 0., e_offset_mm = 0.;
     int64_t time_offset_us = 0;
     double last_segment_end_s = 0.;
@@ -192,6 +192,8 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
         tail_s = std::max(tail_s, PressureAdvance::pressure_advance_params.filter_total_time.to_seconds());
     }
     int64_t e_net_steps = 0;
+    int64_t e_offset_steps = 0;
+    int64_t session_start_e_msteps = group_start_e_msteps[0];
     bool first_session = true;
 
     // Each iteration is one move ISR and then the step ISR until the step event queue is empty.
@@ -215,13 +217,17 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
                     time_offset_us = int64_t(std::ceil((last_segment_end_s + tail_s) * 1e6));
                     time_offset_s = double(time_offset_us) * 1e-6;
                     now_us = time_offset_us; // the first event of the new session counts from its time 0
-                    // The commanded E at the halt, in steps. On an exact half step (a tie), the last step
-                    // can go either way: then take the E position of the Buddy steps.
+                    // E: PreciseStepping starts the session at the integer E step position of the halt
+                    // and moves by the commanded E delta of the session before (in mini-steps, from
+                    // the planner targets). Thus the offset adds the rounded delta of each session. On
+                    // an exact half step (a tie), the last step can go either way: then take the E
+                    // position of the Buddy steps.
                     const size_t group = size_t(std::min<int>(result.sessions, int(group_start_e_msteps.size()) - 1));
-                    const int64_t e_msteps = group_start_e_msteps[group];
-                    const int64_t e_steps = (e_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2 || -e_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2)
-                        ? e_net_steps
-                        : std::llround(double(e_msteps) / PLANNER_STEPS_MULTIPLIER);
+                    const int64_t delta_msteps = group_start_e_msteps[group] - session_start_e_msteps;
+                    session_start_e_msteps = group_start_e_msteps[group];
+                    const bool tie = delta_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2 || -delta_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2;
+                    e_offset_steps = tie ? e_net_steps : e_offset_steps + std::llround(double(delta_msteps) / PLANNER_STEPS_MULTIPLIER);
+                    const int64_t e_steps = e_offset_steps;
                     e_offset_mm = double(e_steps) * double(Planner::mm_per_step[E_AXIS]);
                 }
                 first_session = false;

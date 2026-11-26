@@ -78,4 +78,24 @@ private:
     double steps_per_mm_ = 0;
 };
 
+/// Bound of the position error (steps) of an input shaper step generator at `time_us`. Buddy sets
+/// the acceleration of a micro segment to zero if |half_accel| <= INPUT_SHAPER_ACCELERATION_EPSILON
+/// (0.1 mm/s^2) and keeps its average speed: inside a micro segment of duration T, this is off by up
+/// to 0.1 * T^2 / 4. It sets speeds below INPUT_SHAPER_VELOCITY_EPSILON (1e-4 mm/s) to zero: up to
+/// 1e-4 * T. A micro segment is not longer than the longest move segment near it. Normal moves have
+/// T of a few 10 ms (a negligible error); slow moves with a small acceleration of the stepper can
+/// have T of seconds.
+class IsEpsilonBound {
+public:
+    IsEpsilonBound(const Config &config, const std::vector<Segment> &segments, int axis);
+    double at(double time_us) const;
+
+private:
+    struct Range {
+        double from_us, to_us, mm;
+    };
+    std::vector<Range> ranges_;
+    double steps_per_mm_ = 0;
+};
+
 } // namespace motion_diff

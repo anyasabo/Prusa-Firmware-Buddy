@@ -166,6 +166,47 @@ double PaErrorBound::at(double time_us) const {
     return mm * steps_per_mm_;
 }
 
+IsEpsilonBound::IsEpsilonBound(const Config &config, const std::vector<Segment> &segments, int axis) {
+    std::vector<const input_shaper::AxisConfig *> shapers;
+    if (axis == 0 || axis == 1) { // CoreXY: A and B follow the X and Y shapers
+        for (int i = 0; i < 2; ++i) {
+            if (config.shaper[i]) {
+                shapers.push_back(&*config.shaper[i]);
+            }
+        }
+    } else if (axis == 2 && config.shaper[2]) {
+        shapers.push_back(&*config.shaper[2]);
+    }
+    if (shapers.empty()) {
+        return;
+    }
+    double f_min = 1e9;
+    for (const auto *s : shapers) {
+        f_min = std::min(f_min, double(s->frequency));
+    }
+    // The pulses span at most 2 damped periods (3-hump EI): a micro segment near a move can reach
+    // this far around it.
+    const double span_us = 2.5 / f_min * 1e6;
+    steps_per_mm_ = config.steps_per_mm[axis];
+    for (const Segment &s : segments) {
+        if (s.move_time > 1e6) {
+            continue; // ending empty move
+        }
+        const double t = s.move_time;
+        ranges_.push_back({ s.print_time * 1e6 - span_us, (s.print_time + t) * 1e6 + span_us, 0.1 * t * t / 4. + 1e-4 * t });
+    }
+}
+
+double IsEpsilonBound::at(double time_us) const {
+    double mm = 0.;
+    for (const Range &r : ranges_) {
+        if (r.from_us <= time_us && time_us <= r.to_us) {
+            mm = std::max(mm, r.mm);
+        }
+    }
+    return mm * steps_per_mm_;
+}
+
 AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_result, const KlipperResult &klipper_result, int axis) {
     AxisComparison c;
     const auto &buddy = buddy_result.steps.axis[axis];
@@ -178,6 +219,8 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
     pair_statistics(c, buddy, klipper, sent, buddy_start, klipper_start);
 
     const PaErrorBound pa = axis == 3 ? PaErrorBound(config, buddy_result.segments) : PaErrorBound(Config { .pressure_advance = 0.f }, {});
+    const IsEpsilonBound is_eps(config, buddy_result.segments, axis);
+    const auto tolerance = [&](double t_us) { return pa.at(t_us) + is_eps.at(t_us); };
     const auto q = [&](double t_us) { return klipper_result.position_steps(axis, t_us); };
 
     // Each Buddy step: Klipper's exact position at the step time (or up to 1 us later) is near the
@@ -187,7 +230,7 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
         const int64_t next = n + (s.positive ? 1 : -1);
         const double boundary = 0.5 * double(n + next);
         const double q0 = q(s.time_us), q1 = q(s.time_us + 1.);
-        const double excess = distance_to(boundary, std::min(q0, q1), std::max(q0, q1)) - (STEP_POSITION_LIMIT + pa.at(s.time_us));
+        const double excess = distance_to(boundary, std::min(q0, q1), std::max(q0, q1)) - (STEP_POSITION_LIMIT + tolerance(s.time_us));
         if (excess > c.step_excess) {
             c.step_excess = excess;
             c.step_excess_time_us = s.time_us;
@@ -213,7 +256,7 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
             while (i < buddy.size() && buddy[i].time_us <= k.time_us) {
                 nb += buddy[i++].positive ? 1 : -1;
             }
-            const double excess = std::abs(double(nb) - q(k.time_us)) - (HOLD_POSITION_LIMIT + pa.at(k.time_us));
+            const double excess = std::abs(double(nb) - q(k.time_us)) - (HOLD_POSITION_LIMIT + tolerance(k.time_us));
             if (excess > c.hold_excess) {
                 c.hold_excess = excess;
                 c.hold_excess_time_us = k.time_us;
@@ -236,7 +279,7 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
     }
     end_time += 1e6;
     c.klipper_end = q(end_time);
-    c.end_excess = std::abs(double(c.buddy_end) - c.klipper_end) - (STEP_POSITION_LIMIT + pa.at(end_time));
+    c.end_excess = std::abs(double(c.buddy_end) - c.klipper_end) - (STEP_POSITION_LIMIT + tolerance(end_time));
     return c;
 }
 

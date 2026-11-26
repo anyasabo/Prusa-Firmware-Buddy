@@ -30,12 +30,6 @@ public:
     static constexpr unsigned int TOUCHDOWN_DELAY_MS = 150; // Milliseconds of pause required after trigger for the analysis model
     static constexpr int32_t MAX_LOADCELL_DATA_AGE_US = 100'000; // Older sample means the stream stalled
 
-    /// Outside high precision mode and after a tare, a larger tared load [g] is not physical (@see check_health()).
-    /// The self test accepts a tap of 500 to 2000 g. FailureOnLoadAboveEnforcer uses 3000 g during probe moves.
-    /// The nozzle cooling from 170 to 35 degC moved the load by about -570 g on a CORE One L.
-    /// A separation of the bridge wires on a CORE One L gave about +21 kg.
-    static constexpr float MAX_PLAUSIBLE_LOAD_G = 5000.f;
-
     /// Default XY probe trigger threshold/hysteresis [g]; the active values can be overridden per probing
     /// sequence via XyProbeThresholdOverride.
     static constexpr float XY_PROBE_THRESHOLD { 40 };

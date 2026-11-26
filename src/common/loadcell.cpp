@@ -275,11 +275,7 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
 
 #if HAS_LOADCELL_HX717()
     if (loadcellRaw != undefined_value) {
-        // Outside probing (high precision) and after a tare, the load must be physical.
-        // A probe can push harder for a short time, and before the first tare the offset is 0.
-        const bool load_plausible = highPrecision || !tare_valid.load(std::memory_order_relaxed)
-            || std::abs(tared_z_load) <= MAX_PLAUSIBLE_LOAD_G;
-        health.feed(loadcellRaw, load_plausible);
+        health.feed(loadcellRaw, buddy::LoadcellHealth::load_plausible(tared_z_load, highPrecision, tare_valid.load(std::memory_order_relaxed)));
     }
 #endif
 

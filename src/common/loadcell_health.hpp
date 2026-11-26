@@ -58,6 +58,20 @@ public:
     static constexpr uint32_t implausible_timeout_us = 2'000'000;
 
     /// Record a valid raw sample. Call only from the sample ISR (one writer).
+    /// Outside high precision mode and after a tare, a larger tared load [g] is not physical.
+    /// The self test accepts a tap of 500 to 2000 g. FailureOnLoadAboveEnforcer uses 3000 g during probe moves.
+    /// The nozzle cooling from 170 to 35 degC moved the load by about -570 g on a CORE One L.
+    /// A separation of the bridge wires on a CORE One L gave about +21 kg.
+    static constexpr float max_plausible_load_g = 5000.f;
+
+    /// @param tared_load_g Load relative to the last tare
+    /// @param high_precision True during a probe: a probe can push harder for a short time
+    /// @param tare_valid False before the first tare: then the offset is 0, and a connected load cell
+    ///                   can read -21 kg untared
+    static constexpr bool load_plausible(float tared_load_g, bool high_precision, bool tare_valid) {
+        return high_precision || !tare_valid || (tared_load_g <= max_plausible_load_g && tared_load_g >= -max_plausible_load_g);
+    }
+
     /// @param load_plausible False if the caller knows that the load cannot be physical
     void feed(int32_t raw, bool load_plausible) {
         valid_count.store(valid_count.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);

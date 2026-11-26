@@ -173,3 +173,21 @@ TEST_CASE("loadcell_health: a short implausible load has no fault") {
         CHECK(rig.run(500'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
     }
 }
+
+TEST_CASE("loadcell_health: load_plausible") {
+    using LH = LoadcellHealth;
+    // After a tare, outside high precision mode: the limit applies to both signs
+    CHECK(LH::load_plausible(0.f, false, true));
+    CHECK(LH::load_plausible(LH::max_plausible_load_g, false, true));
+    CHECK(LH::load_plausible(-LH::max_plausible_load_g, false, true));
+    CHECK_FALSE(LH::load_plausible(LH::max_plausible_load_g + 1.f, false, true));
+    CHECK_FALSE(LH::load_plausible(-LH::max_plausible_load_g - 1.f, false, true));
+    // Separated bridge wires on the CORE One L: tare at -21 kg, then the input reads about -86 g
+    CHECK_FALSE(LH::load_plausible(21'000.f, false, true));
+    // Upstream issue #3476 (MK4): connected about +15270 g untared, disconnected about -26570 g
+    CHECK_FALSE(LH::load_plausible(-26'570.f - 15'270.f, false, true));
+    // A probe (high precision mode) can push harder for a short time
+    CHECK(LH::load_plausible(21'000.f, true, true));
+    // Before the first tare, the offset is 0: the untared value of a connected load cell can be -21 kg
+    CHECK(LH::load_plausible(-21'000.f, false, false));
+}

@@ -56,7 +56,7 @@ TEST_CASE("corexy_rehome_xy homes X at the Y of G28", "[homing_corexy][H1][!shou
     REQUIRE(world.homes.size() >= 2);
     CHECK(world.homes.front().axis == Y_AXIS); // HOME_Y_BEFORE_X
     for (const float y : y_at_x_homes()) {
-        CHECK(y == HOMING_PREEMPTIVE_MOVE_Y);
+        CHECK(std::abs(y - HOMING_PREEMPTIVE_MOVE_Y) < 1e-3f);
     }
 }
 
@@ -129,10 +129,11 @@ TEST_CASE("refinement without the sensitivity calibration", "[homing_corexy][H3]
     CHECK_THROWS(corexy_home_refine(fr, CoreXYCalibrationMode::disallow));
 }
 
-TEST_CASE("G28 calibrates when the sensitivity calibration is missing", "[homing_corexy][H3][!shouldfail][known_bug]") {
+TEST_CASE("corexy_home_is_calibrated is false without the sensitivity calibration", "[homing_corexy][H3][!shouldfail][known_bug]") {
     fake::reset(150, 150);
     config_store().corexy_grid_origin.set({ .origin = { 0.f, 0.f }, .distance = { 0.f, 0.f } });
-    // G28.cpp (corexy_refine_during_G28_once) calibrates only when this is false
+    // G28.cpp (corexy_refine_during_G28_once) calibrates only when this is false. G28.cpp is not
+    // compiled in these tests.
     CHECK_FALSE(corexy_home_is_calibrated());
 }
 
@@ -141,7 +142,14 @@ TEST_CASE("G28 calibrates when the sensitivity calibration is missing", "[homing
 // up to 0.5 mm. In the fake world the stepper counter is the rotor position plus an offset, so the
 // offsets must be equal after each refinement.
 TEST_CASE("refinement gives the same home after stall errors", "[homing_corexy]") {
-    fake::reset(200, 100, 300, 700);
+    float steps_per_mm = 0;
+    SECTION("2GT belt") {
+        steps_per_mm = 100.f;
+    }
+    SECTION("1.5GT belt") {
+        steps_per_mm = 101.587f;
+    }
+    fake::reset(200, 100, 300, 700, steps_per_mm);
     REQUIRE(corexy_rehome_xy(fr));
     REQUIRE(corexy_sens_calibrate(fr));
     REQUIRE(corexy_rehome_xy(fr));

@@ -11,7 +11,7 @@ struct Cycles {
     float a, b;
 };
 
-/// Rehome Cycles (when rehome is true), move to the refinement origin and align the phases
+/// Rehome XY (when rehome is true), move to the refinement origin and align the phases
 bool rehome_and_phase(bool rehome);
 /// Measure the phase cycles at the current origin (rehome_and_phase() first). measure_phase_cycles().
 bool measure_phase_cycles(Cycles &c_dist);

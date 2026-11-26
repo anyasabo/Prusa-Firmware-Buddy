@@ -84,8 +84,9 @@ float machine_y(int32_t a, int32_t b) {
     return static_cast<float>((a + world.offset_a) - (b + world.offset_b)) / 2.f * planner.mm_per_step[Y_AXIS];
 }
 
-void reset(float x_mm, float y_mm, int phase_a, int phase_b) {
+void reset(float x_mm, float y_mm, int phase_a, int phase_b, float steps_per_mm_xy) {
     world = World {};
+    planner.mm_per_step[X_AXIS] = planner.mm_per_step[Y_AXIS] = 1.f / steps_per_mm_xy;
     const float spm = steps_per_mm();
     world.x2_wall = static_cast<int32_t>(std::lround(2 * X_MAX_POS * spm));
     world.y2_wall = static_cast<int32_t>(std::lround(2 * Y_MIN_POS * spm));
@@ -174,7 +175,10 @@ FakeTMC &stepper_axis(AxisEnum axis) {
 void stepper_wait_for_standstill(uint8_t) {}
 
 int phase_stepping::logical_ustep(AxisEnum axis) {
-    // 16 microsteps: one full step is 1024 / 4 / 16 = 16 MSCNT units
+    // One Marlin microstep (16 microsteps) is 256 / 16 = 16 MSCNT units. The MSCNT increases with
+    // the stepper counter. This is the sign for which phase_backoff_steps() of homing_corexy.cpp
+    // aligns the phase with INVERT_X_DIR and INVERT_Y_DIR true. The fake does not check the sign of
+    // the real drivers.
     constexpr int per_step = 256 / X_MICROSTEPS;
     const int64_t raw = axis == A_AXIS ? world.phase_a + int64_t(world.rotor_a) * per_step
                                        : world.phase_b + int64_t(world.rotor_b) * per_step;

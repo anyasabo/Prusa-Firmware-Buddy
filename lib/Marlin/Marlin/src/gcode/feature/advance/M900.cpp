@@ -60,7 +60,11 @@ void GcodeSuite::M900() {
     }
     if (VirtualToolIndex::currently_selected_opt() != *tool) {
       SERIAL_ECHO_START();
-      SERIAL_ECHOLNPAIR("M900 T", gcode_tool, " ignored: pressure advance applies only to the active tool");
+      SERIAL_ECHOPAIR("M900 T", gcode_tool, " ignored: pressure advance applies only to the active tool");
+      if (!VirtualToolIndex::currently_selected_opt()) {
+        SERIAL_ECHOPGM(", and no tool is active");
+      }
+      SERIAL_EOL();
       return;
     }
   }

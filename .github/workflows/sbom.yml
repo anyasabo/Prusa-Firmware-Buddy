@@ -4,8 +4,9 @@
 #   utils/sbom/ci.sh check   pre-commit hooks: yapf, ruff, ty, pytest,
 #                            check-sbom-manifest, gen-vex (lib/vex.json up to date)
 #   utils/sbom/ci.sh scan    Grype + lib/vex.json on the main, esp8266-wifi and
-#                            esp32-wifi SBOMs; fails on findings the VEX does not
-#                            decide (known "affected" findings pass)
+#                            esp32-wifi SBOMs; findings the VEX does not decide
+#                            are warnings (annotations), not failures. Only a
+#                            tool error fails the job
 #
 # Versions are pinned in .pre-commit-config.yaml, utils/sbom/ci.sh (prek) and
 # utils/sbom/scan.sh (Grype), not here.
@@ -13,7 +14,7 @@ name: SBOM
 
 on:
   push:
-    branches: [sbom-scanning]
+    branches: [sbom-scanning, anya/main]
     paths: &paths
       - lib/sbom.yml
       - lib/sbom.schema.json

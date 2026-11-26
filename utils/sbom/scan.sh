@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Scan the shipped firmware images: CycloneDX SBOM per image, Grype with
-# lib/vex.json, then fail on findings the VEX does not decide (vex_gate.py).
+# lib/vex.json, then report the findings (vex_gate.py). A finding that the VEX
+# does not decide is a warning, not a failure. A tool error still fails.
 #
 #   utils/sbom/scan.sh [OUT_DIR]     (default: build-sbom/)
 #

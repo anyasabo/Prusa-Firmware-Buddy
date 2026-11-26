@@ -10,7 +10,7 @@ vulnerabilities, with the triage in `lib/vex.json`.
 | `check_sbom_manifest.py` | Pre-commit hook: the manifest matches the tree (`.gitrepo` commits, `bootstrap.py` pins, paths) |
 | `gen_sbom.py` | CycloneDX 1.6 SBOM, per image with `--image` |
 | `gen_vex.py` | Writes `lib/vex.json` from its triage table; edit the table, not the JSON |
-| `scan.sh`, `vex_gate.py` | Grype + VEX on each shipped image; fails on findings the VEX does not decide |
+| `scan.sh`, `vex_gate.py` | Grype + VEX on each shipped image; warns about findings the VEX does not decide (a new CVE does not fail the build), fails on tool errors |
 | `match_nvdpp.py`, `sbom_feeds.py` | Extra feeds for CVEs that CPE scanners miss (NVD++, Mbed TLS advisories, GitHub advisories, KEV) |
 
 ## Running what CI runs

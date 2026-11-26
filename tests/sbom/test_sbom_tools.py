@@ -1,6 +1,9 @@
 """Tests for the SBOM tooling in utils/ (run: pytest tests/sbom)."""
 from __future__ import annotations
 
+import json
+import sys
+
 import pytest
 
 import gen_sbom
@@ -114,3 +117,27 @@ def test_vex_gate_counts_only_undecided_findings() -> None:
     ], status)
     assert new == 1  # decided for pkg:a only
     assert "- **NEW**: CVE-1 in x 1 (?)" in lines
+
+
+def test_vex_gate_warns_and_passes_on_new_findings(
+        tmp_path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # A new CVE must not fail the build: it is a warning for a person to triage.
+    result = tmp_path / "main.grype.json"
+    result.write_text(json.dumps({"matches": [match("CVE-NEW", "pkg:new")]}))
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setattr(sys, "argv", ["vex_gate.py", str(result)])
+    assert vex_gate.main() == 0
+    out, err = capsys.readouterr()
+    assert "1 finding(s) not in lib/vex.json." in out
+    assert "::warning title=New vulnerability::CVE-NEW in x 1" in err
+
+
+def test_vex_gate_fails_on_unreadable_results(
+        tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # A tool error (here: Grype wrote no JSON) still fails.
+    result = tmp_path / "main.grype.json"
+    result.write_text("")
+    monkeypatch.setattr(sys, "argv", ["vex_gate.py", str(result)])
+    with pytest.raises(json.JSONDecodeError):
+        vex_gate.main()

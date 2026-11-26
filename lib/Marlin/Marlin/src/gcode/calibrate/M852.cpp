@@ -27,6 +27,7 @@
 #include "../gcode.h"
 #include "../../module/planner.h"
 #include "../../module/motion.h"
+#include "../../module/prusa/skew.hpp"
 #include <config_store/store_instance.hpp>
 
 /** \addtogroup G-Codes
@@ -57,12 +58,13 @@ void GcodeSuite::M852() {
   if (!parser.seen("SIJKW")) return M852_report();
 
   uint8_t badval = 0, setval = 0;
+  skew_factor_t factor = planner.skew_factor; // Buddy: set_skew_factor() applies the new factors below
 
   if (parser.seenval('I') || parser.seenval('S')) {
     const float value = parser.value_linear_units();
     if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX)) {
-      if (planner.skew_factor.xy != value) {
-        planner.skew_factor.xy = value;
+      if (factor.xy != value) {
+        factor.xy = value;
         ++setval;
       }
     }
@@ -75,8 +77,8 @@ void GcodeSuite::M852() {
     if (parser.seenval('J')) {
       const float value = parser.value_linear_units();
       if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX)) {
-        if (planner.skew_factor.xz != value) {
-          planner.skew_factor.xz = value;
+        if (factor.xz != value) {
+          factor.xz = value;
           ++setval;
         }
       }
@@ -87,8 +89,8 @@ void GcodeSuite::M852() {
     if (parser.seenval('K')) {
       const float value = parser.value_linear_units();
       if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX)) {
-        if (planner.skew_factor.yz != value) {
-          planner.skew_factor.yz = value;
+        if (factor.yz != value) {
+          factor.yz = value;
           ++setval;
         }
       }
@@ -103,10 +105,10 @@ void GcodeSuite::M852() {
 
   // When skew is changed the current position changes
   if (setval) {
-    // Buddy: wait for the queued moves, so the stepper position is the end of the last move
-    planner.synchronize();
-    set_current_from_steppers_for_axis(ALL_AXES_ENUM);
-    sync_plan_position();
+    // Buddy: set_skew_factor() waits for the queued moves before it changes the factors, and it keeps the planner
+    // position and E. Marlin reads all axes from the steppers and syncs the planner. In the edge band of skew(),
+    // that can move the planner position, and the stepper E differs from current_position.e if the flow is not 100 %.
+    set_skew_factor(factor);
     report_current_position();
   }
 

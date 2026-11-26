@@ -346,8 +346,9 @@ void resume_loop() {
 
         // planner.skew_disabled stays 0 (as after the boot). The skew guards of G28, G29 and G12 are objects on the
         // stack of the interrupted command, and nothing releases a restored count. The replayed command makes a new
-        // guard. But the ISR saved the native positions with the skew off, so convert them to the skew on. For a
-        // pause or a crash, the positions come from an earlier time, so they are not converted.
+        // guard. But the ISR saved the native positions with the skew off, so convert them to the skew on. A pause
+        // starts only between commands, so no guard is active. After a crash, the guard unwound before the power
+        // loss, so the count does not tell the frame of the crash positions.
         if (state_buf.planner.skew_disabled && !state_buf.planner.was_paused && !state_buf.planner.was_crashed) {
             state_buf.crash.crash_native_position.set(native_pos_with_skew(state_buf.crash.crash_native_position.xyz()));
             state_buf.crash.start_current_position.set(native_pos_with_skew(state_buf.crash.start_current_position.xyz()));

@@ -7,6 +7,7 @@
     #include <module/motion.h>
     #include <module/planner.h>
     #include <config_store/store_instance.hpp>
+    #include <interrupt_disabler.hpp>
 
 namespace {
 
@@ -21,6 +22,11 @@ template <typename F>
 void keep_machine_position(const F &change) {
     planner.synchronize();
     const MachinePosXYZ machine_position = planner.get_machine_position_mm().xyz();
+
+    // The AC fault ISR (power panic) saves planner.skew_disabled, the factors and current_position. Change them
+    // together, so the ISR does not see a new skew state with an old current_position. The block is short: the ISR
+    // itself runs the same to_native_pos() (Crash_s::save_state() calls unapply_leveling()).
+    buddy::InterruptDisabler _;
     change();
     current_position.set(to_native_pos(machine_position));
 }

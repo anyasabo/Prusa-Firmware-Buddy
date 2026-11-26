@@ -1,5 +1,6 @@
 /// Tests of the skew guards and the config store item (module/prusa/skew.cpp)
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <limits>
@@ -167,8 +168,11 @@ TEST_CASE("skew native position saved with the skew off") {
     UBL::z_correction = 0.1f;
     UBL::slope = { { { 0.001f, -0.0005f } } };
     Planner::skew_factor = { 0.001f, 0.001f, -0.001f };
+    const float fade_height = GENERATE(0.0f, 10.0f);
+    Planner::set_z_fade_height(fade_height);
+    CAPTURE(fade_height);
 
-    for (const MachinePosXYZ m : { MachinePosXYZ { 150, 150, 30 }, MachinePosXYZ { 20, 280, 100 }, MachinePosXYZ { 280, 20, 0.2f } }) {
+    for (const MachinePosXYZ m : { MachinePosXYZ { 150, 150, 30 }, MachinePosXYZ { 20, 280, 100 }, MachinePosXYZ { 280, 20, 0.2f }, MachinePosXYZ { 100, 100, 5 } }) {
         CAPTURE(m.x, m.y, m.z);
         Planner::skew_disabled = 1;
         const xyz_pos_t saved = to_native_pos(m);

@@ -219,8 +219,4 @@ const char *to_short_string(Type type) {
     return filter_short_names.get_or(type, "UNK");
 }
 
-float clamp_frequency_to_safe_values(float frequency) {
-    return std::clamp(frequency, frequency_safe_min, frequency_safe_max);
-}
-
 } // namespace input_shaper

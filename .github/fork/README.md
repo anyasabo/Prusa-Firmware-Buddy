@@ -8,6 +8,18 @@
 | Topic branches (`eth-rx-descriptors`, `thermal-runaway-gap-pr`, `fanctl-pwm-on-int16`, ...) | One upstream pull request each, on `upstream/master` | No fork files. No test G-codes or runtime switches. Do not force-push. To change history, make a new branch (`-pr`, `-v2`) |
 | `metrics-defaults` | The experiment line: upload fixes behind runtime switches (on at boot), FatFs R0.16, USB host 3.5.5, metrics on by default, profiling, test G-codes `M9958` and `M9959` | Experiments only. Each experiment branch starts from it |
 | `anya/main` | The build that people use: `upstream/master` + a merge of `metrics-defaults` + a merge of each topic branch + the fork files | Merge, do not rebase. Only the fork files and small fork fixes are commits of their own |
+| `anya/latest` | Before anya.8: `anya/main` + the GCC 16 toolchain. `anya/main` has that toolchain now | Not maintained. Kept for the old builds `latest.N` |
+
+## Toolchain
+
+`anya/main` uses the latest toolchain, not the pins of upstream. Thus the full fork finds the problems of a new compiler early. The toolchain comes from the branch `toolchain-gcc16-fork`:
+
+- GCC 16.2.0, binutils 2.47 and newlib 4.6.0: the Arch Linux `arm-none-eabi-*` packages, copied unchanged to the fork release `toolchain-arm-none-eabi-gcc-16.2.0-arch.1`. `utils/bootstrap.py` checks the SHA-256 of each package.
+- CMake 4.4.5 and Ninja 1.13.2.
+
+The topic branches for upstream keep the pinned upstream toolchain (Arm GCC 13.3.1, CMake 3.28.3, Ninja 1.10.2). Before you file a pull request, build the topic branch with that toolchain. To change the toolchain of `anya/main`, change `toolchain-gcc16-fork` and merge it again. `lib/sbom.yml` must describe the new versions, else `utils/sbom/ci.sh check` fails.
+
+## Update
 
 To update `anya/main`: merge the new upstream base (or a new upstream release tag), then merge each
 topic branch and `metrics-defaults` again. A topic branch that upstream accepted is not merged again.

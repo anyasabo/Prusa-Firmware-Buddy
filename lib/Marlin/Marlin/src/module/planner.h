@@ -900,10 +900,20 @@ class Planner {
 
     #if DISABLED(CLASSIC_JERK)
 
-      FORCE_INLINE static void normalize_junction_vector(MachinePosXYZE &vector) {
+      /// Below this squared length, the difference of two unit vectors is float noise and has no
+      /// direction (about 0.08 deg between the two vectors). The value of upstream Marlin (#28433).
+      static constexpr float junction_vector_marginal_sq = 2.0e-6f;
+
+      /// Scale vector to the length 1.
+      /// @returns false, and does not change vector, if its squared length is junction_vector_marginal_sq or less
+      FORCE_INLINE static bool normalize_junction_vector(MachinePosXYZE &vector) {
         float magnitude_sq = 0;
         LOOP_XYZE(idx) if (vector[idx]) magnitude_sq += sq(vector[idx]);
+        if (magnitude_sq <= junction_vector_marginal_sq) {
+          return false;
+        }
         vector *= RSQRT(magnitude_sq);
+        return true;
       }
 
       /// Largest acceleration along unit_vec that keeps every axis within its

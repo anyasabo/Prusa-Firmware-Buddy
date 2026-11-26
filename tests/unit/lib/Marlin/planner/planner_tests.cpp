@@ -253,3 +253,33 @@ TEST_CASE("planner: speed on an arc of short segments is the centripetal limit")
     CHECK(v.back() <= 1.05 * centripetal);
     CHECK(v.front() >= 0.9 * std::min(centripetal, lookahead));
 }
+
+// A straight line of short print segments where only the E per mm changes a little (Arachne width
+// steps, E rounding of the slicer). The difference of the two unit vectors is almost zero, and
+// normalize_junction_vector() makes a unit vector of its float noise: here a pure E direction. Then
+// the E limit of M204 F (120 mm/s^2) limits the junction acceleration, and the small segment
+// limit sqrt(L * a / theta) with theta = 0.0014 rad (cos clamped to -0.999999) is about 130 mm/s
+// at L = 0.2 mm. The real change of the E speed at the junction is about 0.01 mm/s.
+// Upstream Marlin #28433 uses the full acceleration when the difference is that small.
+TEST_CASE("planner: a straight line of short segments with small E changes is not slowed") {
+    Settings s;
+    s.acceleration = 4000;
+    Runner r(s);
+    r.take_rate = 0;
+    const float seg = 0.2f;
+    float e = 0;
+    for (int i = 1; i <= 60; ++i) {
+        e += seg * (i % 2 ? 0.03740f : 0.03745f);
+        r.move({ 50 + seg * float(i), 100, 0.2f, e }, 200, { .is_printing_move = true });
+    }
+    require_clean(r.finish());
+    // The junction limit of each block on the line: the feed rate, as on a straight line with a
+    // constant E per mm. Before the fix: 108 to 130 mm/s. Block 0 comes from the origin, so the
+    // junction between blocks 0 and 1 is a real corner.
+    REQUIRE(taken().size() == 60);
+    float lowest = 1000;
+    for (size_t i = 2; i < taken().size(); ++i) {
+        lowest = std::min(lowest, std::sqrt(taken()[i].block.max_entry_speed_sqr));
+    }
+    CHECK(lowest >= 0.99f * 200);
+}

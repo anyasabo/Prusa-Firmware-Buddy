@@ -2,6 +2,7 @@
 // Common types of the differential test: the motion that the test sends, and the steps that come out.
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -22,6 +23,12 @@ struct Block {
     // as when the planner queue runs dry. v_start must be 0, and the block before must end at 0.
     bool halt_before = false;
 };
+
+/// The smooth time that Buddy uses: create_pressure_advance_params() rounds the sample period
+/// (smooth_time / 40) to whole us. Klipper gets this value, so both smooth over the same window.
+inline double effective_smooth_time(float smooth_time) {
+    return double(std::llround(double(smooth_time) / 40. * 1e6)) * 40e-6;
+}
 
 struct Config {
     // CORE One L, 2GT belts, 16 microsteps (Configuration_COREONEL.h)

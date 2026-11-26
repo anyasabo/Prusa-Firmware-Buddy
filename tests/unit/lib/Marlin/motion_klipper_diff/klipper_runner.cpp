@@ -43,7 +43,7 @@ KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segm
         }
     }
     p.pressure_advance = config.pressure_advance;
-    p.smooth_time = config.smooth_time;
+    p.smooth_time = effective_smooth_time(config.smooth_time);
     p.record_from = config.record_from_us * 1e-6;
 
     std::vector<kl_move> moves;

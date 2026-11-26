@@ -139,11 +139,11 @@ PaErrorBound::PaErrorBound(const Config &config, const std::vector<Segment> &seg
             const double dp = std::abs(p_jump(s, false) - p_jump(prev, true));
             const double dq = std::abs(q(s, false) - q(prev, true));
             // A position jump J moves to the next sample (up to h late). The smoothed jump rises with
-            // a slope of at most J / (st / 2) (triangle window), so the error is up to J * h / st * 2
-            // in the worst sample phase and J / 40 on average; the review measured J / 40 as the bound
-            // of the step position (scripts/pa_jump.py). A speed jump dq bends the smoothed curve with
-            // dq / (st / 2); linear interpolation between samples is off by h^2 / 8 of that, plus the
-            // sampled kernel error: st * dq / 4800 (scripts/pa_kink.py).
+            // a slope of at most J / (st / 2) (triangle window); the review measured J / 40 as the bound
+            // of the step position (/workspaces/prusa/.work/motion-review/scripts/pa_jump.py). A speed
+            // jump dq bends the smoothed curve with dq / (st / 2); linear interpolation between samples
+            // is off by h^2 / 8 of that, plus the sampled kernel error: st * dq / 4800
+            // (scripts/pa_kink.py). One fuzz input exceeds this bound (motion-audit.md, open item).
             if (dp > 0. || dq > 0.) {
                 jumps_.push_back({ s.print_time * 1e6, dp / 40. + st * dq / 4800. });
             }

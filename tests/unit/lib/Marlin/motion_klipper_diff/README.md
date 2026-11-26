@@ -10,12 +10,32 @@
 
 The real motion sources are compiled from a copy in the build directory, next to the stubs in `stubs/` (see `CMakeLists.txt`). The `debug_assert()` checks of the motion core stay on.
 
-## Limits (`check_axis()` in `compare.cpp`)
+## Limits (`compare_axis()` and `check_axis()` in `compare.cpp`)
 
-- A step agrees with one of two limits: the time difference is at most 25 µs + 1 µs, or it is less than half of the local step interval. 25 µs is Klipper's default `max_error`: Klipper itself sends step times that differ from its ideal times by up to this much. Buddy rounds the step times down to whole µs, which adds up to 1 µs. Near zero speed, a tiny position error is a large time error, so there the step interval is the limit.
-- The planner positions are quarter steps. Thus a move can end exactly on a step boundary, and the last step at zero speed can go either way. The end positions can differ by one step, and one step for each axis can have any time.
-- Near zero speed, one side can make step pairs (a step and a step back) that the other side does not make. Thus the limit is the position difference at any time: at most 1 step (plus the PA allowance below). Klipper removes some pairs before it sends the steps to the MCU (the 750 µs rollback in `stepcompress.c`). Those Klipper steps have no time limit and do not count.
-- Pressure advance: Buddy samples the PA position every `smooth_time / 40` (h), filters the samples and interpolates linearly between the filter outputs. Klipper integrates exactly. This is allowed in addition (`pa_error_bound_steps()`): a jump J of the PA position (at the start or the end of an extrusion) moves to the next sample, error J / 20. A jump Δv of the PA speed bends the smoothed curve, interpolation error `smooth_time` × Δv / 6400. A constant acceleration a gives the interpolation error h² × a / 8.
+The Klipper side is the raw itersolve output, which is exact to about 1 ns. The test also asks Klipper for its exact stepper position (`kl_session_position()`: the function whose crossings itersolve finds, with the input shaper and the PA smoothing). An axis fails in four cases:
+
+- At a Buddy step, the exact position is more than 0.5 step from the boundary that the step crosses. The test reads it at the step time and 1 µs later. This is the time limit "half of the local step interval + 1 µs" in position units. Buddy rounds the step times down to whole µs.
+- At a Klipper crossing, the Buddy position is more than 1 step from it. This finds lost and wrong steps.
+- The end positions differ by more than 0.5 step. An end exactly on a boundary (the planner works in quarter steps) agrees with both neighbours, so a tie needs no exemption.
+- The step events do not add up to the stepper position.
+
+Two Buddy approximations are allowed in addition:
+
+- Pressure advance (`PaErrorBound`): Buddy samples the PA position every h = `smooth_time / 40`, filters the samples and interpolates linearly. Each jump J of the PA position adds J / 40. Each jump Δv of the PA speed adds `smooth_time` × Δv / 4800. Both apply within `smooth_time` / 2 + h of the jump. A constant acceleration a adds h² × a / 8 everywhere.
+- Input shaper (`IsEpsilonBound`): Buddy sets a micro segment acceleration with |half_accel| ≤ 0.1 mm/s² to zero and keeps the average speed, and speeds below 1e-4 mm/s to zero. In a micro segment of duration T, this is off by up to 0.1 × T² / 4 + 1e-4 × T. T is at most the longest move segment near the step.
+
+The pairing of the steps by boundary gives only statistics (time differences, steps without a partner).
+
+After a halt, PreciseStepping starts again at time 0 and E 0. For Klipper, the driver continues the time at the end of the last real segment plus the shaper or PA tail. It continues E at the commanded E, rounded to a step for each motion. Thus lost E steps before a halt stay visible after it.
+
+## Inputs that are compared
+
+`scenario.cpp` makes only inputs inside these ranges. Inputs outside them are not compared with Klipper:
+
+- Input shaper: `frequency_safe_min` to `frequency_safe_max` (10 to 100 Hz), damping 0 to 0.3, vibration reduction 10 to 30.
+- Pressure advance 0.005 to 0.2, smooth time 0.01 to 0.12 s. Below 0.01 s, see `anya/pa-smooth-time-min`. Above 0.12 s, the `check_step_time()` debug check of v8.0.2 fails.
+- Speeds and accelerations that the planner can make: both ends of a block are reachable within it, and a block starts at the end speed of the block before. The junctions are not limited by the geometry.
+- The driver checks that Buddy takes the configuration unchanged. The only change is the rounding of the PA sample period to whole µs, and Klipper gets the same rounded smooth time.
 
 ## What is covered
 

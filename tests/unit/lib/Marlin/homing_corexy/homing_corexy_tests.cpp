@@ -114,9 +114,9 @@ TEST_CASE("measure_phase_cycles fails on a late trigger", "[homing_corexy]") {
     CHECK(world.single_motor_bumps() == 1);
 }
 
-// H3: corexy_sens_is_calibrated() has no caller (since 7694a03f2). G28 checks only the grid origin
-// (corexy_home_is_calibrated()). With an origin and no sensitivity calibration, the refinement
-// measures without a sensitivity and BSODs ("axis measurement without calibration").
+// H3: with an origin and no sensitivity calibration, corexy_home_refine() measures without a
+// sensitivity and BSODs ("axis measurement without calibration"). Thus corexy_home_is_calibrated(),
+// which G28 checks before the refinement, also checks the sensitivity calibration.
 TEST_CASE("refinement without the sensitivity calibration", "[homing_corexy][H3]") {
     fake::reset(150, 150);
     REQUIRE(corexy_rehome_xy(fr));
@@ -129,11 +129,13 @@ TEST_CASE("refinement without the sensitivity calibration", "[homing_corexy][H3]
     CHECK_THROWS(corexy_home_refine(fr, CoreXYCalibrationMode::disallow));
 }
 
-TEST_CASE("G28 calibrates when the sensitivity calibration is missing", "[homing_corexy][H3][!shouldfail][known_bug]") {
+TEST_CASE("G28 calibrates when the sensitivity calibration is missing", "[homing_corexy][H3]") {
     fake::reset(150, 150);
     config_store().corexy_grid_origin.set({ .origin = { 0.f, 0.f }, .distance = { 0.f, 0.f } });
     // G28.cpp (corexy_refine_during_G28_once) calibrates only when this is false
     CHECK_FALSE(corexy_home_is_calibrated());
+    store_sensitivity();
+    CHECK(corexy_home_is_calibrated());
 }
 
 // The purpose of the refinement: after a calibration, each home gives the same machine

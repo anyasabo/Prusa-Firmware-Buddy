@@ -1380,6 +1380,13 @@ bool corexy_home_refine(float fr_mm_s, CoreXYCalibrationMode mode) {
 }
 
 bool corexy_home_is_calibrated() {
+#if HAS_TRINAMIC && defined(XY_HOMING_MEASURE_SENS_MIN)
+    // The refinement measures with the calibrated sensitivity and BSODs without it. G28 calibrates
+    // (sensitivity, then origin) when this returns false.
+    if (!corexy_sens_is_calibrated()) {
+        return false;
+    }
+#endif
     const CoreXYGridOrigin calibrated_origin = config_store().corexy_grid_origin.get();
     return !calibrated_origin.uninitialized();
 }

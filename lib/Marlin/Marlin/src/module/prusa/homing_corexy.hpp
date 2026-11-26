@@ -28,7 +28,7 @@ bool corexy_rehome_xy(const float fr_mm_s);
 bool corexy_home_refine(const float fr_mm_s, CoreXYCalibrationMode mode);
 
 /**
- * @brief Return the calibration status of the home origin
+ * @brief Return the calibration status of the home origin (and of the TMC sensitivity, if used)
  * @return true if already calibrated
  */
 bool corexy_home_is_calibrated();

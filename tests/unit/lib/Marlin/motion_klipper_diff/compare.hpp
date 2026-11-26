@@ -38,6 +38,9 @@ struct AxisComparison {
     // The time difference as a part of a step: |diff| / (local step interval of Klipper). It is the
     // position error that the time difference causes. 1.0 = one whole step.
     double max_err_steps = 0;
+    // The largest difference of the two step positions at any time (steps). Klipper steps that the
+    // rollback filter removes are not counted.
+    int64_t max_pos_diff = 0;
     double max_abs_diff_us() const { return std::max(-min_diff_us, max_diff_us); }
 };
 

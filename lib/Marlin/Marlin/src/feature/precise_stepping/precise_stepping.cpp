@@ -1524,7 +1524,8 @@ void PreciseStepping::update_maximum_lookback_time() {
     LOOP_XYZ(i) {
         if (physical_axis_step_generator_types & (INPUT_SHAPER_STEP_GENERATOR_X << i)) {
     #ifdef COREXY
-            if ((physical_axis_step_generator_types & INPUT_SHAPER_STEP_GENERATOR_X) || (physical_axis_step_generator_types & INPUT_SHAPER_STEP_GENERATOR_Y)) {
+            // The physical X and Y (A, B) steppers both follow the logical X and Y shapers. Z has its own.
+            if (i == X_AXIS || i == Y_AXIS) {
                 max_lookback_time = std::max(max_lookback_time, std::max(-InputShaper::logical_axis_pulses[X_AXIS].pulses[0].t, -InputShaper::logical_axis_pulses[Y_AXIS].pulses[0].t));
             } else {
                 max_lookback_time = std::max(max_lookback_time, -InputShaper::logical_axis_pulses[i].pulses[0].t);

@@ -130,15 +130,33 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
         }
     }
     c.mean_abs_diff_us = c.matched ? sum_abs / double(c.matched) : 0.;
+
+    // Walk both lists in time order and follow the two positions.
+    {
+        int64_t pb = buddy_start, pk = klipper_start;
+        size_t i = 0, j = 0;
+        while (i < buddy.size() || j < klipper.size()) {
+            const bool take_buddy = j == klipper.size() || (i < buddy.size() && buddy[i].time_us <= klipper[j].time_us);
+            if (take_buddy) {
+                pb += buddy[i++].positive ? 1 : -1;
+            } else {
+                if (!rolled_back(klipper, j)) {
+                    pk += klipper[j].positive ? 1 : -1;
+                }
+                ++j;
+            }
+            c.max_pos_diff = std::max(c.max_pos_diff, std::abs(pb - pk));
+        }
+    }
     return c;
 }
 
 std::string describe(const AxisComparison &c) {
     char buf[400];
     std::snprintf(buf, sizeof(buf),
-        "buddy %zu klipper %zu matched %zu unmatched buddy %zu klipper %zu net %lld/%lld diff us [%.3f, %.3f] mean|d| %.3f worst at %.1f us over %zu err %.4f steps",
+        "buddy %zu klipper %zu matched %zu unmatched buddy %zu klipper %zu net %lld/%lld diff us [%.3f, %.3f] mean|d| %.3f worst at %.1f us over %zu err %.4f steps pos diff %lld",
         c.buddy_steps, c.klipper_steps, c.matched, c.unmatched_buddy, c.unmatched_klipper, (long long)c.buddy_net, (long long)c.klipper_net,
-        c.min_diff_us, c.max_diff_us, c.mean_abs_diff_us, c.worst_time_us, c.over_limit, c.max_err_steps);
+        c.min_diff_us, c.max_diff_us, c.mean_abs_diff_us, c.worst_time_us, c.over_limit, c.max_err_steps, (long long)c.max_pos_diff);
     return buf;
 }
 
@@ -203,11 +221,13 @@ std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allo
     if (std::abs(c.buddy_net - c.klipper_net) > 1) {
         return "the end position differs from Klipper";
     }
-    // Steps near zero speed: Klipper or Buddy can make one extra step pair where the other does not.
-    const size_t allowed_unmatched = 4 + 2 * size_t(std::ceil(allowed_err_steps));
-    if (c.unmatched_buddy > allowed_unmatched || c.unmatched_klipper > allowed_unmatched) {
+    // Near zero speed, one side can make step pairs (a step and a step back) that the other side does
+    // not make, and the two positions are one step apart for a short time. Thus the limit is the
+    // position difference, not the number of steps without a partner.
+    const int64_t allowed_pos_diff = 1 + int64_t(std::ceil(allowed_err_steps));
+    if (c.max_pos_diff > allowed_pos_diff) {
         char buf[96];
-        std::snprintf(buf, sizeof(buf), "too many steps without a partner (allowed %zu)", allowed_unmatched);
+        std::snprintf(buf, sizeof(buf), "the positions differ by %lld steps (allowed %lld)", (long long)c.max_pos_diff, (long long)allowed_pos_diff);
         return buf;
     }
     // One step for each axis and motion can land exactly on the end position (a quarter-step tie, as

@@ -185,24 +185,33 @@ IsEpsilonBound::IsEpsilonBound(const Config &config, const std::vector<Segment> 
     // The pulse span S: a micro segment with pulses on both sides of a segment boundary is at most
     // S long.
     double span_s = 0.;
+    int pulse_count = axis < 2 ? 2 : 0; // a null shaper of X or Y has one pulse
     for (const auto *c : shapers) {
         const input_shaper::Shaper p = input_shaper::get(c->damping_ratio, c->frequency, c->vibration_reduction, c->type);
         span_s = std::max(span_s, double(p.t[p.num_pulses - 1] - p.t[0]));
+        pulse_count += p.num_pulses - (axis < 2 ? 1 : 0);
     }
     // The stepper share of the path: CoreXY A = X + Y, B = X - Y (get_move_axis_r()).
     const auto r_axis = [axis](const Segment &s) {
         return axis == 0 ? s.axes_r[0] + s.axes_r[1] : (axis == 1 ? s.axes_r[0] - s.axes_r[1] : s.axes_r[2]);
     };
-    // The firmware compares floats with these float constants: a small margin keeps a double just
-    // above them inside.
-    const double accel_eps = double(INPUT_SHAPER_ACCELERATION_EPSILON) * (1. + 1e-6);
-    const double v_eps = double(INPUT_SHAPER_VELOCITY_EPSILON) * (1. + 1e-6);
+    // The firmware compares a float with the float epsilons. On CoreXY it sums the X and the Y terms
+    // in float over the pulses and takes the difference (calc_micro_move_segment()), so its result
+    // can be off by a few float ulps of the logical terms for each pulse. `float_margin` covers this
+    // (fourth review: the double h 0.1000012 is 0.0999756 in float, and the firmware zeroes it).
+    const auto logical = [axis](const Segment &s) {
+        return axis < 2 ? std::abs(s.axes_r[0]) + std::abs(s.axes_r[1]) : std::abs(s.axes_r[2]);
+    };
+    const auto float_margin = [&](double value_of_path) { return 4. * pulse_count * std::ldexp(value_of_path, -24); };
     steps_per_mm_ = config.steps_per_mm[axis];
     for (const Segment &s : segments) {
         if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
             continue;
         }
         const double T = s.move_time;
+        const double accel_eps = double(INPUT_SHAPER_ACCELERATION_EPSILON) + float_margin(std::abs(s.half_accel) * logical(s));
+        const double v_max = std::max(std::abs(s.start_v), std::abs(s.start_v + 2. * s.half_accel * T));
+        const double v_eps = double(INPUT_SHAPER_VELOCITY_EPSILON) + float_margin(v_max * logical(s));
         const double h = std::abs(s.half_accel * r_axis(s)); // stepper half acceleration
         const double v0 = s.start_v * r_axis(s), v1 = v0 + 2. * s.half_accel * r_axis(s) * T;
         // input_shaper_state_update() sets |half_accel| <= 0.1 to zero and keeps the average speed:
@@ -261,48 +270,68 @@ namespace {
     }
 } // namespace
 
-IsPulseMergeBound::IsPulseMergeBound(const Config &config, const std::vector<Segment> &segments, int axis) {
-    if (axis > 1 || (!config.shaper[0] && !config.shaper[1])) {
-        return; // the merge is only for the CoreXY steppers A and B, and only with a shaper
+PulseMerge merge_pulses(const Config &config) {
+    PulseMerge r;
+    if (!config.shaper[0] && !config.shaper[1]) {
+        return r;
     }
     std::vector<Pulse> pulses;
     add_pulses(pulses, config.shaper[0], 0);
     add_pulses(pulses, config.shaper[1], 1);
     std::stable_sort(pulses.begin(), pulses.end(), [](const Pulse &x, const Pulse &y) { return x.t < y.t; });
     // The same walk as adjust_input_shaper_pulses_to_match_time_pulses(): a pulse within 10 us of
-    // the last kept pulse moves to its time.
-    std::array<double, 2> moved {}; // sum of amplitude * shift (s) of each logical axis
-    double kept_t = pulses.front().t;
-    for (size_t i = 1; i < pulses.size(); ++i) {
-        const double shift = pulses[i].t - kept_t;
-        if (shift <= 10e-6) {
-            moved[pulses[i].axis] += pulses[i].a * shift;
+    // the last kept pulse moves to the time of the kept pulse.
+    for (const Pulse &p : pulses) {
+        if (!r.grid.empty() && p.t - r.grid.back().t <= 10e-6) {
+            r.grid.back().a[p.axis] += p.a;
+            if (p.t > r.grid.back().t) {
+                r.moved.push_back({ p.axis, p.a, p.t, r.grid.back().t });
+            }
         } else {
-            kept_t = pulses[i].t;
+            PulseMerge::GridPulse g { p.t, { 0., 0. } };
+            g.a[p.axis] = p.a;
+            r.grid.push_back(g);
         }
     }
-    if (moved[0] == 0. && moved[1] == 0.) {
-        return;
+    return r;
+}
+
+IsPulseMergeBound::IsPulseMergeBound(const Config &config, const std::vector<Segment> &segments, int axis) {
+    if (axis > 1) {
+        return; // the merge is only for the CoreXY steppers A and B
     }
-    const double span_s = pulses.back().t - pulses.front().t;
+    const std::vector<PulseMerge::Moved> moved = merge_pulses(config).moved;
     steps_per_mm_ = config.steps_per_mm[axis];
-    for (const Segment &s : segments) {
-        if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
-            continue;
+    terms_ = moved.size();
+    for (size_t m = 0; m < moved.size(); ++m) {
+        const PulseMerge::Moved &p = moved[m];
+        for (const Segment &s : segments) {
+            if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
+                continue;
+            }
+            // The moved pulse reads the axis at T + t_kept in place of T + t_from: an error of up to
+            // a * (t_from - t_kept) * |v| while T + t_from or T + t_kept is in the segment.
+            const double v = std::max(std::abs(s.start_v), std::abs(s.start_v + 2. * s.half_accel * s.move_time)) * std::abs(s.axes_r[p.axis]);
+            const double mm = p.a * (p.t_from - p.t_to) * v;
+            if (mm > 0.) {
+                ranges_.push_back({ (s.print_time - p.t_from) * 1e6, (s.print_time + s.move_time - p.t_to) * 1e6, mm, m });
+            }
         }
-        const double v = std::max(std::abs(s.start_v), std::abs(s.start_v + 2. * s.half_accel * s.move_time));
-        // A = X + Y and B = X - Y: the errors of X and Y add up in both
-        const double mm = moved[0] * v * std::abs(s.axes_r[0]) + moved[1] * v * std::abs(s.axes_r[1]);
-        ranges_.push_back({ (s.print_time - span_s) * 1e6, (s.print_time + s.move_time + span_s) * 1e6, mm });
     }
 }
 
 double IsPulseMergeBound::at(double time_us) const {
-    double mm = 0.;
+    // Each moved pulse adds its largest error at this time (A = X + Y and B = X - Y: the errors of
+    // the X and Y pulses add up).
+    std::vector<double> term(terms_, 0.);
     for (const Range &r : ranges_) {
         if (r.from_us <= time_us && time_us <= r.to_us) {
-            mm = std::max(mm, r.mm);
+            term[r.term] = std::max(term[r.term], r.mm);
         }
+    }
+    double mm = 0.;
+    for (const double t : term) {
+        mm += t;
     }
     return mm * steps_per_mm_;
 }

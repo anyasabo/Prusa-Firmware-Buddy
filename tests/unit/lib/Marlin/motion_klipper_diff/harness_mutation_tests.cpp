@@ -82,6 +82,7 @@ TEST_CASE("comparator: E steps 0.4 step late with pressure advance fail", "[moti
     config.pressure_advance = 0.05f;
     config.smooth_time = 0.04f;
     // [!mayfail]: on v8.0.2, M1 and M2 (motion_klipper_diff_tests.cpp) change the unmutated run.
+    // Remove the tag where the fixes are merged (anya/main), as for the other PA cases.
     const Run r = run_both(config, { line(60, 0, 3, 100, 2000) }); // E cruise from 50 ms to 600 ms
     constexpr int E = 3;
     const PaErrorBound pa(config, r.buddy.segments);

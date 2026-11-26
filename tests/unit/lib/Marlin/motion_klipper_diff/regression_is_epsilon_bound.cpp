@@ -71,3 +71,18 @@ TEST_CASE("is epsilon bound: a long cruise adds no error inside it", "[motion_di
     const IsEpsilonBound bound(config, segments, 2);
     CHECK(bound.at(1e6) < 0.5); // Z steps; the old bound gave 80
 }
+
+TEST_CASE("is epsilon bound: CoreXY float rounding around the epsilon counts", "[motion_diff][regression]") {
+    // B = X - Y: the firmware sums the X and Y terms (about 770 mm/s^2 each) in float and takes the
+    // difference. Its rounding is about 1e-4 relative to the result. Here the double h is 0.1000012,
+    // above 0.1f. A float32 model of the ZV sums gives 0.0999756, so the firmware zeroes it.
+    Config config;
+    config.shaper[0] = zv(50.f);
+    config.shaper[1] = zv(50.f);
+    const double rx2 = 0.540163, ry2 = 0.5400926068590253, half = 1420.61, T2 = 0.5;
+    const std::vector<Segment> segments { { 0., T2, 100., half, { 0., 0., 0., 0. }, { rx2, ry2, 0., 0. }, 0 } };
+    const IsEpsilonBound bound(config, segments, 1);
+    const double h = half * (rx2 - ry2);
+    REQUIRE(h > 0.1000001);
+    CHECK(bound.at(0.25e6) >= Catch::Approx(h * T2 * T2 / 4. * config.steps_per_mm[1]).epsilon(1e-6));
+}

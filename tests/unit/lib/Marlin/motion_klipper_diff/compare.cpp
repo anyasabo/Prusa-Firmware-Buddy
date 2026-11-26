@@ -59,20 +59,40 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
         const auto it = k.find(key);
         static const std::vector<size_t> none;
         const std::vector<size_t> &k_idx = it == k.end() ? none : it->second;
-        // Both lists are in time order. Pair the nearest crossings: if the two candidates are more
-        // than PAIR_WINDOW_US apart, the earlier one has no partner (an extra step pair on one side).
+        // Both lists are in time order. Align them so that the sum of the time differences is
+        // smallest; a step without a partner costs PAIR_WINDOW_US (as a time difference at the
+        // window). Pairs that are more than PAIR_WINDOW_US apart are not allowed. Thus an extra step
+        // pair on one side stays unmatched and does not shift the pairs after it.
+        const size_t nb = b_idx.size(), nk = k_idx.size();
+        std::vector<double> cost((nb + 1) * (nk + 1));
+        const auto at = [&](size_t i, size_t j) -> double & { return cost[i * (nk + 1) + j]; };
+        const auto diff = [&](size_t i, size_t j) { return buddy[b_idx[i]].time_us - klipper[k_idx[j]].time_us; };
+        for (size_t i = nb + 1; i-- > 0;) {
+            for (size_t j = nk + 1; j-- > 0;) {
+                if (i == nb || j == nk) {
+                    at(i, j) = double((nb - i) + (nk - j)) * PAIR_WINDOW_US;
+                    continue;
+                }
+                double best = std::min(at(i + 1, j), at(i, j + 1)) + PAIR_WINDOW_US;
+                if (std::abs(diff(i, j)) <= PAIR_WINDOW_US) {
+                    best = std::min(best, at(i + 1, j + 1) + std::abs(diff(i, j)));
+                }
+                at(i, j) = best;
+            }
+        }
         size_t i = 0, j = 0, n = 0;
-        while (i < b_idx.size() && j < k_idx.size()) {
-            const size_t ki = k_idx[j];
-            const double d = buddy[b_idx[i]].time_us - klipper[ki].time_us;
-            if (d < -PAIR_WINDOW_US) {
+        while (i < nb && j < nk) {
+            const double d = diff(i, j);
+            if (std::abs(d) <= PAIR_WINDOW_US && at(i, j) == at(i + 1, j + 1) + std::abs(d)) {
+                // paired: handled below
+            } else if (at(i, j) == at(i + 1, j) + PAIR_WINDOW_US) {
                 ++i;
                 continue;
-            }
-            if (d > PAIR_WINDOW_US) {
+            } else {
                 ++j;
                 continue;
             }
+            const size_t ki = k_idx[j];
             ++i;
             ++j;
             ++n;

@@ -1,5 +1,6 @@
 #include "compare.hpp"
 
+#include <feature/input_shaper/input_shaper.hpp>
 #include <feature/precise_stepping/common.hpp>
 
 #include <cmath>
@@ -181,20 +182,40 @@ IsEpsilonBound::IsEpsilonBound(const Config &config, const std::vector<Segment> 
     if (shapers.empty()) {
         return;
     }
-    double f_min = 1e9;
-    for (const auto *s : shapers) {
-        f_min = std::min(f_min, double(s->frequency));
+    // The pulse span S: a micro segment with pulses on both sides of a segment boundary is at most
+    // S long.
+    double span_s = 0.;
+    for (const auto *c : shapers) {
+        const input_shaper::Shaper p = input_shaper::get(c->damping_ratio, c->frequency, c->vibration_reduction, c->type);
+        span_s = std::max(span_s, double(p.t[p.num_pulses - 1] - p.t[0]));
     }
-    // The pulses span at most 2 damped periods (3-hump EI): a micro segment near a move can reach
-    // this far around it.
-    const double span_us = 2.5 / f_min * 1e6;
+    // The stepper share of the path: CoreXY A = X + Y, B = X - Y (get_move_axis_r()).
+    const auto r_axis = [axis](const Segment &s) {
+        return axis == 0 ? s.axes_r[0] + s.axes_r[1] : (axis == 1 ? s.axes_r[0] - s.axes_r[1] : s.axes_r[2]);
+    };
+    constexpr double accel_eps = 0.1, v_eps = 1e-4; // INPUT_SHAPER_ACCELERATION_EPSILON, _VELOCITY_EPSILON
     steps_per_mm_ = config.steps_per_mm[axis];
     for (const Segment &s : segments) {
         if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
-            continue; // ending empty move
+            continue;
         }
-        const double t = s.move_time;
-        ranges_.push_back({ s.print_time * 1e6 - span_us, (s.print_time + t) * 1e6 + span_us, 0.1 * t * t / 4. + 1e-4 * t });
+        const double T = s.move_time;
+        const double h = std::abs(s.half_accel * r_axis(s)); // stepper half acceleration
+        const double v0 = s.start_v * r_axis(s), v1 = v0 + 2. * s.half_accel * r_axis(s) * T;
+        // input_shaper_state_update() sets |half_accel| <= 0.1 to zero and keeps the average speed:
+        // the error is up to |half_accel| * T^2 / 4. If the speed then has the other sign, it sets
+        // the speed to 0: up to |half_accel| * T^2. A micro segment with all pulses in this segment
+        // has the stepper acceleration h of the segment. With pulses across a boundary, it is at
+        // most S long and its acceleration is below the epsilon.
+        double mm = accel_eps * span_s * span_s;
+        if (h > 0. && h <= accel_eps) {
+            mm = std::max(mm, h * T * T);
+        }
+        // It sets |start_v| <= 1e-4 to zero: up to 1e-4 * T, with T the segment if its speed comes
+        // near zero, else S.
+        const bool slow = std::min(std::abs(v0), std::abs(v1)) <= v_eps || (v0 < 0.) != (v1 < 0.);
+        mm += v_eps * (slow ? std::max(T, span_s) : span_s);
+        ranges_.push_back({ (s.print_time - span_s) * 1e6, (s.print_time + T + span_s) * 1e6, mm });
     }
 }
 

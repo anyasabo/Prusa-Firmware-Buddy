@@ -312,19 +312,20 @@ components:
 
   lib/Prusa-Error-Codes:
     name: prusa-error-codes
-    version: 0.0.0-20261020-9e60938
+    version: 0.0.0-20261109-80f972c
     repository: https://github.com/prusa3d/Prusa-Error-Codes
-    upstream_commit: 9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
-    subrepo_commit: 9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
+    upstream_commit: 80f972cf2a71ed765a5fc7bd820ee958c4fd672d
+    subrepo_commit: 80f972cf2a71ed765a5fc7bd820ee958c4fd672d
     first_party: true
     cpe: null
-    purl: pkg:github/prusa3d/prusa-error-codes@9e609385d1c18cc080bcfaaf2bd1d6a7cd7cf5ad
+    purl: pkg:github/prusa3d/prusa-error-codes@80f972cf2a71ed765a5fc7bd820ee958c4fd672d
     supplier: "Organization: Prusa Research a.s."
     license: GPL-3.0-or-later
     note: >-
       First-party. Upstream has no tags; synthetic version. License from
       setup.py SPDX header (GPL-3.0-or-later). No NVD CPE (checked 2026-11-03).
-    patches: []  # identical to upstream
+    patches:
+      - yaml/buddy-error-codes.yaml, prusaerrors/buddy/errors.yaml: other text of the accelerometer error (checked 2026-11-26)
 
   lib/Prusa-Firmware-MMU:
     name: prusa-firmware-mmu

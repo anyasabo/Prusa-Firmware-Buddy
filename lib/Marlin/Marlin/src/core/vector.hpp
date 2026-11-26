@@ -42,22 +42,13 @@ public:
     template <size_t i>
     using ComponentType = std::conditional_t<(size() > i), T, UnusedComponent<i>>;
 
-    template <size_t i>
-    static consteval auto component_init_val() {
-        if constexpr (size() > i) {
-            return T { 0 };
-        } else {
-            return UnusedComponent<i> {};
-        }
-    }
-
     union {
         struct {
-            [[no_unique_address]] ComponentType<0> x = component_init_val<0>();
-            [[no_unique_address]] ComponentType<1> y = component_init_val<1>();
-            [[no_unique_address]] ComponentType<2> z = component_init_val<2>();
-            [[no_unique_address]] ComponentType<3> e = component_init_val<3>();
-            static_assert(size() < 5); // All components must be default-initialized
+            [[no_unique_address]] ComponentType<0> x {};
+            [[no_unique_address]] ComponentType<1> y {};
+            [[no_unique_address]] ComponentType<2> z {};
+            [[no_unique_address]] ComponentType<3> e {};
+            static_assert(size() < 5); // All components must be value-initialized (zero for T)
         };
 
         // Alternative component names

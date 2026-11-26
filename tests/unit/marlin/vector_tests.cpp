@@ -31,6 +31,21 @@ static_assert(!std::convertible_to<Vec4, Vector<float, OtherTag, 4>>);
 // Mixing tags in an operation is rejected - different-tag vectors aren't even comparable.
 static_assert(!std::equality_comparable_with<Vec4, Vector<float, OtherTag, 4>>);
 
+namespace {
+// Not constexpr, so the compiler cannot fold the initialization
+Vector<int32_t, Tag, 2> make_xy(int32_t a, int32_t b) {
+    Vector<int32_t, Tag, 2> v = { a, b };
+    return v;
+}
+} // namespace
+
+// GCC 15 and later rejected this with the private copy constructor of the unused components
+TEST_CASE("Vector with unused components from runtime values", "[vector]") {
+    const auto v = make_xy(3, -4);
+    CHECK(v.x == 3);
+    CHECK(v.y == -4);
+}
+
 TEST_CASE("Vector layout & accessors", "[vector]") {
     CHECK(Vec3 {} == Vec3 { 0, 0, 0 }); // default construction zeroes everything
 

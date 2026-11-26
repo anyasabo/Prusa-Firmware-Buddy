@@ -93,23 +93,31 @@ components:
 
   lib/Middlewares/Third_Party/FatFs:
     name: fatfs
-    version: R0.14b
-    url: http://elm-chan.org/fsw/ff/arc/ff14b.zip
+    version: R0.16
+    url: http://elm-chan.org/fsw/ff/arc/ff16.zip
     upstream_commit: null
-    upstream_sha256: d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb
-    cpe: cpe:2.3:a:elm-chan:fatfs:r0.14b:*:*:*:*:*:*:*
-    purl: pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb
+    upstream_sha256: 99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e
+    cpe: cpe:2.3:a:elm-chan:fatfs:r0.16:*:*:*:*:*:*:*
+    purl: pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e
     supplier: "Organization: ChaN (elm-chan.org)"
     license: LicenseRef-FatFs
     note: >-
-      Upstream ships zip releases only, so there is no commit; upstream_sha256
-      is the release archive. Version from ff.h (FF_DEFINED 86631).
-      diskio.c and ff_gen_drv.[ch] are STMicroelectronics glue (STM32Cube).
+      Fork (anya/main): R0.16 instead of the upstream R0.14b (branch
+      fatfs-r016-master, through metrics-defaults). Upstream ships zip releases
+      only, so there is no commit; upstream_sha256 is the release archive.
+      Version from ff.h (FF_DEFINED 80386). ff16p1.diff (sha256 7996ddc3...)
+      and ff16p2.diff (sha256 5cd39f1f..., fixes CVE-2026-6682, -6683, -6687,
+      -6688) are applied. diskio.c and ff_gen_drv.[ch] are STMicroelectronics
+      glue (STM32Cube).
     patches:
+      - src/ff.c: ff16p1.diff and ff16p2.diff (official patches)
       - src/ff.c: no code pages (SFN bytes passed through), mtime/ctime selection, yield option in f_expand
+      - src/ff.c: f_lseek() past EOF zeroes the new range (CVE-2026-6686, Zephyr fatfs a55a7a8e18)
+      - src/ff.c: f_mkdir() of the volume root gives FR_EXIST again (R0.14b behavior)
+      - src/ff.c: EXPERIMENT lookup switches and name cache (fork only)
       - src/ffunicode.c: no code-page conversion (SFN bytes passed through)
       - src/ff.h: include buddy/ffconf.h; f_expand() gains a yield argument
-      - src/ffsystem.c: FreeRTOS mutexes for FF_FS_REENTRANT
+      - src/ffsystem.c: FreeRTOS mutexes for FF_FS_REENTRANT; EXPERIMENT lock wait counters (fork only)
       - src/diskio.c: replaced by STM32Cube driver glue
 
   lib/Middlewares/Third_Party/littlefs:
@@ -719,32 +727,26 @@ components:
 
   lib/Middlewares/ST/STM32_USB_Host_Library:
     name: stm32_mw_usb_host
-    version: 3.4.0
+    version: 3.5.5
     repository: https://github.com/STMicroelectronics/stm32_mw_usb_host
-    upstream_commit: 70f090d8ff1714c6eb9a48c3d59f2065cb0a6636  # tag v3.4.0
-    cpe: cpe:2.3:a:st:stm32_mw_usb_host:3.4.0:*:*:*:*:*:*:*
-    purl: pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.4.0
+    upstream_commit: d013fac0f8b97e8316a79ef946a7dbab4ef4431d  # tag v3.5.5
+    cpe: cpe:2.3:a:st:stm32_mw_usb_host:3.5.5:*:*:*:*:*:*:*
+    purl: pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.5.5
     supplier: "Organization: STMicroelectronics"
     license: LicenseRef-ST-SLA0044
     note: >-
-      Only Core/ and Class/MSC/ are vendored. The sources have no version strings.
-      Pinned by diffing against every upstream tag at each local commit:
-      v3.3.4 until 56a40a0f7 ("Bump to v4.6.1", 2023-04-27), which moved to v3.4.0.
-      Against v3.4.0, 8 of 15 files differ only in blank lines. The
-      license is ST Ultimate Liberty SLA0044 (file headers; upstream switched
-      later releases to BSD-3-Clause). SECURITY: CVE-2021-42553 (endpoint
-      overflow in USBH_ParseCfgDesc, fixed upstream by f4332bd and first tagged in v3.5.2)
-      APPLIES. The local loop in Core/Src/usbh_ctlreq.c:453 checks only
-      pif->bNumEndpoints, not USBH_MAX_NUM_ENDPOINTS (2 in include/usb_host/usbh_conf.h).
-      A malicious USB device with more than 2 endpoints per interface therefore
-      overwrites Ep_Desc[] and the following members of USBH_HandleTypeDef.
-      d5d4e8936 backported only the MSC null-dereference fixes from 3.5.5.
+      Fork (anya/main): v3.5.5 instead of the upstream v3.4.0 (branch
+      usbh-v355-master, through metrics-defaults). Only Core/ and Class/MSC/
+      are vendored. The files are the tag v3.5.5 without trailing whitespace,
+      then the Prusa changes. LICENSE.md (SLA0044) is the one of the tag.
+      v3.5.1 fixed CVE-2021-42553 (USBH_ParseCfgDesc stops at
+      USBH_MAX_NUM_ENDPOINTS).
     patches:
-      - "Class/MSC/Src/usbh_msc.c: asynchronous r/w worker, rw-mutex class locking, 1 s r/w timeout via firmware ms clock, CLASS/URB events disabled, null-deref fixes ported from v3.5.5 (165 lines)"
-      - "Class/MSC/Src/usbh_msc_bot.c: DMA + 512 B burst IN/OUT transfers (48 lines)"
-      - "Core/Src/usbh_core.c: USBH thread in CCMRAM, class_mutex rw-lock around class init/deinit, VBUS delay moved out of timer task (25 lines)"
+      - "Class/MSC/Src/usbh_msc.c: asynchronous r/w worker for the Buddy tasks, rw-mutex class locking, firmware ms clock timeouts, review fixes; refuse a block size other than USBH_MSC_BLOCK_SIZE (512); EXPERIMENT wait and timeout counters (fork only)"
+      - "Class/MSC/Src/usbh_msc_bot.c: DMA + 512 B burst IN/OUT transfers"
+      - "Core/Src/usbh_core.c: USBH thread in CCMRAM, class_mutex rw-lock around class init/deinit, VBUS delay moved out of timer task"
       - "Core/Inc/usbh_def.h: rw_mutex.h include + class_mutex; USBH_MAX_ERROR_COUNT 0x50; MSGQUEUE_OBJECTS 0x30"
-      - "Core/Src/usbh_ctlreq.c: treat URB STALL like ERROR during control transfers"
+      - "Core/Src/usbh_ctlreq.c: treat URB STALL like ERROR during control transfers; do not read past the configuration descriptor buffer; parse up to 4 endpoints for each interface"
       - "CMakeLists.txt: added"
 
   lib/Drivers/stm32c0xx_hal_driver:
@@ -1322,45 +1324,47 @@ components:
   bootstrap:gcc-arm-none-eabi:
     bootstrap:
       dependency: gcc-arm-none-eabi
-      version: 13.3.1
-    name: arm-gnu-toolchain
-    version: 13.3.1
-    url: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+      version: 16.2.0
+    name: arm-none-eabi-gcc
+    version: 16.2.0
+    url: https://github.com/anyasabo/Prusa-Firmware-Buddy/releases/tag/toolchain-arm-none-eabi-gcc-16.2.0-arch.1
     upstream_commit: null
     cpe: null
     purl: null
-    supplier: 'Organization: Arm Limited'
+    supplier: 'Organization: Arch Linux'
     license: GPL-3.0-or-later
     scope: tool
-    note: Arm GNU Toolchain 13.3.rel1 (compiler, binutils). Not shipped; its runtime libraries are (see
-      /newlib and /gcc-runtime). Record in CycloneDX formulation.
+    note: Fork (anya/main) toolchain instead of the upstream Arm GNU Toolchain 13.3.rel1. The Arch Linux packages
+      arm-none-eabi-gcc 16.2.0-1, arm-none-eabi-binutils 2.47-1 and arm-none-eabi-newlib 4.6.0.20260123-1, copied
+      unchanged to a release of the fork. Not shipped; its runtime libraries are (see /newlib and /gcc-runtime).
+      Record in CycloneDX formulation.
   bootstrap:gcc-arm-none-eabi/newlib:
     bootstrap:
       dependency: gcc-arm-none-eabi
-      version: 13.3.1
+      version: 16.2.0
     name: newlib
-    version: 4.4.0
+    version: 4.6.0
     repository: https://sourceware.org/git/newlib-cygwin.git
     upstream_commit: null
-    cpe: cpe:2.3:a:newlib_project:newlib:4.4.0:*:*:*:*:*:*:*
-    purl: pkg:generic/newlib@4.4.0
+    cpe: cpe:2.3:a:newlib_project:newlib:4.6.0:*:*:*:*:*:*:*
+    purl: pkg:generic/newlib@4.6.0
     supplier: 'Organization: newlib project (Red Hat)'
     license: NOASSERTION
     images:
     - main
     - puppy
-    note: newlib-nano 4.4.0 as built by Arm for 13.3.rel1 (libc_nano, libm, libnosys); anfc links the
-      full libc.a. Arm doesn't publish the exact source commit.
+    note: newlib-nano 4.6.0.20260123 as built by the Arch Linux package arm-none-eabi-newlib 4.6.0.20260123-1
+      (libc_nano, libm, libnosys); anfc links the full libc.a.
   bootstrap:gcc-arm-none-eabi/gcc-runtime:
     bootstrap:
       dependency: gcc-arm-none-eabi
-      version: 13.3.1
+      version: 16.2.0
     name: gcc-runtime
-    version: 13.3.1
+    version: 16.2.0
     repository: https://gcc.gnu.org/git/gcc.git
     upstream_commit: null
-    cpe: cpe:2.3:a:gnu:gcc:13.3.1:*:*:*:*:*:*:*
-    purl: pkg:generic/gcc@13.3.1
+    cpe: cpe:2.3:a:gnu:gcc:16.2.0:*:*:*:*:*:*:*
+    purl: pkg:generic/gcc@16.2.0
     supplier: 'Organization: GNU Project'
     license: GPL-3.0-or-later WITH GCC-exception-3.1
     images:
@@ -1590,9 +1594,9 @@ components:
   bootstrap:cmake:
     bootstrap:
       dependency: cmake
-      version: 3.28.3
+      version: 4.4.5
     name: cmake
-    version: 3.28.3
+    version: 4.4.5
     url: https://cmake.org
     upstream_commit: null
     cpe: null
@@ -1604,9 +1608,9 @@ components:
   bootstrap:ninja:
     bootstrap:
       dependency: ninja
-      version: 1.10.2
+      version: 1.13.2
     name: ninja
-    version: 1.10.2
+    version: 1.13.2
     url: https://ninja-build.org
     upstream_commit: null
     cpe: null

@@ -1,8 +1,8 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:e4929592-85ab-562c-b4d8-b00808720418",
+ "@id": "urn:uuid:be860b6b-d9bd-5026-990f-c37ce3bbb4c6",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
- "timestamp": "2026-11-04T00:00:00Z",
+ "timestamp": "2026-11-26T00:00:00Z",
  "version": 1,
  "statements": [
   {
@@ -466,12 +466,12 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+     "@id": "pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h)."
+   "impact_statement": "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h). ff16p2.diff also fixes it."
   },
   {
    "vulnerability": {
@@ -479,12 +479,12 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+     "@id": "pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h)."
+   "impact_statement": "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h). ff16p2.diff also fixes it."
   },
   {
    "vulnerability": {
@@ -492,7 +492,7 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+     "@id": "pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e"
     }
    ],
    "status": "not_affected",
@@ -505,12 +505,12 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+     "@id": "pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e"
     }
    ],
-   "status": "affected",
-   "action_statement": "Backport the mount_volume() fasize overflow check or update FatFs.",
-   "status_notes": "FAT32 mount_volume() fasize overflow; reachable with a crafted USB drive."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fork: R0.16 with the official ff16p2.diff, which adds the mount_volume() fasize overflow check."
   },
   {
    "vulnerability": {
@@ -518,11 +518,12 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+     "@id": "pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e"
     }
    ],
-   "status": "under_investigation",
-   "status_notes": "f_lseek past EOF exposes old cluster data; check whether Buddy ever extends files with f_lseek."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fork: f_lseek() zeroes the range that it adds past EOF (the Zephyr fatfs fix a55a7a8e18, commit 59ca58287)."
   },
   {
    "vulnerability": {
@@ -530,12 +531,12 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/fatfs@R0.14b?download_url=http://elm-chan.org/fsw/ff/arc/ff14b.zip&checksum=sha256:d4605ab7c418fc4cc4cb555c8129482873add6f5ca5f25810e7ca8cfd57d07cb"
+     "@id": "pkg:generic/fatfs@R0.16?download_url=http://elm-chan.org/fsw/ff/arc/ff16.zip&checksum=sha256:99f7dc1f7e095356e4a9e3dbe29959090d8b948afe2bbc5441e52fdf4b85449e"
     }
    ],
-   "status": "affected",
-   "action_statement": "Size readdir's name buffer NAME_MAX + 1 (fork branch readdir-off-by-one, c1c5cf831).",
-   "status_notes": "Buddy's caller has the pattern: dirnext_r (src/buddy/filesystem_fatfs.cpp) writes filename[len + 1] into libsysbase's char[NAME_MAX] buffer; a crafted FAT volume (254-byte UTF-8 LFN, NUL inside the 8.3 entry) gives a 1-byte stack write. Reproduced under ASan."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fork: ff16p2.diff fixes FatFs, and readdir gives dirnext_r a NAME_MAX + 1 byte buffer (lib/libsysbase/dirent.c, readdir-off-by-one)."
   },
   {
    "vulnerability": {
@@ -725,12 +726,12 @@
    },
    "products": [
     {
-     "@id": "pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.4.0"
+     "@id": "pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.5.5"
     }
    ],
-   "status": "affected",
-   "action_statement": "Add `ep_ix < USBH_MAX_NUM_ENDPOINTS` to the endpoint loop in USBH_ParseCfgDesc (as ST v3.5.1/v3.5.3), or update to v3.5.5.",
-   "status_notes": "Endpoint-count overflow of Itf_Desc[].Ep_Desc[2] into USBH_HandleTypeDef (usbh_ctlreq.c:453); triggered by plugging in a crafted USB device."
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fork: ST v3.5.5. USBH_ParseCfgDesc stops at USBH_MAX_NUM_ENDPOINTS endpoints for each interface (fixed in v3.5.1)."
   },
   {
    "vulnerability": {
@@ -738,7 +739,7 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/gcc@13.3.1"
+     "@id": "pkg:generic/gcc@16.2.0"
     }
    ],
    "status": "not_affected",

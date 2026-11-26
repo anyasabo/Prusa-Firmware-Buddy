@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-04"
+REVIEWED = "2026-11-26"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -163,23 +163,23 @@ TRIAGE: dict[str, list[Decision]] = {
         ),
     ],
     "lib/Middlewares/Third_Party/FatFs": [
-        not_affected(["CVE-2026-6683", "CVE-2026-6687"], NP,
-                     "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h)."),
+        not_affected(
+            ["CVE-2026-6683", "CVE-2026-6687"], NP,
+            "exFAT code; FF_FS_EXFAT 0 (include/buddy/ffconf.h). ff16p2.diff also fixes it."
+        ),
         not_affected(["CVE-2026-6684"], NP,
                      "GPT scanning with FF_LBA64; FF_LBA64 0."),
-        affected(
-            ["CVE-2026-6682"],
-            "Backport the mount_volume() fasize overflow check or update FatFs.",
-            "FAT32 mount_volume() fasize overflow; reachable with a crafted USB drive."
+        not_affected(
+            ["CVE-2026-6682"], NP,
+            "Fork: R0.16 with the official ff16p2.diff, which adds the mount_volume() fasize overflow check."
         ),
-        investigating([
-            "CVE-2026-6686"
-        ], "f_lseek past EOF exposes old cluster data; check whether Buddy ever extends files with f_lseek."
-                      ),
-        affected(
-            ["CVE-2026-6688"],
-            "Size readdir's name buffer NAME_MAX + 1 (fork branch readdir-off-by-one, c1c5cf831).",
-            "Buddy's caller has the pattern: dirnext_r (src/buddy/filesystem_fatfs.cpp) writes filename[len + 1] into libsysbase's char[NAME_MAX] buffer; a crafted FAT volume (254-byte UTF-8 LFN, NUL inside the 8.3 entry) gives a 1-byte stack write. Reproduced under ASan."
+        not_affected(
+            ["CVE-2026-6686"], NP,
+            "Fork: f_lseek() zeroes the range that it adds past EOF (the Zephyr fatfs fix a55a7a8e18, commit 59ca58287)."
+        ),
+        not_affected(
+            ["CVE-2026-6688"], NP,
+            "Fork: ff16p2.diff fixes FatFs, and readdir gives dirnext_r a NAME_MAX + 1 byte buffer (lib/libsysbase/dirent.c, readdir-off-by-one)."
         ),
     ],
     "lib/Middlewares/Third_Party/FreeRTOS": [
@@ -225,10 +225,9 @@ TRIAGE: dict[str, list[Decision]] = {
         ),
     ],
     "lib/Middlewares/ST/STM32_USB_Host_Library": [
-        affected(
-            ["CVE-2021-42553"],
-            "Add `ep_ix < USBH_MAX_NUM_ENDPOINTS` to the endpoint loop in USBH_ParseCfgDesc (as ST v3.5.1/v3.5.3), or update to v3.5.5.",
-            "Endpoint-count overflow of Itf_Desc[].Ep_Desc[2] into USBH_HandleTypeDef (usbh_ctlreq.c:453); triggered by plugging in a crafted USB device."
+        not_affected(
+            ["CVE-2021-42553"], NP,
+            "Fork: ST v3.5.5. USBH_ParseCfgDesc stops at USBH_MAX_NUM_ENDPOINTS endpoints for each interface (fixed in v3.5.1)."
         ),
     ],
     "bootstrap:gcc-arm-none-eabi/gcc-runtime": [

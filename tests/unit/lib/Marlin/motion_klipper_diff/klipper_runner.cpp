@@ -1,0 +1,72 @@
+// Sends the move segments of the Buddy run to Klipper's step generation.
+#include "motion_model.hpp"
+
+#include "klipper_oracle.h"
+
+#include <feature/precise_stepping/common.hpp>
+
+namespace motion_diff {
+
+KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segments, std::array<double, 3> start_pos_mm) {
+    kl_params p {};
+    p.corexy = 1;
+    for (int i = 0; i < AXES; ++i) {
+        // The same float mm per step as Planner::mm_per_step, so both sides step at the same positions.
+        p.step_dist[i] = double(1.f / config.steps_per_mm[i]);
+    }
+    for (int i = 0; i < 3; ++i) {
+        p.start_pos[i] = start_pos_mm[i];
+        const auto &cfg = config.shaper[i];
+        if (cfg && cfg->type != input_shaper::Type::null) {
+            const Pulses pulses = buddy_shaper_pulses(*cfg);
+            p.shaper[i].n = pulses.n;
+            for (int k = 0; k < pulses.n; ++k) {
+                p.shaper[i].a[k] = pulses.a[k];
+                p.shaper[i].t[k] = pulses.t[k];
+            }
+        }
+    }
+    p.pressure_advance = config.pressure_advance;
+    p.smooth_time = config.smooth_time;
+    p.record_from = config.record_from_us * 1e-6;
+
+    std::vector<kl_move> moves;
+    moves.reserve(segments.size());
+    for (const Segment &s : segments) {
+        if ((s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) || s.move_time <= 0.) {
+            continue; // Klipper's tail sentinel holds the last position
+        }
+        kl_move m {};
+        m.print_time = s.print_time;
+        m.move_t = s.move_time;
+        m.start_v = s.start_v;
+        m.half_accel = s.half_accel;
+        for (int i = 0; i < AXES; ++i) {
+            m.start_pos[i] = s.start_pos[i];
+            m.axes_r[i] = s.axes_r[i];
+        }
+        moves.push_back(m);
+    }
+
+    stepcompress *sc[AXES];
+    for (auto &s : sc) {
+        s = stepcompress_recorder_alloc();
+    }
+    kl_generate_steps(&p, moves.data(), int(moves.size()), sc);
+
+    KlipperResult result;
+    for (int axis = 0; axis < AXES; ++axis) {
+        for (int k = 0; k < sc[axis]->raw.count; ++k) {
+            result.raw.axis[axis].push_back({ sc[axis]->raw.time[k] * 1e6, sc[axis]->raw.dir[k] != 0 });
+        }
+        result.raw.skipped_net[axis] = sc[axis]->raw.skipped_net;
+        result.filtered.skipped_net[axis] = sc[axis]->filtered.skipped_net;
+        for (int k = 0; k < sc[axis]->filtered.count; ++k) {
+            result.filtered.axis[axis].push_back({ sc[axis]->filtered.time[k] * 1e6, sc[axis]->filtered.dir[k] != 0 });
+        }
+        stepcompress_recorder_free(sc[axis]);
+    }
+    return result;
+}
+
+} // namespace motion_diff

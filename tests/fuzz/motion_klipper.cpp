@@ -29,7 +29,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         fail("the motion did not come back to a halt", -1);
     }
     const KlipperResult klipper = run_klipper(s.config, buddy.segments, start_position_mm(s.config));
-    const double pa_err = pa_jump_steps(s.config, buddy.segments) / 20.;
+    const double pa_err = pa_error_bound_steps(s.config, buddy.segments);
 
     for (int axis = 0; axis < AXES; ++axis) {
         const auto &steps = buddy.steps.axis[axis];

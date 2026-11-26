@@ -245,7 +245,10 @@ TEST_CASE("planner: speed on an arc of short segments is the centripetal limit",
     }
     std::sort(v.begin(), v.end());
     const double centripetal = std::sqrt(double(DEFAULT_ACCELERATION) * radius);
-    CAPTURE(v.front(), v.back(), centripetal);
+    // The queue also limits the speed: the newest block ends at MINIMUM_PLANNER_SPEED, so the
+    // other blocks of a full queue (BLOCK_BUFFER_SIZE - 1) must be able to stop.
+    const double lookahead = std::sqrt(2. * DEFAULT_ACCELERATION * (BLOCK_BUFFER_SIZE - 2) * seg);
+    CAPTURE(v.front(), v.back(), centripetal, lookahead);
     CHECK(v.back() <= 1.05 * centripetal);
-    CHECK(v.front() >= 0.9 * centripetal);
+    CHECK(v.front() >= 0.9 * std::min(centripetal, lookahead));
 }

@@ -34,7 +34,7 @@ struct Rig {
         for (uint32_t t = 0; t <= duration_us; t += 125) {
             if (t >= next_sample) {
                 if (auto v = sample(); v.has_value) {
-                    health.feed(v.value);
+                    health.feed(v.value, v.load_plausible);
                 }
                 next_sample += 3125;
             }
@@ -54,6 +54,7 @@ struct Rig {
 struct Maybe {
     bool has_value;
     int32_t value;
+    bool load_plausible = true;
 };
 
 } // namespace
@@ -117,7 +118,7 @@ TEST_CASE("loadcell_health: blocked checker does not raise a false fault") {
     REQUIRE(rig.run(1'000'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
     // The default task blocks for 5 s, the ISR keeps feeding.
     for (int i = 0; i < 1600; ++i) {
-        rig.health.feed(rig.noisy());
+        rig.health.feed(rig.noisy(), true);
     }
     rig.now_us += 5'000'000;
     CHECK(rig.health.check(rig.now_us) == Fault::none);
@@ -150,5 +151,25 @@ TEST_CASE("loadcell_health: noisy value with a large plausible offset has no fau
         CAPTURE(base);
         Rig rig;
         CHECK(rig.run(10'000'000, [&] { return Maybe { true, base + rig.noisy() }; }) == Fault::none);
+    }
+}
+
+TEST_CASE("loadcell_health: noisy value with an implausible tared load raises implausible_value") {
+    // CORE One L of the owner, 2026-11-26: the wires between the bridge and the HX717 separated.
+    // The raw value went from about -1.1M counts (-21 kg untared) to -4498 counts with a noise of 208 counts
+    // (lc/lcraw.csv, 10054 samples). Only 18 of 10053 consecutive pairs were equal. After a tare at -21 kg,
+    // the tared load is about +21 kg. The caller tells that this load is not plausible.
+    Rig rig;
+    REQUIRE(rig.run(1'000'000, [&] { return Maybe { true, rig.noisy() - 1'100'000 }; }) == Fault::none);
+    CHECK(rig.run(1'900'000, [&] { return Maybe { true, rig.noisy() - 4498, false }; }) == Fault::none);
+    CHECK(rig.run(200'000, [&] { return Maybe { true, rig.noisy() - 4498, false }; }) == Fault::implausible_value);
+}
+
+TEST_CASE("loadcell_health: a short implausible load has no fault") {
+    Rig rig;
+    for (int i = 0; i < 10; ++i) {
+        // 1.5 s of an implausible load (for example a nozzle crash), then 0.5 s of a plausible load
+        CHECK(rig.run(1'500'000, [&] { return Maybe { true, rig.noisy(), false }; }) == Fault::none);
+        CHECK(rig.run(500'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
     }
 }

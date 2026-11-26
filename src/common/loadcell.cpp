@@ -171,6 +171,9 @@ float Loadcell::Tare(TareMode mode) {
         }
 
         offset = tareSum / requestedTareCount;
+#if HAS_LOADCELL_HX717()
+        tare_valid.store(true);
+#endif
 
         // Wait till the loadcell reports first sample with the new offset applied (BFW-7791)
         WaitBarrier();
@@ -186,6 +189,9 @@ void Loadcell::Clear() {
     loadcellRaw = undefined_value;
     undefinedCnt = -UNDEFINED_INIT_MAX_CNT;
     offset = 0;
+#if HAS_LOADCELL_HX717()
+    tare_valid.store(false);
+#endif
     tare_generation.store(last_source_generation.load());
     reset_filters();
     reset_endstops();
@@ -252,9 +258,6 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
     if (loadcellRaw != undefined_value) {
         this->loadcellRaw = loadcellRaw;
         this->undefinedCnt = 0;
-#if HAS_LOADCELL_HX717()
-        health.feed(loadcellRaw);
-#endif
     } else {
         if (!HAS_LOADCELL_HX717() || (!sys_debugger_attached() || DEBUGGING(ERRORS))) {
             // see comment in hx717mux: only enable additional safety checks if HX717 is multiplexed
@@ -269,6 +272,16 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
     }
 
     const float tared_z_load = get_tared_z_load(loadcellRaw, scale, offset);
+
+#if HAS_LOADCELL_HX717()
+    if (loadcellRaw != undefined_value) {
+        // Outside probing (high precision) and after a tare, the load must be physical.
+        // A probe can push harder for a short time, and before the first tare the offset is 0.
+        const bool load_plausible = highPrecision || !tare_valid.load(std::memory_order_relaxed)
+            || std::abs(tared_z_load) <= MAX_PLAUSIBLE_LOAD_G;
+        health.feed(loadcellRaw, load_plausible);
+    }
+#endif
 
 #if RTT_METRICS_ENABLED()
     rtt_metrics::sample_loadcell_tared_z({ tared_z_load });
@@ -436,7 +449,7 @@ void Loadcell::check_health(bool printing) {
         log_error(Loadcell, "No sample for %" PRIu32 " ms", buddy::LoadcellHealth::sample_timeout_us / 1000);
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_TIMEOUT);
     case Fault::implausible_value:
-        log_error(Loadcell, "Raw value constant or implausible for %" PRIu32 " ms, last %" PRId32, buddy::LoadcellHealth::implausible_timeout_us / 1000, health.get_last_raw());
+        log_error(Loadcell, "Raw value constant or implausible for %" PRIu32 " ms, last %" PRId32 ", offset %" PRId32, buddy::LoadcellHealth::implausible_timeout_us / 1000, health.get_last_raw(), offset);
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
     }
 }

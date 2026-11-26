@@ -1,0 +1,124 @@
+#include "klipper_oracle.h"
+
+#include <stdlib.h>
+
+#include "klipper/itersolve.h"
+#include "klipper/trapq.h"
+
+// Klipper functions without a header (declared in klippy/chelper/__init__.py)
+struct stepper_kinematics *corexy_stepper_alloc(char type);
+struct stepper_kinematics *cartesian_stepper_alloc(char axis);
+struct stepper_kinematics *input_shaper_alloc(void);
+int input_shaper_set_sk(struct stepper_kinematics *sk, struct stepper_kinematics *orig_sk);
+int input_shaper_set_shaper_params(struct stepper_kinematics *sk, char axis, int n, double a[], double t[]);
+struct stepper_kinematics *extruder_stepper_alloc(void);
+void extruder_stepper_free(struct stepper_kinematics *sk);
+void extruder_set_pressure_advance(struct stepper_kinematics *sk, double print_time, double pressure_advance, double smooth_time);
+
+static int any_shaper(const struct kl_params *p, int first_axis, int last_axis) {
+    for (int i = first_axis; i <= last_axis; ++i) {
+        if (p->shaper[i].n > 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// As klippy/extras/input_shaper.py: wrap the stepper kinematics in an input shaper.
+static struct stepper_kinematics *wrap_shaper(const struct kl_params *p, struct stepper_kinematics *orig) {
+    struct stepper_kinematics *is = input_shaper_alloc();
+    input_shaper_set_sk(is, orig);
+    for (int axis = 0; axis < 3; ++axis) {
+        struct kl_shaper s = p->shaper[axis];
+        input_shaper_set_shaper_params(is, 'x' + axis, s.n, s.a, s.t);
+    }
+    return is;
+}
+
+void kl_generate_steps(const struct kl_params *p, const struct kl_move *moves, int move_count, struct stepcompress *out[4]) {
+    struct trapq *tq = trapq_alloc();
+    struct trapq *eq = trapq_alloc();
+    double end_time = 0.;
+
+    for (int i = 0; i < move_count; ++i) {
+        const struct kl_move *src = &moves[i];
+        struct move *m = move_alloc();
+        m->print_time = src->print_time;
+        m->move_t = src->move_t;
+        m->start_v = src->start_v;
+        m->half_accel = src->half_accel;
+        m->start_pos.x = src->start_pos[0];
+        m->start_pos.y = src->start_pos[1];
+        m->start_pos.z = src->start_pos[2];
+        m->axes_r.x = src->axes_r[0];
+        m->axes_r.y = src->axes_r[1];
+        m->axes_r.z = src->axes_r[2];
+        trapq_add_move(tq, m);
+
+        // As klippy/kinematics/extruder.py process_move(): x is the extruder position, y is the
+        // "can pressure advance" flag.
+        struct move *e = move_alloc();
+        e->print_time = src->print_time;
+        e->move_t = src->move_t;
+        e->start_v = src->start_v * src->axes_r[3];
+        e->half_accel = src->half_accel * src->axes_r[3];
+        e->start_pos.x = src->start_pos[3];
+        e->axes_r.x = 1.;
+        e->axes_r.y = (src->axes_r[3] > 0. && (src->axes_r[0] != 0. || src->axes_r[1] != 0.)) ? 1. : 0.;
+        trapq_add_move(eq, e);
+
+        if (src->print_time + src->move_t > end_time) {
+            end_time = src->print_time + src->move_t;
+        }
+    }
+    trapq_check_sentinels(tq);
+    trapq_check_sentinels(eq);
+
+    struct stepper_kinematics *orig[4];
+    if (p->corexy) {
+        orig[0] = corexy_stepper_alloc('+');
+        orig[1] = corexy_stepper_alloc('-');
+    } else {
+        orig[0] = cartesian_stepper_alloc('x');
+        orig[1] = cartesian_stepper_alloc('y');
+    }
+    orig[2] = cartesian_stepper_alloc('z');
+    for (int i = 0; i < 3; ++i) {
+        itersolve_set_position(orig[i], p->start_pos[0], p->start_pos[1], p->start_pos[2]);
+    }
+    orig[3] = extruder_stepper_alloc();
+    if (p->pressure_advance > 0.) {
+        extruder_set_pressure_advance(orig[3], 0., p->pressure_advance, p->smooth_time);
+    }
+
+    struct stepper_kinematics *used[4] = { orig[0], orig[1], orig[2], orig[3] };
+    const int xy_shaped = any_shaper(p, 0, 1);
+    const int z_shaped = any_shaper(p, 2, 2);
+    if (xy_shaped) {
+        used[0] = wrap_shaper(p, orig[0]);
+        used[1] = wrap_shaper(p, orig[1]);
+    }
+    if (z_shaped) {
+        used[2] = wrap_shaper(p, orig[2]);
+    }
+
+    // The tail sentinel keeps the last position for ever, so one flush past the end (plus the
+    // largest shaper or smoothing window) generates all steps.
+    const double flush_time = end_time + 1.;
+    for (int i = 0; i < 4; ++i) {
+        out[i]->record_from = p->record_from;
+        itersolve_set_trapq(used[i], i == 3 ? eq : tq, p->step_dist[i]);
+        itersolve_generate_steps(used[i], out[i], flush_time);
+        stepcompress_recorder_finish(out[i]);
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        if (used[i] != orig[i]) {
+            free(used[i]);
+        }
+        free(orig[i]);
+    }
+    extruder_stepper_free(orig[3]);
+    trapq_free(tq);
+    trapq_free(eq);
+}

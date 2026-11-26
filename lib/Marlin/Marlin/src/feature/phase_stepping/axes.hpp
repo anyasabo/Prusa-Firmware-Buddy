@@ -7,6 +7,10 @@
 
 namespace phase_stepping {
 
+/**
+ * Read steps/mm from the planner and microsteps from the drivers.
+ * Call only when phase stepping is off for all axes (boot, or under EnsureDisabled).
+ **/
 void initialize_axis_motor_params();
 
 /**

@@ -74,7 +74,7 @@ void GcodeSuite::M350() {
 
 
   #if HAS_PHASE_STEPPING()
-    // FIXME: Code above does not update config store, phstep takes data from config store
+    // Phase stepping takes the microsteps from the drivers. It is disabled here (phstep_guard).
     phase_stepping::initialize_axis_motor_params();
   #endif
 

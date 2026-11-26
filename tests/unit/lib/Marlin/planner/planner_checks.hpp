@@ -18,7 +18,8 @@ struct Report {
     /// position. The planner drops a move shorter than MIN_STEPS_PER_SEGMENT and adds it to the
     /// next move. A G92 directly after the short move discards it.
     xyze_msteps_t lost_at_g92 {};
-    /// Blocks that cannot slow down to an exit speed below MINIMUM_PLANNER_SPEED (see check()).
+    /// Blocks with a speed change that is not feasible, because the entry or the exit speed is below
+    /// MINIMUM_PLANNER_SPEED (see check()).
     int exit_below_minimum_speed = 0;
 };
 

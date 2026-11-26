@@ -51,7 +51,7 @@ The tests with `[!shouldfail][known_bug]` fail because of these defects:
 Design limits, not test failures:
 
 - The queue has 32 blocks, and the newest block ends at `MINIMUM_PLANNER_SPEED`. Thus a full queue of short segments must be able to stop within 31 segments. At 1250 mm/s², 0.1 mm segments run at 88 mm/s at most. Klipper limits its lookahead by time, not by a number of moves.
-- Counted in `Report::exit_below_minimum_speed`: the planner plans the newest block to end at `MINIMUM_PLANNER_SPEED` (0.05 mm/s). A junction limit can be lower (an E-heavy junction with a tiny XYZ part). If the block before is busy, it cannot slow down to it, and the speed jumps by less than 0.05 mm/s along the path.
+- Counted in `Report::exit_below_minimum_speed`: the planner assumes that each block starts and ends at `MINIMUM_PLANNER_SPEED` (0.05 mm/s) or more. It plans the newest block to end there, and the `nominal_length` flag assumes a start there. A junction limit can be lower (an E-heavy junction with a tiny XYZ part). Then a busy block cannot slow down to it, or a block that starts below 0.05 mm/s gets an exit speed that it cannot reach. The speed jumps by less than 0.05 mm/s along the path.
 
 The end-to-end case with input shaper and pressure advance has `[!mayfail]`: E ends 3.5 steps short because of the defects M1 and M2 of `motion_klipper_diff`. With their fixes it passes.
 

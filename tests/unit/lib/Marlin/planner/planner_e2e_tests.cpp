@@ -103,8 +103,8 @@ TEST_CASE("planner end-to-end: perimeters, retractions and travels") {
 
 // With pressure advance, E ends 3.5 steps short on v8.0.2: the defects M1 and M2 of the
 // motion_klipper_diff README (fixes on anya/pa-end-of-motion and anya/step-direction-at-emit).
-// With those fixes, this case passes.
-TEST_CASE("planner end-to-end: perimeters with input shaper and pressure advance", "[!mayfail]") {
+// The fixes are in this tree.
+TEST_CASE("planner end-to-end: perimeters with input shaper and pressure advance") {
     perimeters(true);
 }
 

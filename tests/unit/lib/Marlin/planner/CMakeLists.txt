@@ -24,14 +24,17 @@ set(real_files
     feature/precise_stepping/internal.hpp
     feature/precise_stepping/precise_stepping.cpp
     feature/precise_stepping/precise_stepping.hpp
+    feature/precise_stepping/resync.hpp
     feature/pressure_advance/pressure_advance.cpp
     feature/pressure_advance/pressure_advance.hpp
     feature/pressure_advance/pressure_advance_config.cpp
     feature/pressure_advance/pressure_advance_config.hpp
+    feature/pressure_advance/pressure_advance_sampling.hpp
     inc/Conditionals_LCD.h
     inc/Conditionals_adv.h
     module/planner.cpp
     module/planner.h
+    module/planner_skew.h
     module/prusa/corexy_transform.cpp
     module/prusa/corexy_transform.hpp
     )

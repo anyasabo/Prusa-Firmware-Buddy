@@ -124,7 +124,7 @@ TEST_CASE("motion diff: halts in the middle", "[motion_diff]") {
 // - a short extruder move just before a halt makes no steps,
 // - CoreXY: the Z input shaper is not in the lookback time when X or Y is shaped.
 // The fixes are in this tree, and each fix has a regression_<topic>.cpp test.
-TEST_CASE("motion diff: pressure advance, halt in the middle of a run", "[motion_diff][!mayfail]") {
+TEST_CASE("motion diff: pressure advance, halt in the middle of a run", "[motion_diff]") {
     // Defect M1: the PA steps after the last segment of a motion are lost at the halt. The next motion
     // continues at the commanded E, so the loss shows in the second motion.
     Config config;
@@ -137,7 +137,7 @@ TEST_CASE("motion diff: pressure advance, halt in the middle of a run", "[motion
     check_agreement(r);
 }
 
-TEST_CASE("motion diff: pressure advance, direction changes inside a run", "[motion_diff][!mayfail]") {
+TEST_CASE("motion diff: pressure advance, direction changes inside a run", "[motion_diff]") {
     // Defect M2: the last PA step before a direction change goes in the new direction.
     Config config;
     config.pressure_advance = 0.05f;

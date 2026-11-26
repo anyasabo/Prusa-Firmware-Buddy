@@ -49,7 +49,7 @@ After a halt, PreciseStepping starts again at time 0 and E 0. For Klipper, the d
 
 ## Defects found (v8.0.2)
 
-On v8.0.2, the cases "pressure advance", "everything on, print-like path" and "random scenarios" fail because of these defects. The fixes are in this tree. Each fix has a `regression_<topic>.cpp` test.
+On v8.0.2, the cases "pressure advance, halt in the middle of a run", "pressure advance, direction changes inside a run", "pressure advance", "everything on, print-like path", "random scenarios" and the comparator case "E steps 0.4 step late with pressure advance fail" fail because of these defects. The fixes are in this tree. Each fix has a `regression_<topic>.cpp` test.
 
 1. Pressure advance steps of the last `smooth_time / 2` before a halt are lost. The PA steps lag the PA samples by `smooth_time / 2`. When the sampling reaches the ending empty move, the PA generator moves to it. The other generators wait on the ending move with an INVALID event at its start. This event is the nearest event, so `process_one_move_segment_from_queue()` ends the motion.
 2. The last pressure advance step before a direction change has the new direction. When `step_generator_next_step_event()` generates a step, it copies the direction flags. When the step is emitted, the generator has already generated the next step. The classic and input shaper generators always put a keep-alive event between two steps in opposite directions, the PA generator does not.

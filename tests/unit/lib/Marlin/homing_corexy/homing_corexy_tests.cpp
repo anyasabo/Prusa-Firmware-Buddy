@@ -60,11 +60,11 @@ TEST_CASE("corexy_rehome_xy homes X at the Y of G28", "[homing_corexy][H1][!shou
     }
 }
 
-// O2: measure_phase_cycles() compares the pairs only when idx >= measure_probe_n, so a measurement
-// with no error does measure_probe_n + 1 bump pairs. It averages only measure_probe_n of them: the
-// first pair is overwritten. Commit 787c7c3ba introduced the loop and says "currently still using
-// n=2 samples, as previously done". The loop before it compared the first two pairs.
-TEST_CASE("measure_phase_cycles does measure_probe_n bump pairs", "[homing_corexy][O2][!shouldfail][known_bug]") {
+// O2: a measurement with no error does measure_probe_n bump pairs and averages them. Before the fix,
+// measure_phase_cycles() compared the pairs only when idx >= measure_probe_n: it did one more pair
+// and overwrote the first one. Commit 787c7c3ba introduced that loop and says "currently still
+// using n=2 samples, as previously done". The loop before it compared the first two pairs.
+TEST_CASE("measure_phase_cycles does measure_probe_n bump pairs", "[homing_corexy][O2]") {
     fake::reset(150, 150);
     store_sensitivity();
     REQUIRE(hooks::rehome_and_phase(true));

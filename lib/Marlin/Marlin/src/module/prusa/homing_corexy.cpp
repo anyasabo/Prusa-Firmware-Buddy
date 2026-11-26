@@ -558,9 +558,12 @@ static bool measure_phase_cycles(const AxisEnum axis, const ab_grid_t &ab_off, x
             break;
         }
 
-        // check for maximum probe difference in the window
+        // check for maximum probe difference in the window: all measure_probe_n slots hold a
+        // probe from idx == measure_probe_n - 1. Before 787c7c3ba the first two probes were
+        // compared, and that commit kept "n=2 samples, as previously done".
+        const bool window_full = (idx + 1 >= measure_probe_n);
         float p_diff[2] = { 0, 0 };
-        if (idx >= measure_probe_n && measure_probe_n > 1) {
+        if (window_full && measure_probe_n > 1) {
             for (uint8_t n = 0; n < measure_probe_n - 1; ++n) {
                 LOOP_XY(i) {
                     p_diff[i] = max(p_diff[i], abs(p_dist[n][i] - p_dist[n + 1][i]));
@@ -568,7 +571,7 @@ static bool measure_phase_cycles(const AxisEnum axis, const ab_grid_t &ab_off, x
             }
         }
 
-        if (idx >= measure_probe_n) {
+        if (window_full) {
             if (p_diff[0] < measure_bump_max_err_mm && p_diff[1] < measure_bump_max_err_mm) {
                 break;
             }

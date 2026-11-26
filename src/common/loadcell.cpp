@@ -432,8 +432,8 @@ void Loadcell::check_health(bool printing) {
     case Fault::no_samples:
         log_error(Loadcell, "No sample for %" PRIu32 " ms", buddy::LoadcellHealth::sample_timeout_us / 1000);
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_TIMEOUT);
-    case Fault::stuck_value:
-        log_error(Loadcell, "Raw value stuck at %" PRId32 " for %" PRIu32 " ms", health.get_last_raw(), buddy::LoadcellHealth::stuck_timeout_us / 1000);
+    case Fault::implausible_value:
+        log_error(Loadcell, "Raw value constant or implausible for %" PRIu32 " ms, last %" PRId32, buddy::LoadcellHealth::implausible_timeout_us / 1000, health.get_last_raw());
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
     }
 }

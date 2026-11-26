@@ -86,30 +86,30 @@ TEST_CASE("loadcell_health: stream recovers after a gap") {
     CHECK(rig.run(1'000'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
 }
 
-TEST_CASE("loadcell_health: constant raw value raises stuck_value") {
+TEST_CASE("loadcell_health: constant raw value raises implausible_value") {
     Rig rig;
     REQUIRE(rig.run(1'000'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
     // Upstream issue #3476: a disconnected MK4 load cell read a constant -26570.
     CHECK(rig.run(1'900'000, [] { return Maybe { true, -26570 }; }) == Fault::none);
-    CHECK(rig.run(200'000, [] { return Maybe { true, -26570 }; }) == Fault::stuck_value);
+    CHECK(rig.run(200'000, [] { return Maybe { true, -26570 }; }) == Fault::implausible_value);
 }
 
-TEST_CASE("loadcell_health: value at a rail raises stuck_value") {
+TEST_CASE("loadcell_health: value at a rail raises implausible_value") {
     for (const int32_t rail : { LoadcellHealth::rail_min, LoadcellHealth::rail_max }) {
         Rig rig;
         REQUIRE(rig.run(1'000'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
         // A saturated HX717 gives the rail value. The rail does not count as a change.
-        CHECK(rig.run(2'100'000, [&] { return Maybe { true, rail }; }) == Fault::stuck_value);
+        CHECK(rig.run(2'100'000, [&] { return Maybe { true, rail }; }) == Fault::implausible_value);
     }
 }
 
-TEST_CASE("loadcell_health: change between the two rails raises stuck_value") {
+TEST_CASE("loadcell_health: change between the two rails raises implausible_value") {
     Rig rig;
     bool flip = false;
     CHECK(rig.run(2'100'000, [&] {
         flip = !flip;
         return Maybe { true, flip ? LoadcellHealth::rail_min : LoadcellHealth::rail_max };
-    }) == Fault::stuck_value);
+    }) == Fault::implausible_value);
 }
 
 TEST_CASE("loadcell_health: blocked checker does not raise a false fault") {
@@ -131,4 +131,24 @@ TEST_CASE("loadcell_health: microsecond clock wrap does not raise a false fault"
 TEST_CASE("loadcell_health: microsecond clock wrap does not hide a dead stream") {
     Rig rig(UINT32_MAX - 300'000);
     CHECK(rig.run(700'000, [] { return Maybe { false, 0 }; }) == Fault::no_samples);
+}
+
+TEST_CASE("loadcell_health: noisy value near a rail raises implausible_value") {
+    // A floating bridge input can drift to a high value and still change.
+    // Such a value is not plausible for a connected load cell.
+    for (const int32_t base : { LoadcellHealth::rail_max - 100'000, LoadcellHealth::rail_min + 100'000, LoadcellHealth::implausible_abs }) {
+        CAPTURE(base);
+        Rig rig;
+        REQUIRE(rig.run(1'000'000, [&] { return Maybe { true, rig.noisy() }; }) == Fault::none);
+        CHECK(rig.run(2'100'000, [&] { return Maybe { true, base + (base > 0 ? 1 : -1) * (rig.noisy() + 200) }; }) == Fault::implausible_value);
+    }
+}
+
+TEST_CASE("loadcell_health: noisy value with a large plausible offset has no fault") {
+    // Upstream issue #3476: a connected MK4 load cell read about 15270 g untared (approximately 795k counts).
+    for (const int32_t base : { 795'000, -1'400'000, LoadcellHealth::implausible_abs - 1000 }) {
+        CAPTURE(base);
+        Rig rig;
+        CHECK(rig.run(10'000'000, [&] { return Maybe { true, base + rig.noisy() }; }) == Fault::none);
+    }
 }

@@ -277,9 +277,14 @@ FORCE_INLINE TimeTicks pressure_advance_interpolate_step_time(const float prev_p
     }
 }
 
-// The pressure advance reaches the end of processing when current_move is equal to the ending empty move segment and two succeeding positions are the same.
+// The pressure advance reaches the end of processing when current_move is equal to the ending empty move segment,
+// all samples in the filter buffer are the same (the filter output cannot change any more) and two succeeding
+// positions are the same.
+//
+// Two equal positions alone do not show the end: the newest sample has zero weight in the Bartlett window, so
+// after a short extruder move (one sample) just after a stop, the filter output has not started to change yet.
 FORCE_INLINE bool is_pressure_advance_reached_end(const pressure_advance_state_t &state) {
-    return is_ending_empty_move(*state.current_move) && state.prev_position == state.next_position;
+    return is_ending_empty_move(*state.current_move) && state.buffer.same_samples_cnt >= state.buffer.length && state.prev_position == state.next_position;
 }
 
 TimeTicks calc_time_for_distance_pressure_advance(const float distance, pressure_advance_step_generator_t &step_generator, const pressure_advance_params_t &params, step_generator_state_t &step_generator_state) {

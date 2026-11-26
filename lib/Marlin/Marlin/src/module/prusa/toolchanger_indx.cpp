@@ -961,16 +961,32 @@ bool PrusaToolChanger::recover_before_lock(
     const ToolchangeReturnData &rd,
     std::variant<PhysicalToolIndex, NoTool> active_tool) {
 
-    // after_lock is published after the lock dwell. A power panic in the lock move or in the dwell leaves
-    // before_lock with the target nozzle locked in the head. tool_change() would then home (G28 pulls the
-    // nozzle out of the dock) and open_head() would open the lock away from the dock. If no tool is active
-    // (the old tool was parked and verified absent) and the head reports a nozzle, that nozzle is the target:
-    // finish the pickup instead. Test: "power panic in the lock dwell" in tests/unit/marlin/toolchanger_indx.
+    // after_lock is published after the lock dwell. A power panic in the approach into the dock, in the lock
+    // move or in the dwell leaves before_lock with the target nozzle in the head. tool_change() would then home
+    // (G28 pulls the nozzle out of the dock) and open_head() would open the lock away from the dock.
+    // If no tool is active (the old tool was parked and verified absent) and the head reports a nozzle, that
+    // nozzle is the target. The sensor reads the nozzle, not the lock, so close the lock again in place (a
+    // close move on a closed lock does nothing, see open_head()), then finish the pickup as after_lock does.
+    // Test: "power panic in the lock dwell" in tests/unit/marlin/toolchanger_indx.
     if (std::holds_alternative<NoTool>(active_tool) && std::holds_alternative<PhysicalToolIndex>(rd.tool)) {
-        // Wait for the first presence data after the reboot; nullopt (no data) keeps the old behaviour
+        // Wait for the first presence data after the reboot; no data keeps the old behaviour
         (void)wait([]() { return buddy::puppies::indx.get_nozzle_present().has_value(); }, NOZZLE_VERIFY_TIMEOUT_MS);
-        if (buddy::puppies::indx.get_nozzle_present() == std::optional<bool>(true)) {
-            log_info(PrusaToolChanger, "PP recovery: nozzle locked before after_lock, finishing the pickup");
+        const auto present = buddy::puppies::indx.get_nozzle_present();
+        if (!present.has_value()) {
+            log_warning(PrusaToolChanger, "PP recovery: no nozzle presence data, starting the toolchange again");
+        } else if (*present) {
+            const PhysicalToolIndex tool = std::get<PhysicalToolIndex>(rd.tool);
+            log_info(PrusaToolChanger, "PP recovery: nozzle #%u in the head before after_lock, finishing the pickup", tool.to_raw());
+            {
+                EMotorGuard guard;
+                stepperE0.rms_current(E_UNLOCK_CURRENT_MA);
+                e_move(+E_FULL_CLOSE_DISTANCE, E_LOCK_FEEDRATE);
+                planner.synchronize();
+                buddy::indx_tool_lock_hack().rearm(Badge<PrusaToolChanger> {});
+            }
+            // Same state as the after_lock resume in power_panic.cpp: the target is active. A second power
+            // panic before commit_pickup() then saves the target as the active tool.
+            set_active_extruder(tool);
             return finish_pickup_after_lock(rd);
         }
     }
@@ -994,10 +1010,14 @@ bool PrusaToolChanger::finish_pickup_after_lock(const ToolchangeReturnData &rd) 
 
     buddy::puppies::indx.invalidate_nozzle_data();
     if (!verify_nozzle_state(tool, true)) {
-        // power_panic.cpp resume_loop() made the target tool active for after_lock. The lock did not grab
-        // the nozzle, so make "no tool" active: the fallback tool_change() in resuming_begin() then does a
-        // real pickup. Without this, it is a no-op and the print resumes without a nozzle.
-        set_active_extruder(NoTool {});
+        // The target tool is active (power_panic.cpp resume_loop() for after_lock, or recover_before_lock()).
+        // If the head reports no nozzle, the lock did not grab it: make "no tool" active, so that the fallback
+        // tool_change() in resuming_begin() does a real pickup. Without this, that call is a no-op and the
+        // print resumes without a nozzle. If the head gives no data, keep the target active: the nozzle can be
+        // locked, and a new pickup would open the lock away from the dock (open_head()).
+        if (buddy::puppies::indx.get_nozzle_present() == std::optional<bool>(false)) {
+            set_active_extruder(NoTool {});
+        }
         return false;
     }
 
@@ -1007,7 +1027,7 @@ bool PrusaToolChanger::finish_pickup_after_lock(const ToolchangeReturnData &rd) 
     // MBL has not been re-enabled yet during PP resume. The Z portion of the
     // offset diff was physically applied before PP (the z_shifts run before
     // the after_lock store). The XY portion was never physically applied —
-    // it is implicit in rd.return_pos.asNative() because PP restore set
+    // it is implicit in rd.return_pos.asNative() because commit_pickup() above set
     // hotend_currently_applied_offset to the new tool's offset, so the
     // logical→native conversion already produces the adjusted native target.
     // Pass 0 to skip a redundant in-place adjustment.

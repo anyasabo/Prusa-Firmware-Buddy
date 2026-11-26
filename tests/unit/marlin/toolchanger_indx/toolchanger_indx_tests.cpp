@@ -515,8 +515,32 @@ TEST_CASE("toolchanger_indx: power panic after a lock that did not grab the nozz
     REQUIRE(!world.head_tool);
 
     world.on_before_move = nullptr;
+    CHECK(resume_after_power_panic());
+    check_consistent();
+    CHECK(world.head_tool == 6);
+}
+
+TEST_CASE("toolchanger_indx: power panic after the lock - no presence data at the resume", "[power_panic]") {
+    world.reset();
+    world.printing = true;
+    REQUIRE(change(T(1)));
+
+    // The lock of tool 6 grabs. The power fails on the exit move (after_lock). At the resume, the head gives
+    // no presence data for the nozzle check of finish_pickup_after_lock().
+    world.on_before_move = [] {
+        if (prusa_toolchanger.phase() == PrusaToolChanger::ToolchangePhase::after_lock && world.power_loss_at_move < 0) {
+            world.power_loss_at_move = static_cast<int>(world.moves.size());
+        }
+    };
+    CHECK_THROWS_AS(change(T(6)), FakePowerLoss);
+    REQUIRE(world.head_tool == 6);
+    world.on_before_move = nullptr;
+    world.sensor_blackouts = 1;
+
+    // The nozzle is locked: the resume must keep tool 6 and must not open the lock away from the dock
     resume_after_power_panic();
     check_consistent();
+    CHECK(world.head_tool == 6);
 }
 
 TEST_CASE("toolchanger_indx: power panic during the retry after a failed pickup", "[power_panic]") {

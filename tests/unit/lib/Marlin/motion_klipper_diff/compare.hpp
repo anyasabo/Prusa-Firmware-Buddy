@@ -57,6 +57,8 @@ double pa_error_bound_steps(const Config &config, const std::vector<Segment> &se
 
 /// Checks one axis of a run against Klipper. Returns an empty string if the axis agrees, else the
 /// reason. `allowed_err_steps` is the extra position error that is allowed (pa_error_bound_steps() for E).
-std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps = 0.);
+/// `sessions`: the number of motions from a halt to a halt. Each can end with one tie step (see
+/// check_axis()).
+std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps = 0., int sessions = 1);
 
 } // namespace motion_diff

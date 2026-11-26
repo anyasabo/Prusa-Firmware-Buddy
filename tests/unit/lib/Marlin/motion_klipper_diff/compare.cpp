@@ -174,7 +174,7 @@ double pa_error_bound_steps(const Config &config, const std::vector<Segment> &se
     return mm * config.steps_per_mm[3];
 }
 
-std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps) {
+std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allowed_err_steps, int sessions) {
     if (c.buddy_net != stepper_net) {
         return "the step events do not add up to the stepper position";
     }
@@ -190,9 +190,10 @@ std::string check_axis(const AxisComparison &c, int64_t stepper_net, double allo
         std::snprintf(buf, sizeof(buf), "too many steps without a partner (allowed %zu)", allowed_unmatched);
         return buf;
     }
-    // One step per axis can land exactly on the end position of a move (a quarter-step tie, as above):
-    // it happens at zero speed, so its time is not defined, up to the end of the shaped motion.
-    if (c.max_err_steps > MAX_ERR_STEPS + allowed_err_steps && c.over_limit > 1) {
+    // One step for each axis and motion can land exactly on the end position (a quarter-step tie, as
+    // above): it happens at zero speed, so its time is not defined. Buddy can make it at the end of the
+    // shaped motion or at the start of the next motion after the halt.
+    if (c.max_err_steps > MAX_ERR_STEPS + allowed_err_steps && c.over_limit > size_t(std::max(sessions, 1))) {
         char buf[96];
         std::snprintf(buf, sizeof(buf), "step times differ from Klipper (allowed %.2f steps)", MAX_ERR_STEPS + allowed_err_steps);
         return buf;

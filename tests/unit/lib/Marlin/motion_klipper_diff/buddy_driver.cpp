@@ -146,9 +146,11 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
     // Blocks in groups: a group starts at a block with halt_before. The next group goes to the planner
     // only after the motion has come back to a halt.
     std::vector<std::vector<block_t>> groups(1);
+    std::vector<int64_t> group_start_e_msteps { position_msteps[E_AXIS] }; // the commanded E at each group start
     for (const Block &b : blocks) {
         if (b.halt_before && !groups.back().empty()) {
             groups.emplace_back();
+            group_start_e_msteps.push_back(position_msteps[E_AXIS]);
         }
         block_t block = make_block(b, position_msteps, position_mm);
         if (block.msteps.a || block.msteps.b || block.msteps.c || block.msteps.e) {
@@ -168,8 +170,27 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
     int64_t now_us = 0; // time of the last consumed step event
     bool started = false;
     // After a halt, PreciseStepping starts again at time 0 and E 0 (reset_from_halt()). The segments
-    // for Klipper continue the time and the E position (at the E stepper position of the halt).
+    // for Klipper continue: the next motion starts at the end of the last real segment plus the tail
+    // below (whole us, so that the Buddy step times keep their us grid), and E at the commanded E of
+    // the halt, rounded
+    // to a step (PreciseStepping drops the step fraction of E at a halt). Thus E steps that Buddy
+    // loses before a halt stay visible after it.
     double time_offset_s = 0., e_offset_mm = 0.;
+    int64_t time_offset_us = 0;
+    double last_segment_end_s = 0.;
+    // The motion continues after the last real segment of a session: the input shapers by their
+    // largest pulse time, pressure advance by its filter. Buddy finishes this tail before the halt,
+    // so the next session starts after it (Klipper's continuous motion then equals Buddy's).
+    double tail_s = 0.;
+    for (int i = 0; i < 3; ++i) {
+        if (PreciseStepping::physical_axis_step_generator_types & (INPUT_SHAPER_STEP_GENERATOR_X << i)) {
+            const input_shaper_pulses_t &p = InputShaper::logical_axis_pulses[i];
+            tail_s = std::max(tail_s, p.pulses[p.num_pulses - 1].t.to_seconds());
+        }
+    }
+    if (PreciseStepping::physical_axis_step_generator_types & PRESSURE_ADVANCE_STEP_GENERATOR_E) {
+        tail_s = std::max(tail_s, PressureAdvance::pressure_advance_params.filter_total_time.to_seconds());
+    }
     int64_t e_net_steps = 0;
     bool first_session = true;
 
@@ -191,8 +212,17 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
             if (move.flags & MOVE_FLAG_BEGINNING_EMPTY_MOVE) {
                 if (!first_session) {
                     // All events of the session before are consumed (reset_from_halt() needs empty queues).
-                    time_offset_s = double(now_us) * 1e-6;
-                    e_offset_mm = double(e_net_steps) * double(Planner::mm_per_step[E_AXIS]);
+                    time_offset_us = int64_t(std::ceil((last_segment_end_s + tail_s) * 1e6));
+                    time_offset_s = double(time_offset_us) * 1e-6;
+                    now_us = time_offset_us; // the first event of the new session counts from its time 0
+                    // The commanded E at the halt, in steps. On an exact half step (a tie), the last step
+                    // can go either way: then take the E position of the Buddy steps.
+                    const size_t group = size_t(std::min<int>(result.sessions, int(group_start_e_msteps.size()) - 1));
+                    const int64_t e_msteps = group_start_e_msteps[group];
+                    const int64_t e_steps = (e_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2 || -e_msteps % PLANNER_STEPS_MULTIPLIER == PLANNER_STEPS_MULTIPLIER / 2)
+                        ? e_net_steps
+                        : std::llround(double(e_msteps) / PLANNER_STEPS_MULTIPLIER);
+                    e_offset_mm = double(e_steps) * double(Planner::mm_per_step[E_AXIS]);
                 }
                 first_session = false;
                 ++result.sessions;
@@ -200,6 +230,9 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
             Segment segment = to_segment(move);
             segment.print_time += time_offset_s;
             segment.start_pos[3] += e_offset_mm;
+            if (!(move.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) && segment.move_time > 0.) {
+                last_segment_end_s = segment.print_time + segment.move_time;
+            }
             result.segments.push_back(segment);
             seen_head = PreciseStepping::move_segment_queue_next_index(seen_head);
             started = true;

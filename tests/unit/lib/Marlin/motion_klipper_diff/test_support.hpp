@@ -19,7 +19,7 @@ inline Run run_both(const Config &config, const std::vector<Block> &blocks) {
     r.buddy = run_buddy(config, blocks);
     r.klipper = run_klipper(config, r.buddy.segments, start_position_mm(config));
     for (int i = 0; i < AXES; ++i) {
-        r.axis[i] = compare_axis(r.buddy.steps.axis[i], r.klipper.raw.axis[i], r.buddy.steps.skipped_net[i], r.klipper.raw.skipped_net[i]);
+        r.axis[i] = compare_axis(config, r.buddy, r.klipper, i);
     }
     return r;
 }

@@ -1,5 +1,6 @@
 #include "klipper_oracle.h"
 
+#include <stddef.h>
 #include <stdlib.h>
 
 #include "klipper/itersolve.h"
@@ -35,10 +36,33 @@ static struct stepper_kinematics *wrap_shaper(const struct kl_params *p, struct 
     return is;
 }
 
-void kl_generate_steps(const struct kl_params *p, const struct kl_move *moves, int move_count, struct stepcompress *out[4]) {
-    struct trapq *tq = trapq_alloc();
-    struct trapq *eq = trapq_alloc();
-    double end_time = 0.;
+struct kl_session {
+    struct trapq *tq, *eq;
+    struct stepper_kinematics *orig[4], *used[4];
+    double end_time;
+    // The moves of each trapq in time order (with the null moves and the sentinels), for the
+    // position queries.
+    struct move **list[2];
+    int list_count[2];
+};
+
+static void make_list(struct trapq *tq, struct move ***out, int *count) {
+    int n = 0;
+    struct move *m;
+    list_for_each_entry(m, &tq->moves, node) {
+        ++n;
+    }
+    *out = malloc(n * sizeof(**out));
+    *count = 0;
+    list_for_each_entry(m, &tq->moves, node) {
+        (*out)[(*count)++] = m;
+    }
+}
+
+struct kl_session *kl_session_create(const struct kl_params *p, const struct kl_move *moves, int move_count) {
+    struct kl_session *s = calloc(1, sizeof(*s));
+    s->tq = trapq_alloc();
+    s->eq = trapq_alloc();
 
     for (int i = 0; i < move_count; ++i) {
         const struct kl_move *src = &moves[i];
@@ -53,7 +77,7 @@ void kl_generate_steps(const struct kl_params *p, const struct kl_move *moves, i
         m->axes_r.x = src->axes_r[0];
         m->axes_r.y = src->axes_r[1];
         m->axes_r.z = src->axes_r[2];
-        trapq_add_move(tq, m);
+        trapq_add_move(s->tq, m);
 
         // As klippy/kinematics/extruder.py process_move(): x is the extruder position, y is the
         // "can pressure advance" flag.
@@ -65,60 +89,91 @@ void kl_generate_steps(const struct kl_params *p, const struct kl_move *moves, i
         e->start_pos.x = src->start_pos[3];
         e->axes_r.x = 1.;
         e->axes_r.y = (src->axes_r[3] > 0. && (src->axes_r[0] != 0. || src->axes_r[1] != 0.)) ? 1. : 0.;
-        trapq_add_move(eq, e);
+        trapq_add_move(s->eq, e);
 
-        if (src->print_time + src->move_t > end_time) {
-            end_time = src->print_time + src->move_t;
+        if (src->print_time + src->move_t > s->end_time) {
+            s->end_time = src->print_time + src->move_t;
         }
     }
-    trapq_check_sentinels(tq);
-    trapq_check_sentinels(eq);
+    trapq_check_sentinels(s->tq);
+    trapq_check_sentinels(s->eq);
+    make_list(s->tq, &s->list[0], &s->list_count[0]);
+    make_list(s->eq, &s->list[1], &s->list_count[1]);
 
-    struct stepper_kinematics *orig[4];
     if (p->corexy) {
-        orig[0] = corexy_stepper_alloc('+');
-        orig[1] = corexy_stepper_alloc('-');
+        s->orig[0] = corexy_stepper_alloc('+');
+        s->orig[1] = corexy_stepper_alloc('-');
     } else {
-        orig[0] = cartesian_stepper_alloc('x');
-        orig[1] = cartesian_stepper_alloc('y');
+        s->orig[0] = cartesian_stepper_alloc('x');
+        s->orig[1] = cartesian_stepper_alloc('y');
     }
-    orig[2] = cartesian_stepper_alloc('z');
+    s->orig[2] = cartesian_stepper_alloc('z');
     for (int i = 0; i < 3; ++i) {
-        itersolve_set_position(orig[i], p->start_pos[0], p->start_pos[1], p->start_pos[2]);
+        itersolve_set_position(s->orig[i], p->start_pos[0], p->start_pos[1], p->start_pos[2]);
     }
-    orig[3] = extruder_stepper_alloc();
+    s->orig[3] = extruder_stepper_alloc();
     if (p->pressure_advance > 0.) {
-        extruder_set_pressure_advance(orig[3], 0., p->pressure_advance, p->smooth_time);
+        extruder_set_pressure_advance(s->orig[3], 0., p->pressure_advance, p->smooth_time);
     }
 
-    struct stepper_kinematics *used[4] = { orig[0], orig[1], orig[2], orig[3] };
-    const int xy_shaped = any_shaper(p, 0, 1);
-    const int z_shaped = any_shaper(p, 2, 2);
-    if (xy_shaped) {
-        used[0] = wrap_shaper(p, orig[0]);
-        used[1] = wrap_shaper(p, orig[1]);
+    for (int i = 0; i < 4; ++i) {
+        s->used[i] = s->orig[i];
     }
-    if (z_shaped) {
-        used[2] = wrap_shaper(p, orig[2]);
+    if (any_shaper(p, 0, 1)) {
+        s->used[0] = wrap_shaper(p, s->orig[0]);
+        s->used[1] = wrap_shaper(p, s->orig[1]);
     }
+    if (any_shaper(p, 2, 2)) {
+        s->used[2] = wrap_shaper(p, s->orig[2]);
+    }
+    for (int i = 0; i < 4; ++i) {
+        itersolve_set_trapq(s->used[i], i == 3 ? s->eq : s->tq, p->step_dist[i]);
+    }
+    return s;
+}
 
+void kl_session_generate(struct kl_session *s, struct stepcompress *out[4]) {
     // The tail sentinel keeps the last position for ever, so one flush past the end (plus the
     // largest shaper or smoothing window) generates all steps.
-    const double flush_time = end_time + 1.;
+    const double flush_time = s->end_time + 1.;
     for (int i = 0; i < 4; ++i) {
-        out[i]->record_from = p->record_from;
-        itersolve_set_trapq(used[i], i == 3 ? eq : tq, p->step_dist[i]);
-        itersolve_generate_steps(used[i], out[i], flush_time);
+        itersolve_generate_steps(s->used[i], out[i], flush_time);
         stepcompress_recorder_finish(out[i]);
     }
+}
 
-    for (int i = 0; i < 3; ++i) {
-        if (used[i] != orig[i]) {
-            free(used[i]);
-        }
-        free(orig[i]);
+double kl_session_position(struct kl_session *s, int axis, double time) {
+    const int l = axis == 3 ? 1 : 0;
+    struct move **list = s->list[l];
+    // The last move that starts at or before `time` (skip the head sentinel at -1 s)
+    int lo = 1, hi = s->list_count[l] - 1;
+    if (time < list[lo]->print_time) {
+        time = list[lo]->print_time;
     }
-    extruder_stepper_free(orig[3]);
-    trapq_free(tq);
-    trapq_free(eq);
+    while (lo < hi) {
+        const int mid = (lo + hi + 1) / 2;
+        if (list[mid]->print_time <= time) {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    struct move *m = list[lo];
+    struct stepper_kinematics *sk = s->used[axis];
+    return sk->calc_position_cb(sk, m, time - m->print_time);
+}
+
+void kl_session_free(struct kl_session *s) {
+    for (int i = 0; i < 3; ++i) {
+        if (s->used[i] != s->orig[i]) {
+            free(s->used[i]);
+        }
+        free(s->orig[i]);
+    }
+    extruder_stepper_free(s->orig[3]);
+    free(s->list[0]);
+    free(s->list[1]);
+    trapq_free(s->tq);
+    trapq_free(s->eq);
+    free(s);
 }

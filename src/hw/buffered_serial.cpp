@@ -307,8 +307,11 @@ void BufferedSerial::x_half_reached(int half) {
     auto &event_group = rxBuf.event_group;
     // TODO: Investigate possible event loss on full timer queue
     (void)event_group.set_from_isr(half);
-    // TODO: Investigate reading stale value
-    const freertos::EventGroup::Bits events = event_group.get_from_isr();
+    // xEventGroupSetBitsFromISR() does not set the bits. It sends the set to the timer task,
+    // which runs after this ISR. Thus xEventGroupGetBitsFromISR() here returns the bits without
+    // `half`, and the check below did not see an overflow when the other half was still unread.
+    // https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/V10.6.2/event_groups.c#L753-L763 (the version in lib/Middlewares)
+    const freertos::EventGroup::Bits events = event_group.get_from_isr() | half;
     static constexpr auto both_full = (UARTRXBUFF_EVT_FIRST_HALF_FULL | UARTRXBUFF_EVT_SECOND_HALF_FULL);
     if ((events & both_full) == both_full) {
         // Why? If both those flags are set, it means we haven't finished reading one half of the buffer,

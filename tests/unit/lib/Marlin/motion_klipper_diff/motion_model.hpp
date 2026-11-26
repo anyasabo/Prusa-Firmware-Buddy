@@ -17,6 +17,9 @@ struct Block {
     double dx = 0, dy = 0, dz = 0, de = 0; // cartesian displacement (mm)
     float v_start = 0, v_cruise = 0, v_end = 0; // along the path (mm/s)
     float accel = 0; // along the path (mm/s^2)
+    // The motion stops before this block and PreciseStepping comes back to a halt (reset_from_halt()),
+    // as when the planner queue runs dry. v_start must be 0, and the block before must end at 0.
+    bool halt_before = false;
 };
 
 struct Config {

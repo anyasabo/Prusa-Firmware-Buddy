@@ -87,6 +87,7 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
         }
         blk.v_start = blk.v_cruise;
         blk.v_end = in.range(0.f, blk.v_cruise);
+        blk.halt_before = !s.blocks.empty() && (kind & 0xE0) == 0xE0; // 1 in 8: the planner queue runs dry
         s.blocks.push_back(blk);
     }
 
@@ -102,13 +103,16 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
     for (size_t i = s.blocks.size(); i-- > 0;) { // backward pass
         Block &b = s.blocks[i];
         b.v_start = std::min(b.v_start, std::sqrt(b.v_end * b.v_end + reach2(b)));
+        if (b.halt_before) {
+            b.v_start = 0.f;
+        }
         if (i > 0) {
             s.blocks[i - 1].v_end = std::min(s.blocks[i - 1].v_end, b.v_start);
         }
     }
     float v_prev = 0.f;
     for (Block &b : s.blocks) { // forward pass
-        b.v_start = v_prev;
+        b.v_start = b.halt_before ? 0.f : v_prev;
         b.v_end = std::min(b.v_end, std::sqrt(b.v_start * b.v_start + reach2(b)));
         v_prev = b.v_end;
     }

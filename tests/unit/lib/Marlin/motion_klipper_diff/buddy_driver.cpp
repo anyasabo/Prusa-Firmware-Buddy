@@ -143,16 +143,35 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
             position_mm[i] = start[i];
         }
     }
+    // Blocks in groups: a group starts at a block with halt_before. The next group goes to the planner
+    // only after the motion has come back to a halt.
+    std::vector<std::vector<block_t>> groups(1);
     for (const Block &b : blocks) {
+        if (b.halt_before && !groups.back().empty()) {
+            groups.emplace_back();
+        }
         block_t block = make_block(b, position_msteps, position_mm);
         if (block.msteps.a || block.msteps.b || block.msteps.c || block.msteps.e) {
-            Planner::unprocessed.push_back(block);
+            groups.back().push_back(block);
         }
     }
+    size_t next_group = 0;
+    const auto push_next_group = [&] {
+        for (const block_t &block : groups[next_group]) {
+            Planner::unprocessed.push_back(block);
+        }
+        ++next_group;
+    };
+    push_next_group();
 
     uint8_t seen_head = PreciseStepping::move_segment_queue.head;
     int64_t now_us = 0; // time of the last consumed step event
     bool started = false;
+    // After a halt, PreciseStepping starts again at time 0 and E 0 (reset_from_halt()). The segments
+    // for Klipper continue the time and the E position (at the E stepper position of the halt).
+    double time_offset_s = 0., e_offset_mm = 0.;
+    int64_t e_net_steps = 0;
+    bool first_session = true;
 
     // Each iteration is one move ISR and then the step ISR until the step event queue is empty.
     const bool trace = std::getenv("MOTION_DIFF_TRACE") != nullptr;
@@ -168,7 +187,19 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
 
         // Copy new move segments before the step ISR can discard and reuse them.
         while (seen_head != PreciseStepping::move_segment_queue.head) {
-            result.segments.push_back(to_segment(PreciseStepping::move_segment_queue.data[seen_head]));
+            const move_t &move = PreciseStepping::move_segment_queue.data[seen_head];
+            if (move.flags & MOVE_FLAG_BEGINNING_EMPTY_MOVE) {
+                if (!first_session) {
+                    // All events of the session before are consumed (reset_from_halt() needs empty queues).
+                    time_offset_s = double(now_us) * 1e-6;
+                    e_offset_mm = double(e_net_steps) * double(Planner::mm_per_step[E_AXIS]);
+                }
+                first_session = false;
+            }
+            Segment segment = to_segment(move);
+            segment.print_time += time_offset_s;
+            segment.start_pos[3] += e_offset_mm;
+            result.segments.push_back(segment);
             seen_head = PreciseStepping::move_segment_queue_next_index(seen_head);
             started = true;
         }
@@ -179,6 +210,9 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
             for (int axis = 0; axis < AXES; ++axis) {
                 if (flags & (STEP_EVENT_FLAG_STEP_X << axis)) {
                     const bool negative = flags & (STEP_EVENT_FLAG_X_DIR << axis);
+                    if (axis == E_AXIS) {
+                        e_net_steps += negative ? -1 : 1;
+                    }
                     if (double(now_us) >= config.record_from_us) {
                         result.steps.axis[axis].push_back({ double(now_us), !negative });
                     } else {
@@ -189,8 +223,13 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
             PreciseStepping::process_one_step_event_from_queue();
         }
 
-        if (started && Planner::unprocessed.empty() && Planner::processed.empty() && !PreciseStepping::has_blocks_queued()
-            && PreciseStepping::total_print_time == TimeTicks::zero()) {
+        const bool halted = Planner::unprocessed.empty() && Planner::processed.empty() && !PreciseStepping::has_blocks_queued()
+            && PreciseStepping::total_print_time == TimeTicks::zero();
+        if (halted && next_group < groups.size()) {
+            push_next_group();
+            continue;
+        }
+        if (started && halted) {
             result.finished = true;
             break;
         }

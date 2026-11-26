@@ -49,8 +49,11 @@ Scenario make_scenario(ByteReader &in, const ScenarioLimits &limits) {
     }
     if (limits.allow_pa && (flags & 64)) {
         c.pressure_advance = in.range(0.005f, 0.2f);
-        // 0.01 s: the minimum of the fix for M572 W0 (branch anya/pa-smooth-time-min, klipper-audit K2)
-        c.smooth_time = in.range(0.01f, 0.2f);
+        // 0.01 s: the minimum of the fix for M572 W0 (branch anya/pa-smooth-time-min, klipper-audit K2).
+        // 0.12 s: above, the PA steps at a halt can come more than 65.5 ms after the event before, and
+        // the debug_assert() in check_step_time() (precise_stepping.cpp) fails. That check is for
+        // keep-alive events; release builds do not have it and split long intervals correctly.
+        c.smooth_time = in.range(0.01f, 0.12f);
     }
     // Start anywhere on a CORE One L sized machine (A + B even: a whole number of X/Y mini-steps
     // per step pair, as after homing).

@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -141,3 +144,30 @@ def test_vex_gate_fails_on_unreadable_results(
     monkeypatch.setattr(sys, "argv", ["vex_gate.py", str(result)])
     with pytest.raises(json.JSONDecodeError):
         vex_gate.main()
+
+
+def test_scan_refuses_a_grype_download_with_a_wrong_sha256(tmp_path) -> None:
+    # A tool error must fail the scan, and the unverified file must not stay in the cache.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_curl = bin_dir / "curl"
+    # scan.sh calls curl -fsSLo FILE URL. Give a real tarball with another grype in it.
+    fake_curl.write_text(
+        '#!/bin/sh\nd=$(mktemp -d)\nprintf "#!/bin/sh\\n" > "$d/grype"\n'
+        'chmod +x "$d/grype"\ntar -czf "$2" -C "$d" grype\n')
+    fake_curl.chmod(0o755)
+    env = {
+        **os.environ, "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "XDG_CACHE_HOME": str(tmp_path / "cache")
+    }
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        ["bash", "utils/sbom/scan.sh",
+         str(tmp_path / "out")],
+        check=False,
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True)
+    assert result.returncode != 0
+    assert not list((tmp_path / "cache").rglob("grype"))

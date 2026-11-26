@@ -29,10 +29,12 @@ cd "$(git rev-parse --show-toplevel)"
 out=${1:-build-sbom}
 mkdir -p "$out"
 
-grype_bin() {
+# Sets $grype. Call it directly, not in $(...): bash turns off set -e in a command substitution,
+# so a failed download or checksum would not stop the script there.
+find_grype() {
     if command -v grype >/dev/null &&
         [ "$(grype version | awk '$1 == "Version:" { print $2 }')" = "$GRYPE_VERSION" ]; then
-        command -v grype
+        grype=$(command -v grype)
         return
     fi
     local os arch
@@ -61,10 +63,10 @@ grype_bin() {
         tar -xzf "$tmp/$tarball" -C "$dir" grype
         rm -rf "$tmp"
     fi
-    echo "$dir/grype"
+    grype=$dir/grype
 }
 
-grype=$(grype_bin)
+find_grype
 echo "grype $GRYPE_VERSION: $grype" >&2
 results=()
 for image in "${IMAGES[@]}"; do

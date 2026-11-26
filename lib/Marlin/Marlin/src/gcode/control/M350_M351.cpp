@@ -25,6 +25,8 @@
 #include <option/has_phase_stepping.h>
 #if HAS_PHASE_STEPPING()
   #include <feature/phase_stepping/axes.hpp>
+  #include <feature/phase_stepping/phase_stepping.hpp>
+  #include <bsod/bsod.h>
 #endif
 
 #if HAS_DRIVER(TMC2130)
@@ -74,7 +76,8 @@ void GcodeSuite::M350() {
 
 
   #if HAS_PHASE_STEPPING()
-    // FIXME: Code above does not update config store, phstep takes data from config store
+    // Phase stepping takes the microsteps from the drivers. It is disabled here (phstep_guard).
+    debug_assert(!phase_stepping::any_axis_enabled());
     phase_stepping::initialize_axis_motor_params();
   #endif
 

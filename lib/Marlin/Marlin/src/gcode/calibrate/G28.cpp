@@ -32,6 +32,10 @@
 #include "../../module/stepper.h" // for various
 #include <option/has_crash_detection.h>
 #include <option/has_switchable_homing_calibration.h>
+#include <option/has_loadcell_hx717.h>
+#if HAS_LOADCELL_HX717()
+  #include <loadcell.hpp>
+#endif
 
 #if HAS_MULTI_HOTEND
   #include "../../module/tool_change.h"
@@ -684,6 +688,13 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
     }
   }
 
+  #if HAS_LOADCELL_HX717()
+    // Measure whether the load cell feels the XY homing, before Z homing trusts it
+    if (!failed && should_home_at_all(Z_AXIS) && (should_home_to_level(X_AXIS, AxisHomeLevel::imprecise) || should_home_to_level(Y_AXIS, AxisHomeLevel::imprecise))) {
+      loadcell.start_liveness_window();
+    }
+  #endif
+
   // Diagonal move first if both are homing
   #if ENABLED(QUICK_HOME)
     if (!failed && should_home_to_level(X_AXIS, AxisHomeLevel::imprecise) && should_home_to_level(Y_AXIS, AxisHomeLevel::imprecise))
@@ -767,6 +778,10 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
 
       }
     }
+  #endif
+
+  #if HAS_LOADCELL_HX717()
+    loadcell.end_liveness_window(!failed);
   #endif
 
   // Home Z last if homing towards the bed

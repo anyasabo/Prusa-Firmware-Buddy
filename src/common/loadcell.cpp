@@ -362,16 +362,10 @@ void Loadcell::ProcessSample(int32_t loadcellRaw, uint32_t time_us, uint32_t sou
         fatal_error(ErrCode::ERR_SYSTEM_LOADCELL_INFINITE_LOAD);
     }
 
-    if (Endstops::is_z_probe_enabled()) {
-#if 0
-    // #error dead code found by automatic analyses (see BFW-5461)
-      // TODO: temporarily disabled for release until true overloads are resolved
-      // load is negative, so flip the signs accordingly just below
-        if ((isfinite(failsOnLoadAbove) && loadForEndstops < -failsOnLoadAbove)
-            || (isfinite(failsOnLoadBelow) && loadForEndstops > -failsOnLoadBelow))
-            fatal_error("LOADCELL", "Loadcell overload");
-#endif
-    }
+    // There is no overload check here. failsOnLoadAbove (set by FailureOnLoadAboveEnforcer during probe
+    // moves) is stored, but not enforced. Upstream disabled the check in v5.0.0-alpha1 "until true
+    // overloads are resolved" (BFW-5461) and its code referred to a variable out of scope.
+    // To add it again, first find the real peak loads of a probe on the printers.
 
     // push sample for analysis
     // If the sample is nan, the analysis should detect it and fail
@@ -465,6 +459,7 @@ bool Loadcell::wait_for_fresh_sample(uint32_t timeout_us, uint32_t max_age_us) {
  * @brief Create object enforcing error when positive load value is too big
  *
  * Sets grams threshold when created, restores to original when destroyed.
+ * @note Nothing enforces the threshold at the moment, see the comment in ProcessSample().
  * @param grams
  * @param enable Enable condition. Useful if you want to create enforcer based on condition.
  *              You can not put object simply inside if block, because you unintentionally also

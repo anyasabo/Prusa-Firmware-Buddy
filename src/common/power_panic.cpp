@@ -81,6 +81,7 @@
 // print progress
 #include "M73_PE.h"
 #include "../lib/Marlin/Marlin/src/module/printcounter.h"
+#include <module/prusa/skew.hpp>
 
 #include <option/has_gui.h>
 #if HAS_GUI()
@@ -338,6 +339,23 @@ void resume_loop() {
         // setup the paused state
         // This applies for PowerPanic from paused AND from printing too
         // because printing after power up starts from pause
+#if ENABLED(SKEW_CORRECTION)
+        // First, before each conversion of the resume and before resume.pos below. The factors can differ from the
+        // config store (M852 without W).
+        planner.skew_factor = state_buf.planner.skew_factor;
+
+        // planner.skew_disabled stays 0 (as after the boot). The skew guards of G28, G29 and G12 are objects on the
+        // stack of the interrupted command, and nothing releases a restored count. The replayed command makes a new
+        // guard. But the ISR saved the native positions with the skew off, so convert them to the skew on. For a
+        // pause or a crash, the positions come from an earlier time, so they are not converted.
+        if (state_buf.planner.skew_disabled && !state_buf.planner.was_paused && !state_buf.planner.was_crashed) {
+            state_buf.crash.crash_native_position.set(native_pos_with_skew(state_buf.crash.crash_native_position.xyz()));
+            state_buf.crash.start_current_position.set(native_pos_with_skew(state_buf.crash.start_current_position.xyz()));
+        }
+        // Convert only once, also if a second power loss interrupts this resume
+        state_buf.planner.skew_disabled = 0;
+#endif
+
         marlin_server::resume_state_t resume;
         resume.pos = state_buf.crash.crash_native_position;
         resume.fan_speed = state_buf.planner.fan_speed;
@@ -376,12 +394,6 @@ void resume_loop() {
 #if !HAS_CLASSIC_JERK
         planner.junction_deviation_mm = state_buf.planner.junction_deviation_mm;
 #endif
-#if ENABLED(SKEW_CORRECTION)
-        // Before the first set_position_mm() below, so the saved native positions convert as before the power loss.
-        // The factors can differ from the config store (M852 without W).
-        planner.skew_factor = state_buf.planner.skew_factor;
-#endif
-
 #if HAS_INDX()
         // active_extruder is not restored from EEPROM (the cache is invalidated
         // mid-print). Apply the saved pre-toolchange tool so subsequent E moves
@@ -1007,6 +1019,10 @@ void ac_fault_isr() {
             state_buf.crash.sdpos = crash_s.sdpos;
             state_buf.crash.crash_native_position = crash_s.crash_native_position;
         }
+#if ENABLED(SKEW_CORRECTION)
+        // A one-byte copy, safe in the ISR. The resume converts the saved positions if it is not 0.
+        state_buf.planner.skew_disabled = planner.skew_disabled;
+#endif
 
         // save crash parameters
 #if HAS_TOOLCHANGER() && (HAS_TOOL_CRASH_RECOVERY() || HAS_INDX())

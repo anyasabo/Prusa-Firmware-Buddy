@@ -67,6 +67,14 @@ void set_skew_factor(const skew_factor_t &factor) {
     keep_machine_position([&] { planner.skew_factor = factor; });
 }
 
+xyz_pos_t native_pos_with_skew(const xyz_pos_t &native_without_skew) {
+    // With the skew off, the machine XY is the native XY, and MBL uses the same XY. Thus unskew() of the native
+    // position gives a native position that skew() maps back to that XY, at the same Z.
+    xyz_pos_t result = native_without_skew;
+    planner.unskew(result);
+    return result;
+}
+
 void disable_skew() {
     if (planner.skew_disabled == 0 && planner.skew_factor != no_skew) {
         keep_machine_position([] { ++planner.skew_disabled; });

@@ -24,6 +24,35 @@
 #include "../../module/configuration_store.h"
 #include "../../core/serial.h"
 #include "../../inc/MarlinConfig.h"
+#include "../../module/planner.h"
+
+#include <option/has_phase_stepping.h>
+#if HAS_PHASE_STEPPING()
+  #include "../../feature/phase_stepping/phase_stepping.hpp"
+  #include "../../feature/phase_stepping/axes.hpp"
+#endif
+
+/// Runs a settings reset (M501, M502). The reset can change steps/mm after M92, and phase
+/// stepping takes steps/mm from the planner. Thus phase stepping must be off during the reset,
+/// and it must read steps/mm again after it. As in M92, the planner must be idle, because
+/// the reset calls Planner::refresh_positioning().
+template <typename F>
+static void reset_settings(F &&reset) {
+  #if HAS_PHASE_STEPPING()
+    phase_stepping::EnsureDisabled phstep_guard;
+  #endif
+
+  planner.synchronize();
+  if (planner.draining()) {
+    return;
+  }
+
+  reset();
+
+  #if HAS_PHASE_STEPPING()
+    phase_stepping::initialize_axis_motor_params();
+  #endif
+}
 
 /** \addtogroup G-Codes
  * @{
@@ -52,7 +81,7 @@ void GcodeSuite::M500() {
  *    M501
  */
 void GcodeSuite::M501() {
-  (void)settings.load();
+  reset_settings([] { (void)settings.load(); });
 }
 
 /**
@@ -65,7 +94,7 @@ void GcodeSuite::M501() {
  *    M502
  */
 void GcodeSuite::M502() {
-  (void)settings.reset();
+  reset_settings([] { settings.reset(); });
 }
 
 #if DISABLED(DISABLE_M503)

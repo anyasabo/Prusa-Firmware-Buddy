@@ -184,7 +184,7 @@ TEST_CASE("planner: random move sequences") {
 
 // The E of each section between two G92 must be the commanded E times the flow, within one
 // mini-step. See "M221 flow scales the total E of many short moves".
-TEST_CASE("planner: random move sequences with M221", "[!shouldfail][known_bug]") {
+TEST_CASE("planner: random move sequences with M221") {
     random_sequence(GENERATE(range(1u, 21u)), GENERATE(int16_t(95), int16_t(107)));
 }
 

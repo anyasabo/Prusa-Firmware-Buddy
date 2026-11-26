@@ -1293,7 +1293,8 @@ bool Planner::_populate_block(block_t * const block,
   const float e_msteps_carried = de ? e_msteps_float + e_msteps_remainder : 0.0f;
   int32_t e_msteps_signed = static_cast<int32_t>(std::lround(e_msteps_carried));
   if ((de > 0 && e_msteps_signed < 0) || (de < 0 && e_msteps_signed > 0)) {
-    // A remainder of -0.5 can round a tiny E move against its direction bit.
+    // Only at e_factor 0 (M221 S0): then the carried value is the remainder alone, and
+    // lround(-0.5) is -1. Do not step against the direction bit.
     e_msteps_signed = 0;
   }
   const int32_t e_msteps = std::abs(e_msteps_signed);

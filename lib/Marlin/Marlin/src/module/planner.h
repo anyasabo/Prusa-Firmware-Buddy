@@ -336,6 +336,8 @@ class Planner {
     /**
      * The fraction of an E mini-step that the rounding of the scaled E of the blocks left
      * (e_factor: M221 flow, M200). The next block with E adds it. See _populate_block().
+     * There is one value for all extruders. After a tool change without G92 E, the next extruder
+     * takes the remainder of the last one: at most one mini-step.
      */
     static float e_msteps_remainder;
 

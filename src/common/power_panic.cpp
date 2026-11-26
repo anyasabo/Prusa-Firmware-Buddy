@@ -18,6 +18,11 @@
     #include <feature/motor_current_profile/motor_current_profile.hpp>
 #endif
 #include <option/has_tool_crash_recovery.h>
+#include <option/has_phase_stepping.h>
+#if HAS_PHASE_STEPPING()
+    #include <feature/phase_stepping/phase_stepping.hpp>
+    #include <feature/phase_stepping/axes.hpp>
+#endif
 
 #if HAS_TOOLCHANGER()
     #include <module/prusa/toolchanger.h>
@@ -372,7 +377,19 @@ void resume_loop() {
 
         // planner settings
         planner.apply_settings(state_buf.planner.settings);
-        planner.refresh_acceleration_rates();
+        // The saved settings have the steps/mm at the time of the fault. They can be different
+        // from the config store values that the boot loaded (M92 in the G-code).
+        // refresh_positioning() makes mm_per_step and the stepper counts agree with them, and
+        // calls refresh_acceleration_rates(). Phase stepping caches steps/mm, so read it again.
+        {
+#if HAS_PHASE_STEPPING()
+            phase_stepping::EnsureDisabled phstep_guard;
+#endif
+            planner.refresh_positioning();
+#if HAS_PHASE_STEPPING()
+            phase_stepping::initialize_axis_motor_params();
+#endif
+        }
 #if !HAS_CLASSIC_JERK
         planner.junction_deviation_mm = state_buf.planner.junction_deviation_mm;
 #endif

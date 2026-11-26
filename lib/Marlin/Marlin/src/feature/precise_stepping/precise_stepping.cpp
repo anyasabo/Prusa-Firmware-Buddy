@@ -1397,6 +1397,23 @@ static void check_step_time(const step_event_i32_t &step_event) {
 }
 #endif
 
+// True if no step generator has a step (or a keep-alive event) left to produce.
+//
+// The ending empty move can become the oldest unprocessed move before all generators are done:
+// the pressure advance generator moves to the next move when its sampling reaches the end of the
+// move, but its steps lag the samples by filter_delay (smooth_time / 2). The classic generators
+// then wait on the ending move with an INVALID event at its start time, which is the nearest event.
+// Without this check, the motion ended there and the pressure advance steps of the last
+// filter_delay were lost (the E position is reset at the halt, so nothing recovered them).
+static bool all_step_generators_done(const step_generator_state_t &state) {
+    for (const step_event_info_t &event : state.step_events) {
+        if (event.status == STEP_EVENT_INFO_STATUS_GENERATED_VALID || event.status == STEP_EVENT_INFO_STATUS_GENERATED_KEEP_ALIVE) {
+            return false;
+        }
+    }
+    return true;
+}
+
 StepGeneratorStatus PreciseStepping::process_one_move_segment_from_queue() {
     uint16_t produced_step_events_cnt = 0;
     bool move_done = false;
@@ -1471,7 +1488,7 @@ StepGeneratorStatus PreciseStepping::process_one_move_segment_from_queue() {
     if (!produced_step_events_cnt || move_done) {
         // no moves or end of steps, check if we're waiting on the ending move
         if (const move_t *unprocessed_move = get_current_unprocessed_move_segment();
-            unprocessed_move != nullptr && is_ending_empty_move(*unprocessed_move)) {
+            unprocessed_move != nullptr && is_ending_empty_move(*unprocessed_move) && all_step_generators_done(step_generator_state)) {
 
             // check if a buffered step is present and flush it first
             if (step_generator_state.buffered_step.flags) {

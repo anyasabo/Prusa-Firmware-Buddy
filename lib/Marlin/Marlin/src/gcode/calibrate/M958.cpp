@@ -942,12 +942,13 @@ static constexpr float epsilon = 0.01f;
  * But in reality we are exciting the system by sine wave displacement. We for sure can not tell, if the force is still sine wave
  * and what is the force - the force depends on motor load angle and belt stiffness and we don't know it.
  */
-static void naive_zv_tune(MeasureParams &args, const MeasureRange &range) {
+/// @return true if it changed the input shaper of the axis
+static bool naive_zv_tune(MeasureParams &args, const MeasureRange &range) {
     FrequencyGain maxFrequencyGain = { 0.f, 0.f };
     const AxisEnum logicalAxis = get_logical_axis(args.axis_flag);
     if (logicalAxis == NO_AXIS_ENUM) {
         SERIAL_ECHOLN("error: not moving along one logical axis");
-        return;
+        return false;
     }
 
     serial_echo_header(args.klipper_mode);
@@ -956,7 +957,7 @@ static void naive_zv_tune(MeasureParams &args, const MeasureRange &range) {
         const auto result = measure_repeat(args, frequency, idle_progress_hook);
         args.calibrate_accelerometer = false;
         if (!result.has_value()) {
-            return;
+            return false;
         }
         FrequencyGain frequencyGain = { result->excitation_frequency, result->gain[logicalAxis] };
         if (frequencyGain.gain > maxFrequencyGain.gain) {
@@ -969,14 +970,25 @@ static void naive_zv_tune(MeasureParams &args, const MeasureRange &range) {
     SERIAL_ECHOPAIR_F(" at frequency: ", maxFrequencyGain.frequency);
     SERIAL_ECHOLNPAIR_F(" damping ratio: ", damping_ratio, 5);
 
+    // A gain of 0.734 or less gives a damping ratio above 0.99 (1.0 at 0.727), and no gain at all
+    // gives infinity. input_shaper::get() then calls bsod().
+    if (!input_shaper::is_valid_damping_ratio(damping_ratio)) {
+        SERIAL_ERROR_MSG("ZV tune: damping ratio out of range, input shaper not changed");
+        return false;
+    }
+
     input_shaper::AxisConfig axis_config {
         .type = input_shaper::Type::zv,
         .frequency = maxFrequencyGain.frequency,
         .damping_ratio = damping_ratio,
-        .vibration_reduction = 0.f,
+        // ZV does not use it. The default keeps the configuration valid for a later change of the
+        // type with "M593 T".
+        .vibration_reduction = input_shaper::axis_defaults[logicalAxis].vibration_reduction,
     };
 
     input_shaper::set_axis_config(logicalAxis, axis_config);
+    // set_axis_config() does not change the shaper when the command is aborted.
+    return !planner.draining();
 }
 
 static float limit_end_frequency(const float start_frequency, float end_frequency, const float frequency_increment, const size_t max_samples) {
@@ -1246,14 +1258,15 @@ input_shaper::AxisConfig find_best_shaper(const FindBestShaperProgressHook &prog
  *
  * To save memory we assume reached frequency was equal to requested, so frequency returned by vibrate_measure::measure() is discarded.
  */
-static void klipper_tune(MeasureParams &args, MeasureRange range, bool subtract_excitation) {
+/// @return true if it changed the input shaper of the axis
+static bool klipper_tune(MeasureParams &args, MeasureRange range, bool subtract_excitation) {
     // Power spectrum density
     FixedLengthSpectrum<146> psd(range.start_frequency, range.frequency_increment);
     range.end_frequency = limit_end_frequency(range.start_frequency, range.end_frequency, range.frequency_increment, psd.max_size());
     const AxisEnum logicalAxis = get_logical_axis(args.axis_flag);
     if (logicalAxis == NO_AXIS_ENUM) {
         SERIAL_ECHOLN("error: not moving along one logical axis");
-        return;
+        return false;
     }
 
     serial_echo_header(args.klipper_mode);
@@ -1262,7 +1275,7 @@ static void klipper_tune(MeasureParams &args, MeasureRange range, bool subtract_
         auto result = measure_repeat(args, frequency, idle_progress_hook);
         args.calibrate_accelerometer = false;
         if (!result.has_value()) {
-            return;
+            return false;
         }
         if (subtract_excitation) {
             result->gain[logicalAxis] = max(result->gain[logicalAxis] - 1.f, 0.f);
@@ -1285,6 +1298,8 @@ static void klipper_tune(MeasureParams &args, MeasureRange range, bool subtract_
     const Action final_action = subtract_excitation ? Action::find_best_result : Action::last;
     input_shaper::AxisConfig axis_config = find_best_shaper(psd, final_action, input_shaper::axis_defaults[logicalAxis]);
     input_shaper::set_axis_config(logicalAxis, axis_config);
+    // set_axis_config() does not change the shaper when the command is aborted.
+    return !planner.draining();
 }
 
 MicrostepRestorer::MicrostepRestorer() {
@@ -1393,13 +1408,13 @@ void GcodeSuite::M959() {
         return;
     }
 
-    if (args.klipper_mode) {
-        klipper_tune(args, range, parser.seen('M'));
-    } else {
-        naive_zv_tune(args, range);
-    }
-
+    const bool tuned = args.klipper_mode ? klipper_tune(args, range, parser.seen('M')) : naive_zv_tune(args, range);
     const AxisEnum logical_axis = get_logical_axis(args.axis_flag);
+    // On a failure, the axis can have no shaper (an empty optional) or no logical axis.
+    if (!tuned || logical_axis == NO_AXIS_ENUM || !input_shaper::current_config().axis[logical_axis]) {
+        SERIAL_ECHOLN("IS not calibrated");
+        return;
+    }
     auto axis_config = *input_shaper::current_config().axis[logical_axis];
 
     SERIAL_ECHO_START();

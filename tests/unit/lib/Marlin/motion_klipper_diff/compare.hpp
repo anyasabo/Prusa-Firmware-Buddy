@@ -9,12 +9,18 @@ namespace motion_diff {
 
 /// A step is in time if Klipper's exact position, at the Buddy step time or 1 us later (Buddy rounds
 /// the step times down to whole us), is less than this many steps from the boundary that the step
-/// crosses. This is the time limit "half of the local step interval + 1 us", in position units.
-inline constexpr double STEP_POSITION_LIMIT = 0.5;
+/// crosses, plus the tolerances of the PA and IS bounds. All cases, the precision cases and the fuzz
+/// inputs stay within 0.02 step (motion-audit.md, D1 measured up to 0.2 step at extreme float
+/// conditions). A bias of 0.4 step must fail (harness_mutation_tests.cpp).
+inline constexpr double STEP_POSITION_LIMIT = 0.25;
 
-/// At each crossing of Klipper's position, the Buddy position may differ by up to this many steps
-/// (one step that is late or early within STEP_POSITION_LIMIT).
-inline constexpr double HOLD_POSITION_LIMIT = 1.0;
+/// At each crossing of Klipper's position (a boundary n + 0.5), the Buddy position is n or n + 1,
+/// with one step late or early within STEP_POSITION_LIMIT.
+inline constexpr double HOLD_POSITION_LIMIT = 0.5 + STEP_POSITION_LIMIT;
+
+/// The Buddy end position is a whole step, so it is up to 0.5 step from Klipper's exact end. A tie
+/// (an end exactly on a boundary) agrees with both neighbours.
+inline constexpr double END_POSITION_LIMIT = 0.5;
 
 /// Klipper's default stepper `max_error` (25 us). Not a limit of this test (the Klipper side is the raw
 /// itersolve output); the regression tests of the fix branches compare time differences with it.

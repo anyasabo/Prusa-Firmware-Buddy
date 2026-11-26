@@ -278,7 +278,7 @@ AxisComparison compare_axis(const Config &config, const BuddyResult &buddy_resul
     }
     end_time += 1e6;
     c.klipper_end = q(end_time);
-    c.end_excess = std::abs(double(c.buddy_end) - c.klipper_end) - (STEP_POSITION_LIMIT + tolerance(end_time));
+    c.end_excess = std::abs(double(c.buddy_end) - c.klipper_end) - (END_POSITION_LIMIT + tolerance(end_time));
     return c;
 }
 

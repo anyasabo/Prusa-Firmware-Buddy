@@ -3,6 +3,7 @@
 #include <array>
 #include <module/planner.h>
 #include <config_store/store_instance.hpp>
+#include <bsod/bsod.h>
 
 struct AxisMotorParams {
     int steps_per_rev = 0;
@@ -35,9 +36,12 @@ static std::array<AxisMotorParams, phase_stepping::opts::SUPPORTED_AXIS_COUNT> a
 /// the config store steps/mm and wrote step counts that the planner read at the M92 value.
 /// Use planner.mm_per_step, not planner.settings.axis_steps_per_mm: the classic step
 /// generators (precise_stepping, input_shaper, pressure_advance) use mm_per_step, and only
-/// Planner::refresh_positioning() writes it. Motion_Parameters::reset() writes the settings
-/// without a refresh.
+/// Planner::refresh_positioning() writes it. Thus phase stepping and the classic step
+/// generators agree also if code writes the settings without a refresh (in v8.0.2,
+/// Motion_Parameters::reset() and the power panic resume do this).
 static float planner_steps_per_unit(AxisEnum axis) {
+    // Zero before the first refresh_positioning(), in settings.first_load().
+    debug_assert(planner.mm_per_step[axis] > 0.f);
     return 1.f / planner.mm_per_step[axis];
 }
 

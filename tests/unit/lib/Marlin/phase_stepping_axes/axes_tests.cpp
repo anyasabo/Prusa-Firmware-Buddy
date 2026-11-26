@@ -127,10 +127,11 @@ TEST_CASE("phase_stepping axes: M92 changes the steps/mm that phase stepping use
     }
 }
 
-TEST_CASE("phase_stepping axes: follow the step generators when the settings change without a refresh", "[phase_stepping][m92]") {
-    // Motion_Parameters::reset() (G28, ramming, ...) writes planner.settings.axis_steps_per_mm
-    // but does not call refresh_positioning(). The classic step generators keep the old
-    // planner.mm_per_step. Phase stepping must use the same value.
+TEST_CASE("phase_stepping axes: use the steps/mm of the classic step generators", "[phase_stepping][m92]") {
+    // The classic step generators use planner.mm_per_step, which only refresh_positioning()
+    // writes. In v8.0.2, Motion_Parameters::reset() (G28, ramming) and the power panic resume
+    // write planner.settings.axis_steps_per_mm without a refresh. Phase stepping must agree
+    // with the classic step generators also then.
     boot_with_xy_steps(coreone_2gt);
     planner.settings.axis_steps_per_mm[X_AXIS] = 120.f;
     planner.refresh_positioning();

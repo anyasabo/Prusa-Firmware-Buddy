@@ -24,6 +24,7 @@
 #include "../../module/configuration_store.h"
 #include "../../core/serial.h"
 #include "../../inc/MarlinConfig.h"
+#include "../../module/planner.h"
 
 #include <option/has_phase_stepping.h>
 #if HAS_PHASE_STEPPING()
@@ -33,12 +34,18 @@
 
 /// Runs a settings reset (M501, M502). The reset can change steps/mm after M92, and phase
 /// stepping takes steps/mm from the planner. Thus phase stepping must be off during the reset,
-/// and it must read steps/mm again after it.
+/// and it must read steps/mm again after it. As in M92, the planner must be idle, because
+/// the reset calls Planner::refresh_positioning().
 template <typename F>
 static void reset_settings(F &&reset) {
   #if HAS_PHASE_STEPPING()
     phase_stepping::EnsureDisabled phstep_guard;
   #endif
+
+  planner.synchronize();
+  if (planner.draining()) {
+    return;
+  }
 
   reset();
 

@@ -1380,7 +1380,9 @@ static void check_step_time(const step_event_i32_t &step_event) {
     if (is_ending_empty_move(*last_move)) {
         // When calculating the absolute move end time restrict the limit on ending empty moves to
         // ensure that any scheduled keep-alive event is never split past the end of motion.
-        last_move_time_end = prev_move_time + max_split_ticks;
+        // Pressure advance steps continue after the start of the ending move, up to
+        // max_lookback_time (filter_total_time) later, and they can be sparse there.
+        last_move_time_end = std::max(prev_move_time, last_move->print_time + PreciseStepping::max_lookback_time) + max_split_ticks;
     } else {
         last_move_time_end = last_move->print_time + last_move->move_time;
         if (last_move == prev_move) {

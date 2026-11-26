@@ -195,6 +195,7 @@ BuddyResult run_buddy(const Config &config, const std::vector<Block> &blocks) {
                     e_offset_mm = double(e_net_steps) * double(Planner::mm_per_step[E_AXIS]);
                 }
                 first_session = false;
+                ++result.sessions;
             }
             Segment segment = to_segment(move);
             segment.print_time += time_offset_s;

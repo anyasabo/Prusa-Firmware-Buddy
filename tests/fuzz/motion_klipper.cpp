@@ -39,7 +39,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             }
         }
         const AxisComparison c = compare_axis(steps, klipper.raw.axis[axis]);
-        const std::string reason = check_axis(c, buddy.final_count_position[axis] - buddy.start_count_position[axis], axis == 3 ? pa_err : 0.);
+        const std::string reason = check_axis(c, buddy.final_count_position[axis] - buddy.start_count_position[axis], axis == 3 ? pa_err : 0., buddy.sessions);
         if (!reason.empty()) {
             fail(reason.c_str(), axis, &c);
         }

@@ -38,7 +38,7 @@ void check_agreement(const Run &r) {
     const double pa_err = pa_error_bound_steps(r.config, r.buddy.segments);
     for (int i = 0; i < AXES; ++i) {
         INFO("axis " << axis_names[i] << ": " << describe(r.axis[i]));
-        CHECK(check_axis(r.axis[i], r.buddy.final_count_position[i] - r.buddy.start_count_position[i], i == 3 ? pa_err : 0.) == "");
+        CHECK(check_axis(r.axis[i], r.buddy.final_count_position[i] - r.buddy.start_count_position[i], i == 3 ? pa_err : 0., r.buddy.sessions) == "");
     }
 }
 

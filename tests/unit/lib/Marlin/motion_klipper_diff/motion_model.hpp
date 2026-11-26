@@ -59,6 +59,7 @@ struct BuddyResult {
     std::array<int32_t, AXES> final_count_position {}; // Stepper::count_position_from_startup
     std::array<int32_t, AXES> start_count_position {};
     bool finished = false; // the pipeline came back to a halt
+    int sessions = 0; // motion from a halt to a halt (beginning empty moves)
 };
 
 struct KlipperResult {

@@ -53,6 +53,7 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
     auto k = crossings(klipper, klipper_start, c.klipper_net);
 
     std::vector<bool> klipper_matched(klipper.size(), false);
+    std::vector<bool> buddy_matched(buddy.size(), false);
     double sum_abs = 0;
     bool first = true;
     for (const auto &[key, b_idx] : b) {
@@ -97,6 +98,7 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
             ++j;
             ++n;
             klipper_matched[ki] = true;
+            buddy_matched[b_idx[i - 1]] = true;
             if (rolled_back(klipper, ki)) {
                 continue; // Klipper does not send this step: no time to compare
             }
@@ -131,21 +133,26 @@ AxisComparison compare_axis(const std::vector<Step> &buddy, const std::vector<St
     }
     c.mean_abs_diff_us = c.matched ? sum_abs / double(c.matched) : 0.;
 
-    // Walk both lists in time order and follow the two positions.
+    // Walk the steps without a partner in time order: the position difference that they cause. The
+    // matched steps have passed the time check above.
     {
-        int64_t pb = buddy_start, pk = klipper_start;
+        int64_t diff = buddy_start - klipper_start;
+        c.max_pos_diff = std::abs(diff);
         size_t i = 0, j = 0;
         while (i < buddy.size() || j < klipper.size()) {
             const bool take_buddy = j == klipper.size() || (i < buddy.size() && buddy[i].time_us <= klipper[j].time_us);
             if (take_buddy) {
-                pb += buddy[i++].positive ? 1 : -1;
+                if (!buddy_matched[i]) {
+                    diff += buddy[i].positive ? 1 : -1;
+                }
+                ++i;
             } else {
-                if (!rolled_back(klipper, j)) {
-                    pk += klipper[j].positive ? 1 : -1;
+                if (!klipper_matched[j] && !rolled_back(klipper, j)) {
+                    diff -= klipper[j].positive ? 1 : -1;
                 }
                 ++j;
             }
-            c.max_pos_diff = std::max(c.max_pos_diff, std::abs(pb - pk));
+            c.max_pos_diff = std::max(c.max_pos_diff, std::abs(diff));
         }
     }
     return c;

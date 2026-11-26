@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <utility>
 #include <printers.h>
@@ -244,6 +245,49 @@ constexpr bool is_valid_axis_config(const AxisConfig &config) {
     return is_valid_type(config.type)
         && is_valid_damping_ratio(config.damping_ratio)
         && (!uses_vibration_reduction(config.type) || is_valid_vibration_reduction(config.vibration_reduction));
+}
+
+/// Returns true if @p value is neither NaN nor infinite (constexpr, unlike std::isfinite()).
+constexpr bool is_finite(float value) {
+    return value - value == 0.f;
+}
+
+/// Returns the configuration of logical axis @p axis for the stored configuration @p config.
+/// Older firmware accepted and saved values outside the limits, and a corrupt store can have any
+/// bits. The result is valid (is_valid_axis_config()), finite in each field, and a fixed point:
+/// a second pass does not change it, so init() does not write the store at each boot.
+/// - A type or damping ratio outside the limits gets the default of the axis.
+/// - The frequency gets the default if it is not finite, and then it is clamped to the safe range.
+/// - The vibration reduction gets the default if it is not finite, or if it is outside the limits
+///   and the type uses it. A ZV, ZVD or MZV configuration keeps an old R below 1.
+constexpr AxisConfig sanitized_axis_config(AxisEnum axis, const AxisConfig &config) {
+    const AxisConfig &defaults = axis_defaults[static_cast<uint8_t>(axis)];
+    AxisConfig result = config;
+    if (!is_valid_type(result.type)) {
+        result.type = defaults.type;
+    }
+    if (!is_finite(result.frequency)) {
+        result.frequency = defaults.frequency;
+    }
+    result.frequency = clamp_frequency_to_safe_values(result.frequency);
+    if (!is_valid_damping_ratio(result.damping_ratio)) {
+        result.damping_ratio = defaults.damping_ratio;
+    }
+    if (!is_finite(result.vibration_reduction) || (uses_vibration_reduction(result.type) && !is_valid_vibration_reduction(result.vibration_reduction))) {
+        result.vibration_reduction = defaults.vibration_reduction;
+    }
+    return result;
+}
+
+/// Returns @p config with sanitized_axis_config() applied to each axis.
+constexpr Config sanitized_config(const Config &config) {
+    Config result = config;
+    for (uint8_t axis = 0; axis < std::size(result.axis); ++axis) {
+        if (result.axis[axis]) {
+            result.axis[axis] = sanitized_axis_config(static_cast<AxisEnum>(axis), *result.axis[axis]);
+        }
+    }
+    return result;
 }
 
 } // namespace input_shaper

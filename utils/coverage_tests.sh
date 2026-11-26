@@ -7,7 +7,9 @@
 # The build type is the default of build_tests.py (no CMAKE_BUILD_TYPE: -Os with assertions).
 # Source-based coverage stays exact with optimization. Debug turns on NETWORKING_BENCHMARK_ENABLED,
 # and nhttp_tests then does not link.
-# Environment: LLVM_SUFFIX (default -23, for clang-23, llvm-cov-23, ...), JOBS, CTEST_ARGS, KEEP_GOING.
+# Environment: LLVM_SUFFIX (default -23, for clang-23, llvm-cov-23, ...), JOBS, CTEST_ARGS, KEEP_GOING,
+# EXTRA_CMAKE_ARGS (for example -DRESOURCES=NO for PRINTER=COREONEL). The script configures only a
+# new BUILD_DIR. To change PRINTER, BOARD or EXTRA_CMAKE_ARGS, use a new BUILD_DIR.
 # File names are relative to the source tree (-ffile-prefix-map), with BUILD_DIR/.. in front for
 # the files that CMake gives as relative paths.
 # Output in BUILD_DIR: tests.profdata, coverage-report.txt (llvm-cov report, one line per file),
@@ -34,10 +36,14 @@ export PATH
 
 cov="-fprofile-instr-generate -fcoverage-mapping"
 if [ ! -f "$build/CMakeCache.txt" ]; then
-    cmake -S "$root" -B "$build" -G Ninja -DPRINTER="$printer" -DBOARD="$board" \
+    # shellcheck disable=SC2086 # EXTRA_CMAKE_ARGS is a list of words
+    cmake -S "$root" -B "$build" -G Ninja -DPRINTER="$printer" -DBOARD="$board" ${EXTRA_CMAKE_ARGS:-} \
         -DCMAKE_C_COMPILER="clang$sfx" -DCMAKE_CXX_COMPILER="clang++$sfx" \
         -DCMAKE_C_FLAGS="$cov" -DCMAKE_CXX_FLAGS="$cov" \
         -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld$sfx $cov"
+elif ! grep -qx "PRINTER:STRING=$printer" "$build/CMakeCache.txt"; then
+    echo "$build is configured for another PRINTER. Use a new BUILD_DIR." >&2
+    exit 1
 fi
 
 # catch_discover_tests runs each test binary at build time. Keep those profiles out of the result.

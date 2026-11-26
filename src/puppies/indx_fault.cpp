@@ -1,8 +1,6 @@
 /// @file
 #include <puppies/indx_fault.hpp>
 
-#include <utility>
-
 namespace buddy::puppies::indx_fault {
 
 using indx_head::errors::FaultStatusMask;
@@ -17,8 +15,10 @@ using indx_head::errors::FaultStatusMask;
 //   goes to the puppy recovery and resets the head with its reset pin (puppy_task.cpp, run()).
 //   The head design expects the backup register to keep the bit over this reset (README.md:
 //   "latches a fault bit for later inspection"), so the main board reads it after the restart.
-// - The watchdog of the head (1 s, started by the bootloader) also resets a hung head. The head
-//   then also sets watchdog_reset.
+// - The watchdog of the head (1 s, started by the bootloader) resets the head after a panic, after
+//   a hang, and also when the bus is silent: the modbus task waits for a request with no timeout
+//   inside FOREVER_WITH_WATCHDOG(900) (modbus.cpp, run(), and hal_rs485.cpp). The head then sets
+//   watchdog_reset at the next boot.
 // A bit that is only logged is also acknowledged and cleared. After a restart of the head,
 // Indx::initial_scan() sends the nozzle target again and IndxHotend::manage() resets the thermal
 // safeties. Thus a fault that is only logged does not stop the print: the head heats again.
@@ -45,6 +45,21 @@ std::optional<Redscreen> redscreen_for(FaultStatusMask bit) {
     // bootstrap and of the puppy recovery of the main board. They are not faults.
     case FaultStatusMask::pin_reset:
     case FaultStatusMask::power_reset:
+        return std::nullopt;
+
+    // The head also gets a watchdog reset in normal operation: when the main board does not send
+    // a request for 0.9 s (a reset or a redscreen of the main board, a power panic, a firmware
+    // update). A redscreen for this bit alone thus gives false redscreens. A panic that ends in
+    // a watchdog reset latches its own cause bit, and that bit gives the redscreen.
+    case FaultStatusMask::watchdog_reset:
+        return std::nullopt;
+
+    // The head panics on the first load cell frame with a bad CRC (hal_spi.cpp,
+    // loadcell::get_sample()), and then restarts. The CRC check stops the bad sample, so the
+    // main board never uses it. One bad frame can come from electrical noise, and the main board
+    // continues after a restart of the head (see above). Thus log only. A head that drops the
+    // frame and does not panic is a better fix, in the head firmware.
+    case FaultStatusMask::loadcell_crc_mismatch:
         return std::nullopt;
 
     // Thermal faults. The head panics and the heater is off. Without a redscreen, the head
@@ -76,15 +91,6 @@ std::optional<Redscreen> redscreen_for(FaultStatusMask bit) {
         return text("The INDX head firmware crashed: stack overflow.");
     case FaultStatusMask::assert_failed:
         return text("The INDX head firmware crashed: assertion failed.");
-    // The head panics on the first load cell frame with a bad CRC (hal_spi.cpp,
-    // loadcell::get_sample()). The head is stopped, so the main board cannot continue with
-    // only a log line.
-    case FaultStatusMask::loadcell_crc_mismatch:
-        return text("The INDX head received corrupt data from its load cell (CRC mismatch).");
-    // The head hung and its watchdog reset it. A panic also ends in a watchdog reset, but then
-    // its cause bit is also set and wins (see redscreen_for_status()).
-    case FaultStatusMask::watchdog_reset:
-        return text("The INDX head firmware stopped responding and its watchdog reset it.");
 
     // No code of the head sets this bit.
     case FaultStatusMask::undefined_error:
@@ -96,20 +102,14 @@ std::optional<Redscreen> redscreen_for(FaultStatusMask bit) {
 }
 
 std::optional<Redscreen> redscreen_for_status(uint16_t fault_status) {
-    // A panic latches its cause, and the watchdog reset comes after it. Thus the cause wins.
-    constexpr uint16_t watchdog_reset = std::to_underlying(FaultStatusMask::watchdog_reset);
-
     // errors.hpp documents the priority: a higher bit has a higher priority.
     for (int bit = 15; bit >= 0; --bit) {
         const uint16_t mask = static_cast<uint16_t>(1u << bit);
-        if ((fault_status & mask) && mask != watchdog_reset) {
+        if (fault_status & mask) {
             if (const auto redscreen = redscreen_for(static_cast<FaultStatusMask>(mask))) {
                 return redscreen;
             }
         }
-    }
-    if (fault_status & watchdog_reset) {
-        return redscreen_for(FaultStatusMask::watchdog_reset);
     }
     return std::nullopt;
 }

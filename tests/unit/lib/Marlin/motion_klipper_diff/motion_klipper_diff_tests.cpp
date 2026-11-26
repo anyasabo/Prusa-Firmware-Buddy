@@ -35,10 +35,9 @@ void print(const char *name, const Run &r) {
 /// check_axis() for the limits).
 void check_agreement(const Run &r) {
     REQUIRE(r.buddy.finished);
-    const double pa_err = pa_jump_steps(r.config, r.buddy.segments) / 20.;
     for (int i = 0; i < AXES; ++i) {
         INFO("axis " << axis_names[i] << ": " << describe(r.axis[i]));
-        CHECK(check_axis(r.axis[i], r.buddy.final_count_position[i] - r.buddy.start_count_position[i], i == 3 ? pa_err : 0.) == "");
+        CHECK(check_axis(r.axis[i]) == "");
     }
 }
 
@@ -106,12 +105,48 @@ TEST_CASE("motion diff: input shaper, X only and Z", "[motion_diff]") {
     check_agreement(r);
 }
 
+TEST_CASE("motion diff: halts in the middle", "[motion_diff]") {
+    Config config;
+    config.shaper[0] = shaper(Type::mzv, 52.4f);
+    config.shaper[1] = shaper(Type::ei, 43.f);
+    std::vector<Block> blocks = { line(20, 5, 0.9, 200, 6000), line(-10, 10, 0.6, 150, 6000) };
+    blocks.back().halt_before = true; // the planner queue runs dry: reset_from_halt() between the lines
+    blocks.push_back(line(5, -20, 0.8, 250, 6000));
+    blocks.back().halt_before = true;
+    const Run r = run_both(config, blocks);
+    print("halts", r);
+    check_agreement(r);
+}
+
 // On v8.0.2, these cases fail because of these defects (README.md, "Defects found"):
 // - the pressure advance steps of the last smooth_time / 2 before a halt are lost,
 // - the last pressure advance step before a direction change has the new direction,
 // - a short extruder move just before a halt makes no steps,
 // - CoreXY: the Z input shaper is not in the lookback time when X or Y is shaped.
 // The fixes are in this tree, and each fix has a regression_<topic>.cpp test.
+TEST_CASE("motion diff: pressure advance, halt in the middle of a run", "[motion_diff][!mayfail]") {
+    // Defect M1: the PA steps after the last segment of a motion are lost at the halt. The next motion
+    // continues at the commanded E, so the loss shows in the second motion.
+    Config config;
+    config.pressure_advance = 0.05f;
+    config.smooth_time = 0.04f;
+    std::vector<Block> blocks = { { .de = 0.8, .v_start = 0, .v_cruise = 35, .v_end = 0, .accel = 1250 }, line(10, 5, 0.4, 120, 4000) };
+    blocks.back().halt_before = true;
+    const Run r = run_both(config, blocks);
+    print("PA halt", r);
+    check_agreement(r);
+}
+
+TEST_CASE("motion diff: pressure advance, direction changes inside a run", "[motion_diff][!mayfail]") {
+    // Defect M2: the last PA step before a direction change goes in the new direction.
+    Config config;
+    config.pressure_advance = 0.05f;
+    config.smooth_time = 0.04f;
+    const Run r = run_both(config, { line(10, 0, 0.45, 120, 4000), line(10, 10, 0, 200, 4000), line(-10, 0, 0.45, 120, 4000), line(5, -15, 0, 200, 4000) });
+    print("PA reversal", r);
+    check_agreement(r);
+}
+
 TEST_CASE("motion diff: pressure advance", "[motion_diff]") {
     Config config;
     config.pressure_advance = GENERATE(0.02f, 0.05f);
@@ -232,12 +267,25 @@ void print_scenario(const Scenario &s) {
 }
 
 // Run: MOTION_DIFF_SCENARIO=<n> motion_klipper_diff_tests "[dump]" (writes into the current directory).
-// n = -1: one extruding line with pressure advance.
+// n = -1: one extruding line with pressure advance. MOTION_DIFF_INPUT=<file>: a fuzz input.
 TEST_CASE("motion dump", "[.][dump]") {
     const char *env = std::getenv("MOTION_DIFF_SCENARIO");
+    const char *input = std::getenv("MOTION_DIFF_INPUT"); // a fuzz input file
     const int index = env ? std::atoi(env) : -1;
     Scenario s;
-    if (index < 0) {
+    if (input) {
+        std::vector<uint8_t> bytes;
+        if (FILE *f = std::fopen(input, "rb")) {
+            for (int c; (c = std::fgetc(f)) != EOF;) {
+                bytes.push_back(uint8_t(c));
+            }
+            std::fclose(f);
+        }
+        ByteReader in(bytes.data(), bytes.size());
+        ScenarioLimits limits;
+        limits.max_blocks = 8; // as tests/fuzz/motion_klipper.cpp
+        s = make_scenario(in, limits);
+    } else if (index < 0) {
         s.config.pressure_advance = 0.05f;
         s.config.smooth_time = 0.04f;
         s.blocks = { line(10, 0, 0.45, 120, 4000) };

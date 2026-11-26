@@ -32,9 +32,17 @@ struct kl_params {
     double record_from; // s: steps before this time are generated but not recorded
 };
 
+struct kl_session;
+
+// Queues the moves and sets up the stepper kinematics. Free with kl_session_free().
+struct kl_session *kl_session_create(const struct kl_params *params, const struct kl_move *moves, int move_count);
 // out[i] receives the steps of stepper i (A/X, B/Y, Z, E). Allocate them with
-// stepcompress_recorder_alloc().
-void kl_generate_steps(const struct kl_params *params, const struct kl_move *moves, int move_count, struct stepcompress *out[4]);
+// stepcompress_recorder_alloc(). Call once.
+void kl_session_generate(struct kl_session *s, struct stepcompress *out[4]);
+// The exact position (mm) of stepper `axis` at print time `time` (s): the function whose crossings
+// itersolve finds (with the input shaper and pressure advance smoothing).
+double kl_session_position(struct kl_session *s, int axis, double time);
+void kl_session_free(struct kl_session *s);
 
 #ifdef __cplusplus
 }

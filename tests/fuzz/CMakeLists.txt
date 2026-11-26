@@ -164,3 +164,8 @@ buddy_add_fuzzer_from_test(
   SOURCES
   gcode_parser.cpp
   )
+
+# Motion core (precise_stepping, input_shaper, pressure_advance) against Klipper's step generation.
+# Not untrusted input: the oracle finds wrong steps, not only crashes. The library has the real
+# motion sources, the stubs and Klipper (tests/unit/lib/Marlin/motion_klipper_diff).
+buddy_add_fuzzer(motion_klipper SOURCES motion_klipper.cpp LIBS motion_diff_pipeline)

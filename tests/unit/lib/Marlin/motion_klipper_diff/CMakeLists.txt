@@ -59,6 +59,8 @@ target_compile_options(
   motion_klipper_oracle PRIVATE -O2 -fno-strict-aliasing -Wno-attributes -Wno-sign-compare
   )
 target_link_libraries(motion_klipper_oracle PUBLIC m)
+# Klipper's list.h needs GNU C (typeof); klippy/chelper/__init__.py compiles with -std=gnu11.
+set_target_properties(motion_klipper_oracle PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 
 # The Buddy motion core, from the real sources, plus the drivers of both sides.
 add_library(
@@ -85,6 +87,9 @@ target_link_libraries(motion_diff_pipeline PUBLIC bsod motion_klipper_oracle)
 
 # One regression_<topic>.cpp for each fixed defect, so that the fix branches do not conflict.
 file(GLOB regression_tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/regression_*.cpp)
-add_executable(motion_klipper_diff_tests ${regression_tests} motion_klipper_diff_tests.cpp)
+add_executable(
+  motion_klipper_diff_tests ${regression_tests} harness_mutation_tests.cpp
+                            motion_klipper_diff_tests.cpp
+  )
 target_link_libraries(motion_klipper_diff_tests motion_diff_pipeline)
 add_catch_test(motion_klipper_diff_tests)

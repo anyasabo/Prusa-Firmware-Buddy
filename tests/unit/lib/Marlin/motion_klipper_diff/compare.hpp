@@ -103,10 +103,27 @@ private:
     double steps_per_mm_ = 0;
 };
 
+/// The CoreXY pulse grid of the input shapers of X and Y, as
+/// adjust_input_shaper_pulses_to_match_time_pulses() makes it, and the pulses that it moved.
+struct PulseMerge {
+    struct GridPulse {
+        double t; // s
+        double a[2]; // amplitude of logical X and Y
+    };
+    struct Moved {
+        int axis; // logical X = 0, Y = 1
+        double a, t_from, t_to; // amplitude, original time, time after the merge (s)
+    };
+    std::vector<GridPulse> grid;
+    std::vector<Moved> moved;
+};
+PulseMerge merge_pulses(const Config &config);
+
 /// Bound of the position error (steps) of A or B from the CoreXY pulse merge at `time_us`. Buddy
-/// puts the X and Y pulses on one time grid, and moves a pulse that is up to 10 us after the pulse
-/// before it to that time (adjust_input_shaper_pulses_to_match_time_pulses()). A moved pulse with
-/// amplitude a and shift d moves its axis by up to a * d * |v|. Klipper does not merge.
+/// puts the X and Y pulses on one time grid, and moves a pulse that is up to 10 us after the last
+/// kept pulse to the time of that pulse (adjust_input_shaper_pulses_to_match_time_pulses()). A
+/// moved pulse with amplitude a and shift d moves its axis by up to a * d * |v| while it reads a
+/// moving segment. Klipper does not merge.
 class IsPulseMergeBound {
 public:
     IsPulseMergeBound(const Config &config, const std::vector<Segment> &segments, int axis);
@@ -115,8 +132,10 @@ public:
 private:
     struct Range {
         double from_us, to_us, mm;
+        size_t term; // the moved pulse
     };
     std::vector<Range> ranges_;
+    size_t terms_ = 0;
     double steps_per_mm_ = 0;
 };
 

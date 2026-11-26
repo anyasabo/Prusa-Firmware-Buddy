@@ -181,8 +181,6 @@ void MarlinSettings::reset_motion(const bool no_limits) {
 
     LOOP_XYZE_N(i) {
       s.max_acceleration_mm_per_s2[i] = pgm_read_dword(&_DMA[ALIM(i, _DMA)]);
-      s.axis_steps_per_mm[i]          = get_steps_per_unit(i);
-      s.axis_msteps_per_mm[i]         = get_steps_per_unit(i) * PLANNER_STEPS_MULTIPLIER;
       s.max_feedrate_mm_s[i]          = pgm_read_float(&_DMF[ALIM(i, _DMF)]);
     }
 
@@ -221,11 +219,34 @@ void MarlinSettings::reset_motion(const bool no_limits) {
   #endif /* HAS_PLANNER() */
 }
 
+#if HAS_PLANNER()
+/**
+ * @brief Resets steps/mm of all axes to the values in the config store.
+ *
+ * This is not part of reset_motion(). Motion_Parameters::reset() calls reset_motion()
+ * temporarily during G28, G123, ramming and other moves. It does not call
+ * Planner::refresh_positioning(), and Motion_Parameters::load() does not restore steps/mm.
+ * If reset_motion() reset steps/mm, a value from M92 was lost at the next G28, and
+ * planner.settings.axis_steps_per_mm no longer agreed with planner.mm_per_step.
+ * See https://github.com/prusa3d/Prusa-Firmware-Buddy/issues/4946
+ */
+static void reset_steps_per_mm() {
+  auto s = planner.user_settings;
+  LOOP_XYZE_N(i) {
+    s.axis_steps_per_mm[i]  = get_steps_per_unit(i);
+    s.axis_msteps_per_mm[i] = get_steps_per_unit(i) * PLANNER_STEPS_MULTIPLIER;
+  }
+  planner.apply_settings(s);
+}
+#endif
+
 /**
  * M502 - Reset Configuration
  */
 void MarlinSettings::reset() {
   #if HAS_PLANNER()
+    // postprocess() at the end calls planner.refresh_positioning() for the new steps/mm.
+    reset_steps_per_mm();
     reset_motion();
   #endif
 

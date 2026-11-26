@@ -14,7 +14,7 @@ The real motion sources are compiled from a copy in the build directory, next to
 
 The Klipper side is the raw itersolve output, which is exact to about 1 ns. The test also asks Klipper for its exact stepper position (`kl_session_position()`: the function whose crossings itersolve finds, with the input shaper and the PA smoothing). An axis fails in four cases:
 
-- At a Buddy step, the exact position is more than 0.25 step from the boundary that the step crosses. The test reads it at the step time and 1 µs later, because Buddy rounds the step times down to whole µs. All cases and fuzz inputs stay within 0.02 step. `harness_mutation_tests.cpp` checks that a bias of 0.4 step, an extra step pair and a lost step fail.
+- At a Buddy step, the exact position is more than 0.25 step from the boundary that the step crosses. The test reads it at the step time and 1 µs later, because Buddy rounds the step times down to whole µs. With all firmware fixes, all cases, the fuzz inputs and the precision cases stay within 0.02 step. The exception is E after 33 m without a halt or G92 E0 (3.9 steps, the float drift of the E position), which fails as it must. `harness_mutation_tests.cpp` checks that a bias of 0.4 step, an extra step pair and a lost step fail.
 - At a Klipper crossing, the Buddy position is more than 0.75 step from it. This finds lost and wrong steps.
 - The end positions differ by more than 0.5 step. An end exactly on a boundary (the planner works in quarter steps) agrees with both neighbours, so a tie needs no exemption.
 - The step events do not add up to the stepper position.

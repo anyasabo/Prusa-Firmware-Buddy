@@ -50,6 +50,7 @@ KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segm
 
     std::vector<kl_move> moves;
     moves.reserve(segments.size());
+    double prev_end = -1e300;
     for (size_t i = 0; i < segments.size(); ++i) {
         const Segment &s = segments[i];
         double move_t = s.move_time;
@@ -59,9 +60,10 @@ KlipperResult run_klipper(const Config &config, const std::vector<Segment> &segm
             // speeds are float). Up to the next motion, or 1 s, then the tail sentinel holds it.
             move_t = i + 1 < segments.size() ? segments[i + 1].print_time - s.print_time : 1.;
         }
-        if (move_t < 0.) {
+        if (move_t < 0. || s.print_time < prev_end - 1e-9) {
             throw std::runtime_error("move segments overlap in time"); // the trapq needs them in order
         }
+        prev_end = s.print_time + move_t;
         if (move_t == 0.) {
             continue;
         }

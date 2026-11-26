@@ -193,7 +193,10 @@ IsEpsilonBound::IsEpsilonBound(const Config &config, const std::vector<Segment> 
     const auto r_axis = [axis](const Segment &s) {
         return axis == 0 ? s.axes_r[0] + s.axes_r[1] : (axis == 1 ? s.axes_r[0] - s.axes_r[1] : s.axes_r[2]);
     };
-    constexpr double accel_eps = 0.1, v_eps = 1e-4; // INPUT_SHAPER_ACCELERATION_EPSILON, _VELOCITY_EPSILON
+    // The firmware compares floats with these float constants: a small margin keeps a double just
+    // above them inside.
+    const double accel_eps = double(INPUT_SHAPER_ACCELERATION_EPSILON) * (1. + 1e-6);
+    const double v_eps = double(INPUT_SHAPER_VELOCITY_EPSILON) * (1. + 1e-6);
     steps_per_mm_ = config.steps_per_mm[axis];
     for (const Segment &s : segments) {
         if (s.flags & MOVE_FLAG_ENDING_EMPTY_MOVE) {
@@ -207,13 +210,15 @@ IsEpsilonBound::IsEpsilonBound(const Config &config, const std::vector<Segment> 
         // the speed to 0: up to |half_accel| * T^2. A micro segment with all pulses in this segment
         // has the stepper acceleration h of the segment. With pulses across a boundary, it is at
         // most S long and its acceleration is below the epsilon.
+        // The speed of one segment keeps its sign (the path speed is not negative). Thus the speed
+        // of a micro segment inside it changes sign only if it is near zero: `slow`.
+        const bool slow = std::min(std::abs(v0), std::abs(v1)) <= v_eps || (v0 < 0.) != (v1 < 0.);
         double mm = accel_eps * span_s * span_s;
         if (h > 0. && h <= accel_eps) {
-            mm = std::max(mm, h * T * T);
+            mm = std::max(mm, slow ? h * T * T : h * T * T / 4.);
         }
         // It sets |start_v| <= 1e-4 to zero: up to 1e-4 * T, with T the segment if its speed comes
         // near zero, else S.
-        const bool slow = std::min(std::abs(v0), std::abs(v1)) <= v_eps || (v0 < 0.) != (v1 < 0.);
         mm += v_eps * (slow ? std::max(T, span_s) : span_s);
         ranges_.push_back({ (s.print_time - span_s) * 1e6, (s.print_time + T + span_s) * 1e6, mm });
     }

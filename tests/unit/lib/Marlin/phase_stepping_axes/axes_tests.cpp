@@ -6,6 +6,7 @@
 #include <axes.hpp>
 #include <config_store/store_instance.hpp>
 #include <module/planner.h>
+#include <module/stepper/trinamic.h>
 
 #include <cmath>
 #include <cstdlib>
@@ -29,6 +30,8 @@ void boot_with_xy_steps(float steps_per_mm) {
     for (int axis : { X_AXIS, Y_AXIS }) {
         stub_store.steps_per_unit[axis] = steps_per_mm;
         planner.settings.axis_steps_per_mm[axis] = steps_per_mm;
+        // At boot, the drivers get the microsteps of the config store.
+        stub_drivers[axis].microsteps_ = stub_store.microsteps[axis];
     }
     planner.refresh_positioning();
     initialize_axis_motor_params();
@@ -139,4 +142,37 @@ TEST_CASE("phase_stepping axes: use the steps/mm of the classic step generators"
     initialize_axis_motor_params();
 
     CHECK(std::abs(pos_to_steps(X_AXIS, 10.f) - 1200) <= 1);
+}
+
+TEST_CASE("phase_stepping axes: M350 with M92 keeps the distance of one motor revolution", "[phase_stepping][m350]") {
+    boot_with_xy_steps(coreone_2gt);
+
+    // M350 X32 Y32 changes the drivers, not the config store. M92 X200 Y200 then keeps the
+    // distance per motor revolution: 200 full steps x 32 microsteps / 200 steps/mm = 32 mm.
+    for (int axis : { X_AXIS, Y_AXIS }) {
+        stub_drivers[axis].microsteps_ = 32;
+        planner.settings.axis_steps_per_mm[axis] = 200.f;
+    }
+    planner.refresh_positioning();
+    initialize_axis_motor_params();
+
+    for (AxisEnum axis : { X_AXIS, Y_AXIS }) {
+        CHECK(phase_per_ustep(axis) == 256 / 32);
+        CHECK(rev_to_mm(axis, 1.f) == Catch::Approx(16 * 2.0f).margin(0.001));
+        CHECK(std::abs(pos_to_steps(axis, 10.f) - planner_steps(axis, 10.f)) <= 1);
+        // One electrical period (1024 phase units, 4 full steps) is 4 x 32 / 200 mm.
+        CHECK(phase_to_pos(axis, opts::MOTOR_PERIOD) == Catch::Approx(4.f * 32.f / 200.f).margin(1e-5));
+    }
+}
+
+TEST_CASE("phase_stepping axes: M350 without M92 scales the distance as the classic stepper does", "[phase_stepping][m350]") {
+    boot_with_xy_steps(coreone_2gt);
+
+    // M350 X32 without M92: the classic stepper makes 100 steps for each mm, at 32 microsteps
+    // for each full step. The motor turns half as much. Phase stepping must do the same.
+    stub_drivers[X_AXIS].microsteps_ = 32;
+    initialize_axis_motor_params();
+
+    CHECK(rev_to_mm(X_AXIS, 1.f) == Catch::Approx(200 * 32 / coreone_2gt).margin(0.001));
+    CHECK(rev_to_mm(Y_AXIS, 1.f) == Catch::Approx(200 * 16 / coreone_2gt).margin(0.001));
 }

@@ -42,7 +42,7 @@ The hand-written test cases are squares, retractions with Z hop and G92 E0, reve
 
 ## Defects found (v8.0.2)
 
-The tests with `[!shouldfail][known_bug]` fail because of these defects:
+v8.0.2 has these defects. The fixes of defects 1 and 2 are in this tree, and their tests pass. The test of defect 3 has `[!shouldfail][known_bug]`.
 
 1. M221 flow: `_populate_block()` scales the E of each block and rounds it to a mini-step. The rounding error does not carry to the next block. 1000 moves of 0.01 mm E at M221 S95 make 14200 mini-steps instead of 14440: 1.7 % less E than M221 asks for. Only with flow other than 100 % (or M200). Fixed: the next block with E adds the remainder of the rounding.
 2. `JD_SMALL_SEGMENT_HANDLING`: the acos() approximation has an error of up to 0.033 rad and does not go below 0.033 rad. On an arc of radius 20 mm, at 1250 mm/s², 0.1 mm segments run at 61 mm/s and 0.3 mm segments at 105 mm/s. The centripetal limit is 158 mm/s. Fixed: the planner uses acosf().

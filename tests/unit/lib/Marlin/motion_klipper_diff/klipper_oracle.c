@@ -64,6 +64,17 @@ struct kl_session *kl_session_create(const struct kl_params *p, const struct kl_
     s->tq = trapq_alloc();
     s->eq = trapq_alloc();
 
+    // Without moves, trapq_check_sentinels() adds no sentinels, and kl_session_position() has no
+    // move to read. One still move at the start position keeps the list valid.
+    struct kl_move still = { .move_t = 1. };
+    if (move_count == 0) {
+        for (int i = 0; i < 3; ++i) {
+            still.start_pos[i] = p->start_pos[i];
+        }
+        moves = &still;
+        move_count = 1;
+    }
+
     for (int i = 0; i < move_count; ++i) {
         const struct kl_move *src = &moves[i];
         struct move *m = move_alloc();

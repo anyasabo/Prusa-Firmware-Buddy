@@ -18,6 +18,7 @@ skew_factor_t stored_skew_factor();
 void load_skew_factor();
 
 /// Sets planner.skew_factor (M852) and keeps the machine position. It waits for the queued moves first.
+/// If a crash or an abort empties the queue during the wait (planner.draining()), the factors do not change.
 void set_skew_factor(const skew_factor_t &factor);
 
 /// Turns the skew off (planner.skew_disabled) until the matching restore_skew(). Calls can nest.

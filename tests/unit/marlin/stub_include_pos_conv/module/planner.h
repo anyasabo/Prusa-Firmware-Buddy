@@ -10,7 +10,11 @@ inline struct Planner : PlannerSkew {
     /// The planner position (machine coordinates), see Planner::get_machine_position_mm()
     static inline MachinePosXYZE position_float {};
 
+    /// True while a crash or an abort empties the queue, see Planner::draining()
+    static inline bool draining_state = false;
+
     static void synchronize() {}
+    static bool draining() { return draining_state; }
     static MachinePosXYZE get_machine_position_mm() { return position_float; }
 
     static inline float z_fade_height = 0;

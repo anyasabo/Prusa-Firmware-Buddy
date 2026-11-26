@@ -36,6 +36,7 @@ void reset_state() {
     config_store().skew_factor.set({ 0, 0, 0 });
     current_position = {};
     planner.position_float = {};
+    Planner::draining_state = false;
 }
 
 /// Puts the printer at the machine position \p m, as line_to_machine_pos() does
@@ -110,6 +111,7 @@ TEST_CASE("skew guards keep the machine position") {
         check_planner_at(m);
         restore_skew();
         check_planner_at(m);
+        CHECK(current_position.xyz() == to_native_pos(m));
     }
 
     SECTION("New factors (M852), also in the edge band, and E does not change") {
@@ -122,9 +124,26 @@ TEST_CASE("skew guards keep the machine position") {
             set_skew_factor({ -0.002f, 0.001f, 0.002f });
             CHECK(Planner::skew_factor == skew_factor_t { -0.002f, 0.001f, 0.002f });
             check_planner_at(m);
+            CHECK(current_position.xyz() == to_native_pos(m));
             CHECK(current_position.e == 12.5f);
         }
     }
+}
+
+TEST_CASE("skew new factors wait for the queued moves") {
+    // If a crash or an abort empties the queue during the wait, the factors must not change: crash recovery
+    // replays the moves before the M852 with the old factors, and then the M852 again.
+    reset_state();
+    Planner::skew_factor = { 0.001f, 0.001f, -0.001f };
+    const MachinePosXYZ m { 150, 150, 30 };
+    move_to_machine_pos(m);
+    const xyze_pos_t native = current_position;
+
+    Planner::draining_state = true;
+    set_skew_factor({ -0.002f, 0.001f, 0.002f });
+    CHECK(Planner::skew_factor == skew_factor_t { 0.001f, 0.001f, -0.001f });
+    CHECK(current_position == native);
+    check_planner_at(m);
 }
 
 TEST_CASE("skew stored factors") {

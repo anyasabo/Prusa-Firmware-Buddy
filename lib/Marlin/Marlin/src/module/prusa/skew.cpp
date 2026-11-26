@@ -53,9 +53,18 @@ void load_skew_factor() {
 }
 
 void set_skew_factor(const skew_factor_t &factor) {
-    if (factor != planner.skew_factor) {
-        keep_machine_position([&] { planner.skew_factor = factor; });
+    if (factor == planner.skew_factor) {
+        return;
     }
+
+    planner.synchronize();
+    if (planner.draining()) {
+        // A crash or an abort emptied the queue during the wait. Crash recovery replays the moves before this
+        // M852 with the old factors, and then this M852.
+        return;
+    }
+
+    keep_machine_position([&] { planner.skew_factor = factor; });
 }
 
 void disable_skew() {

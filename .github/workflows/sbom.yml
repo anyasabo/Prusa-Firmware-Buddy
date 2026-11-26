@@ -1,0 +1,59 @@
+# SBOM tooling checks and a vulnerability scan of the shipped firmware images.
+# Both jobs run utils/sbom/ci.sh, which is also how to run them locally:
+#
+#   utils/sbom/ci.sh check   pre-commit hooks: yapf, ruff, ty, pytest,
+#                            check-sbom-manifest, gen-vex (lib/vex.json up to date)
+#   utils/sbom/ci.sh scan    Grype + lib/vex.json on the main, esp8266-wifi and
+#                            esp32-wifi SBOMs; findings the VEX does not decide
+#                            are warnings (annotations), not failures. Only a
+#                            tool error fails the job
+#
+# Versions are pinned in .pre-commit-config.yaml, utils/sbom/ci.sh (prek) and
+# utils/sbom/scan.sh (Grype), not here.
+name: SBOM
+
+on:
+  push:
+    branches: [sbom-scanning, anya/main]
+    paths: &paths
+      - lib/sbom.yml
+      - lib/sbom.schema.json
+      - lib/vex.json
+      - "**/.gitrepo"
+      - utils/bootstrap.py
+      - utils/sbom/**
+      - tests/sbom/**
+      - pyproject.toml
+      - .pre-commit-config.yaml
+      - .github/workflows/sbom.yml
+  pull_request:
+    paths: *paths
+  # New CVEs appear without code changes. Scheduled runs only fire for
+  # workflows on the default branch.
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: utils/sbom/ci.sh check
+
+  scan:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: utils/sbom/ci.sh scan
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: sbom-and-scan
+          path: build-sbom/

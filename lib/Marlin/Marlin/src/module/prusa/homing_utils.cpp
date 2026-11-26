@@ -71,16 +71,18 @@ void enable_modifiers_if(bool condition, bool restore_leveling) {
         return;
     }
 
-#if ENABLED(SKEW_CORRECTION)
-    restore_skew();
-#endif
-
 #if HAS_LEVELING
     if (restore_leveling) {
         set_bed_leveling_enabled(true);
     }
 #endif
     sync_plan_position();
+
+#if ENABLED(SKEW_CORRECTION)
+    // Last, after the syncs above: restore_skew() keeps the planner position. A sync with the skew on can move the
+    // planner position in the edge band of skew(), and measured axis ends (Measure_axis, G163) are often there.
+    restore_skew();
+#endif
 }
 
 Motion_Parameters reset_acceleration_if(bool condition) {

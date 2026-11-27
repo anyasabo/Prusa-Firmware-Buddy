@@ -173,3 +173,16 @@ buddy_add_fuzzer(marlin_parser SOURCES marlin_parser.cpp LIBS marlin_gcode_parse
 # Not untrusted input: the oracle finds wrong steps, not only crashes. The library has the real
 # motion sources, the stubs and Klipper (tests/unit/lib/Marlin/motion_klipper_diff).
 buddy_add_fuzzer(motion_klipper SOURCES motion_klipper.cpp LIBS motion_diff_pipeline)
+
+# lwIP IPv4 + TCP input with Buddy's TCP settings and the out-of-order queue limits
+# (lib/WUI/ooseq_limit.cpp). Any host on the LAN can send these packets. An lwIP assert is a BSOD on
+# the printer, so the harness treats it as a crash.
+buddy_add_fuzzer_from_test(
+  lwip_tcp_input
+  TEST
+  ooseq_tcp_tests
+  DROP
+  ooseq_tcp_test.cpp
+  SOURCES
+  lwip_tcp_input.cpp
+  )

@@ -77,11 +77,15 @@ target_include_directories(
          ${CMAKE_SOURCE_DIR}/src/common
   )
 target_link_libraries(gcode_info_test gcode_reader_test_base version uuid)
+# Fill uninitialized variables with a pattern. Without it, a test of a read of an uninitialized
+# variable can pass by chance.
+target_compile_options(gcode_info_test PRIVATE -ftrivial-auto-var-init=pattern)
 add_catch_test(gcode_info_test)
 
 file(
   COPY ${CMAKE_CURRENT_SOURCE_DIR}/test_plain.gcode
        ${CMAKE_CURRENT_SOURCE_DIR}/test_total_toolchanges.gcode
+       ${CMAKE_CURRENT_SOURCE_DIR}/test_filament_not_number.gcode
        ${CMAKE_CURRENT_SOURCE_DIR}/test_binary_no_compression.bgcode
        ${CMAKE_CURRENT_SOURCE_DIR}/test_binary_meatpack.bgcode
        ${CMAKE_CURRENT_SOURCE_DIR}/test_binary_heatshrink.bgcode

@@ -80,15 +80,10 @@ public:
         }
     }
 
+    // The main task pushes to the TX queue and frees received payloads, so each access to the
+    // queue, the canard instance and the heap takes the mutex.
     bool step() {
-        if (const CanardTxQueueItem *ti = canardTxPeek(&tx_queue)) {
-            if (ti->tx_deadline_usec == 0 || ti->tx_deadline_usec > get_current_microseconds()) {
-                if (!hal::pub::transmit(ti->frame.extended_can_id, { (std::byte *)ti->frame.payload, ti->frame.payload_size })) {
-                    return true; // If the driver is busy, break and retry later.
-                }
-            }
-            // After the frame is transmitted or if it has timed out while waiting, pop it from the queue and deallocate:
-            canard.memory_free(&canard, canardTxPop(&tx_queue, ti));
+        if (step_tx()) {
             return true;
         } else if (hal::pub::RxFrame hal_frame; hal::pub::receive(hal_frame)) {
             CanardFrame canard_frame {
@@ -98,12 +93,16 @@ public:
             };
 
             CanardRxTransfer transfer;
-            const int8_t result = canardRxAccept(&canard,
-                get_current_microseconds(),
-                &canard_frame,
-                0,
-                &transfer,
-                nullptr);
+            int8_t result;
+            {
+                LockGuard lock { mutex };
+                result = canardRxAccept(&canard,
+                    get_current_microseconds(),
+                    &canard_frame,
+                    0,
+                    &transfer,
+                    nullptr);
+            }
             if (result < 0) {
                 // invalid arg or OOM
             } else if (result == 1) {
@@ -117,6 +116,23 @@ public:
         } else {
             return false;
         }
+    }
+
+    /// Returns false if the TX queue is empty.
+    bool step_tx() {
+        LockGuard lock { mutex };
+        const CanardTxQueueItem *ti = canardTxPeek(&tx_queue);
+        if (ti == nullptr) {
+            return false;
+        }
+        if (ti->tx_deadline_usec == 0 || ti->tx_deadline_usec > get_current_microseconds()) {
+            if (!hal::pub::transmit(ti->frame.extended_can_id, { (std::byte *)ti->frame.payload, ti->frame.payload_size })) {
+                return true; // If the driver is busy, break and retry later.
+            }
+        }
+        // After the frame is transmitted or if it has timed out while waiting, pop it from the queue and deallocate:
+        canard.memory_free(&canard, canardTxPop(&tx_queue, ti));
+        return true;
     }
 
     [[nodiscard]] bool transmit(const CanardMicrosecond deadline, const CanardTransferMetadata &metadata, const Bytes &buffer) {

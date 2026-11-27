@@ -166,3 +166,24 @@ TEST_CASE("A time in seconds out of the millis_t range saturates") {
         CHECK(parser.value_millis_from_seconds() == 1500);
     }
 }
+
+TEST_CASE("A command number out of range is an unknown command") {
+    // A number past INT_MAX must not wrap: G4294967324 would run G28. A subcode past 255 must not
+    // wrap: M862.257 would run M862.1.
+    for (const char *text : { "G4294967324 X1", "G16666666601 X F0", "M862.257 P1", "M99999999999" }) {
+        CAPTURE(text);
+        Line line(text);
+        CHECK(parser.command_letter == '?');
+    }
+    {
+        Line line("G2147483647");
+        CHECK(parser.command_letter == 'G');
+        CHECK(parser.codenum == 2147483647);
+    }
+    {
+        Line line("M862.255");
+        CHECK(parser.command_letter == 'M');
+        CHECK(parser.codenum == 862);
+        CHECK(parser.subcode == 255);
+    }
+}

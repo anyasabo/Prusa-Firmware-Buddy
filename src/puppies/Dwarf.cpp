@@ -240,7 +240,7 @@ bool Dwarf::dispatch_log_event() {
 CommunicationStatus Dwarf::fifo_refresh(PuppyModbus &bus, uint32_t cycle_ticks_ms) {
     Lock guard(*mutex);
     // pull fifo every 200 ms
-    if (last_pull_ms + DWARF_FIFO_PULL_PERIOD > cycle_ticks_ms) {
+    if (cycle_ticks_ms - last_pull_ms < DWARF_FIFO_PULL_PERIOD) {
         return CommunicationStatus::SKIPPED;
     }
 

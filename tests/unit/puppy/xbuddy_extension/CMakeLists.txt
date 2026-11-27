@@ -37,3 +37,15 @@ target_include_directories(
   cyphal_nfc_node_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension
   )
 add_catch_test(cyphal_nfc_node_tests)
+
+add_executable(
+  xbuddy_extension_hal_logic_tests
+  ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension/temperature.cpp
+  ${CMAKE_SOURCE_DIR}/src/module/utils/buddy_utils/utils/timing/timer_event_period_tracker.cpp
+  hal_logic_tests.cpp
+  )
+target_include_directories(
+  xbuddy_extension_hal_logic_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension
+                                           ${CMAKE_SOURCE_DIR}/src/module/utils/buddy_utils
+  )
+add_catch_test(xbuddy_extension_hal_logic_tests)

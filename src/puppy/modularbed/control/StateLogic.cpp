@@ -134,6 +134,12 @@ void TargetTemperatureChanged(uint32_t heatbedletIndex, float temperatureDegrees
             SetState(heatbedletIndex, HeatbedletState::Heating);
         } else if (temperatureDegreesC < pHBInfo->m_MeasuredTemperature - TEMPERATURE_STABILIZED_TOLERANCE_DEGREES) {
             SetState(heatbedletIndex, HeatbedletState::Cooling);
+        } else if (pHBInfo->m_State == HeatbedletState::Inactive) {
+            // The controller heats for each target above 0. An Inactive bedlet has no thermal
+            // runaway check. After 4 s in the tolerance band, the stabilization check selects
+            // Stable, which has the drop and peak checks. Above the target, select Cooling: the
+            // preheat check of Heating needs a rise.
+            SetState(heatbedletIndex, temperatureDegreesC > pHBInfo->m_MeasuredTemperature ? HeatbedletState::Heating : HeatbedletState::Cooling);
         }
     }
 }
@@ -193,6 +199,7 @@ void ClearHBErrorBits(uint32_t heatbedletIndex, uint32_t errorMask) {
     if (pHBInfo->m_ErrorFlags == 0) {
         if (pHBInfo->m_State == HeatbedletState::Error) {
             SetState(heatbedletIndex, HeatbedletState::Inactive);
+            TargetTemperatureChanged(heatbedletIndex, pHBInfo->m_TargetTemperature);
         }
         SetBitValue(HBDiscreteInput::is_ready, heatbedletIndex, true);
     }
@@ -363,7 +370,7 @@ void StartPreheatWatching(uint32_t heatbedletIndex) {
     HeatbedletInfo *pHBInfo = HeatbedletInfo::Get(heatbedletIndex);
 
     pHBInfo->m_NextPreheatCheckTime = osKernelSysTick() + TEMPERATURE_PREHEAT_CHECK_SECONDS * TICKS_PER_SECOND;
-    pHBInfo->m_NextPreheatCheckTemperature = static_cast<uint32_t>(pHBInfo->m_MeasuredTemperature + GetPreheatMinTemperatureIncrease());
+    pHBInfo->m_NextPreheatCheckTemperature = pHBInfo->m_MeasuredTemperature + GetPreheatMinTemperatureIncrease();
 }
 
 void CheckPreheatError(uint32_t heatbedletIndex) {

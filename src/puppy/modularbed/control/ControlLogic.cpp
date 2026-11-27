@@ -162,18 +162,24 @@ float DelinearizePWM(float pwm) {
     return outPWM;
 }
 
+uint16_t PIDActionRegister(float action) {
+    // A negative action is sent as a 16-bit two's complement value. The conversion through
+    // int32_t gives the same result as the conversion to uint16_t on the Cortex-M0+ (soft float),
+    // but with no undefined behavior. A NaN is not limited by LimitValue, so it is sent as 0.
+    if (std::isnan(action)) {
+        return 0;
+    }
+    const float scaled = LimitValue(action, -1, 1) * ((float)MODBUS_PID_SCALE) + 0.5f;
+    return static_cast<uint16_t>(static_cast<int32_t>(scaled));
+}
+
 void StoreValuesToModbusRegisters() {
     for (int hbIndex = 0; hbIndex < HEATBEDLET_COUNT; hbIndex++) {
         HeatbedletInfo *pHBInfo = HeatbedletInfo::Get(hbIndex);
 
-        uint16_t p_action = (uint16_t)(LimitValue(pHBInfo->m_PID_P_Action, -1, 1) * ((float)MODBUS_PID_SCALE) + 0.5f);
-        ModbusRegisters::SetRegValue(ModbusRegisters::HBInputRegister::pid_p_control_action, hbIndex, p_action);
-
-        uint16_t i_action = (uint16_t)(LimitValue((float)pHBInfo->m_PID_I_Action, -1, 1) * ((float)MODBUS_PID_SCALE) + 0.5f);
-        ModbusRegisters::SetRegValue(ModbusRegisters::HBInputRegister::pid_i_control_action, hbIndex, i_action);
-
-        uint16_t d_action = (uint16_t)(LimitValue(pHBInfo->m_PID_D_Action, -1, 1) * ((float)MODBUS_PID_SCALE) + 0.5f);
-        ModbusRegisters::SetRegValue(ModbusRegisters::HBInputRegister::pid_d_control_action, hbIndex, d_action);
+        ModbusRegisters::SetRegValue(ModbusRegisters::HBInputRegister::pid_p_control_action, hbIndex, PIDActionRegister(pHBInfo->m_PID_P_Action));
+        ModbusRegisters::SetRegValue(ModbusRegisters::HBInputRegister::pid_i_control_action, hbIndex, PIDActionRegister(pHBInfo->m_PID_I_Action));
+        ModbusRegisters::SetRegValue(ModbusRegisters::HBInputRegister::pid_d_control_action, hbIndex, PIDActionRegister(pHBInfo->m_PID_D_Action));
     }
 }
 

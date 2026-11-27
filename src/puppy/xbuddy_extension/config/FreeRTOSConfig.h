@@ -68,7 +68,6 @@ extern uint32_t SystemCoreClock;
 #define configSUPPORT_DYNAMIC_ALLOCATION        0
 #define configSUPPORT_STATIC_ALLOCATION         1
 #define configMINIMAL_STACK_SIZE                32
-#define configSYSTEM_CALL_STACK_SIZE            64
 #define configPROTECTED_KERNEL_OBJECT_POOL_SIZE 32
 #define configUSE_PREEMPTION                    1
 #define configUSE_IDLE_HOOK                     0
@@ -78,6 +77,12 @@ extern uint32_t SystemCoreClock;
 #define configUSE_COUNTING_SEMAPHORES           1
 #define INCLUDE_vTaskDelay                      1
 #define INCLUDE_vTaskSuspend                    1
+
+// Unprivileged tasks run kernel calls on this stack. An interrupt during a kernel call also pushes
+// its exception frame here; in a task that used the FPU, that frame is 104 B. Thus the size must
+// hold the deepest kernel call chain plus 108 B. The usable size is 8 B less than the buffer
+// because of the alignment. The stack limit register catches an overflow, which halts the board.
+#define configSYSTEM_CALL_STACK_SIZE 96
 
 /* Cortex-M specific definitions. */
 #define configPRIO_BITS      4

@@ -307,6 +307,20 @@ TEST_CASE("toolchanger_indx: park fails in a print - user aborts") {
     CHECK(world.head_tool == 2);
 }
 
+// The manual park of an unknown nozzle (the boot flow when the head holds a tool that the firmware does
+// not know) lets the user select another dock after a failed park. That tool was never heated, so no stop.
+TEST_CASE("toolchanger_indx: manual park that fails does not stop") {
+    world.reset();
+    world.dock_content[3].reset();
+    world.head_tool = 3;
+    world.lock_pos = world.lock_closed; // the lock holds the nozzle
+    world.release_failures = 5;
+    bool parked = true;
+    CHECK_NOTHROW(parked = prusa_toolchanger.manual_tool_park(T(3)));
+    CHECK_FALSE(parked);
+    CHECK(world.head_tool == 3);
+}
+
 TEST_CASE("toolchanger_indx: homing fails before the change") {
     world.reset();
     REQUIRE(change(T(2)));

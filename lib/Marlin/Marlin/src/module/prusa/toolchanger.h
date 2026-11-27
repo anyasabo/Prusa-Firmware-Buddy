@@ -277,6 +277,10 @@ private:
     static constexpr uint8_t TOOL_CHECK_FAILS_LIMIT = 3; ///< Limit of tool_check_fails before toolfall
     #endif
     std::atomic<bool> block_tool_check = false; ///< When true, block toolchange recursion and (on Dwarf) loop() with toolfall detection
+    /// When false, a failed park with the nozzle still in the head returns false and does not stop
+    /// the printer. Only for the manual park of an unknown nozzle: its heater was never on, and the
+    /// user can select another dock.
+    bool stop_on_failed_park = true;
     std::atomic<bool> quick_stopped = false; ///< The current toolchange was quick-stopped
 
     /**

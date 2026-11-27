@@ -132,3 +132,22 @@ TEST_CASE("gcode_parser::gcode_parser::failure_tests") {
     CHECK(test_parse_failure<GCodeParser2>("G13 X123blbost Y"));
     CHECK(test_parse_failure<GCodeParser2>("G13 X%23"));
 }
+
+TEST_CASE("gcode_parser::gcode_parser::float_not_a_number") {
+    // strtof() accepts "nan". A NaN passes each "less than" and "greater than" check of a caller:
+    // for example M141 S"nan" was a chamber target over the maximum (TH-3).
+    GCodeParser2 p(fail_test_error_callback);
+    REQUIRE(p.parse("M141 S\"nan\" R\"-NAN\" C\"nan(1)\" X\"inf\" Y\"1.5\""));
+
+    for (const char key : { 'S', 'R', 'C' }) {
+        CAPTURE(key);
+        std::optional<float> val;
+        CHECK(execution_failed(p, [&] { val = p.option<float>(key); }));
+        CHECK_FALSE(val.has_value());
+        CHECK(execution_failed(p, [&] { val = p.option<float>(key, 0.0f, 100.0f); }));
+        CHECK_FALSE(val.has_value());
+    }
+
+    CHECK(p.option<float>('X') == std::numeric_limits<float>::infinity());
+    CHECK(p.option<float>('Y') == 1.5f);
+}

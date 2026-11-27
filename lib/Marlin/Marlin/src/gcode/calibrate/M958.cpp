@@ -61,7 +61,7 @@ namespace {
          * @return amplitude in meters
          */
         static float amplitudeNotRounded(float frequency, float acceleration) {
-            return acceleration / (4 * std::numbers::pi_v<float> * std::numbers::pi_v<float> * frequency * frequency);
+            return excitation_amplitude(frequency, acceleration);
         }
 
         HarmonicGenerator(float frequency, float amplitude, float step_len)
@@ -445,9 +445,13 @@ void Vibrate::step() {
  * @retval ResponseSample
  */
 Result<ResponseSample> measure(const MeasureParams &args, float requested_frequency, const ProgressHook &progress_hook) {
+    if (args.measured_harmonic == 0) {
+        SERIAL_ERROR_MSG("vibrate measure: the harmonic I must be 1 or more");
+        return std::unexpected(Error::invalid_argument);
+    }
     if (args.klipper_mode && args.measured_harmonic != 1) {
         SERIAL_ERROR_MSG("vibrate measure: klipper mode does not support measuring higher harmonics");
-        return std::unexpected(Error::failed);
+        return std::unexpected(Error::invalid_argument);
     }
 
     // As we push steps directly, phase stepping needs to be off
@@ -460,6 +464,10 @@ Result<ResponseSample> measure(const MeasureParams &args, float requested_freque
         !isnan(args.excitation_amplitude)
         ? args.excitation_amplitude
         : HarmonicGenerator::amplitudeNotRounded(requested_frequency, args.excitation_acceleration);
+    if (!is_excitation_amplitude_valid(excitation_amplitude, args.step_len)) {
+        SERIAL_ERROR_MSG("vibrate measure: the frequency F or the acceleration A gives no steps or too many steps");
+        return std::unexpected(Error::invalid_argument);
+    }
 
     HarmonicGenerator generator(requested_frequency, excitation_amplitude, args.step_len);
 
@@ -710,7 +718,7 @@ Result<ResponseSample> measure_repeat(const MeasureParams &args, float frequency
     constexpr int max_attempts = 3;
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         const auto result = measure(args, frequency, progress_hook);
-        if (result.has_value() || result.error() == Error::aborted) {
+        if (result.has_value() || result.error() != Error::failed) {
             return result;
         }
 

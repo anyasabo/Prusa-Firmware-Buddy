@@ -339,6 +339,7 @@ static PhasesInputShaperCalibration measuring_axis(
             case Error::aborted:
                 return PhasesInputShaperCalibration::abort;
             case Error::failed:
+            case Error::invalid_argument:
                 return PhasesInputShaperCalibration::measurement_failed;
             }
             bsod_unreachable();

@@ -448,3 +448,18 @@ TEST_CASE("modularbed: the PID action registers") {
     // 10 °C above the target: the P action is -1.8, limited to -1.
     CHECK(test::hb_input_register(HBInputRegister::pid_p_control_action, 0) == static_cast<uint16_t>(-9999));
 }
+
+TEST_CASE("modularbed: a bedlet a little above its target gets no preheat error (MB-2 review)") {
+    // Neighbors with a higher target can keep a bedlet a little above its own target.
+    fake::reset_world();
+    world.temperature.fill(60.0f);
+    world.frozen[4] = true;
+    world.temperature[4] = 60.9f;
+    test::boot_with_world();
+    test::write_all_targets(60);
+
+    world.temperature[4] = 61.5f;
+    test::run_ms(130'000, true);
+    CHECK(bedlet_faults(4) == 0);
+    CHECK(test::system_fault_status() == 0);
+}

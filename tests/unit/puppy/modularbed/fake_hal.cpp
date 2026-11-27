@@ -107,6 +107,11 @@ osThreadId osThreadCreate(const osThreadDef_t *, void *) {
 }
 
 osMailQId osMailCreate(const osMailQDef_t *queue_def, osThreadId) {
+    // A new boot of the puppy starts with an empty queue.
+    for (void *mail : mail_queue) {
+        std::free(mail);
+    }
+    mail_queue.clear();
     mail_queue_capacity = queue_def->queue_sz;
     mail_item_size = queue_def->item_sz;
     return &mail_queue;

@@ -135,10 +135,11 @@ void TargetTemperatureChanged(uint32_t heatbedletIndex, float temperatureDegrees
         } else if (temperatureDegreesC < pHBInfo->m_MeasuredTemperature - TEMPERATURE_STABILIZED_TOLERANCE_DEGREES) {
             SetState(heatbedletIndex, HeatbedletState::Cooling);
         } else if (pHBInfo->m_State == HeatbedletState::Inactive) {
-            // The controller heats for each target above 0, but the thermal runaway checks run
-            // only in Heating, Cooling and Stable. The temperature is already close to the
-            // target, so the stabilization check selects Stable after a few seconds.
-            SetState(heatbedletIndex, HeatbedletState::Heating);
+            // The controller heats for each target above 0. An Inactive bedlet has no thermal
+            // runaway check. After 4 s in the tolerance band, the stabilization check selects
+            // Stable, which has the drop and peak checks. Above the target, select Cooling: the
+            // preheat check of Heating needs a rise.
+            SetState(heatbedletIndex, temperatureDegreesC > pHBInfo->m_MeasuredTemperature ? HeatbedletState::Heating : HeatbedletState::Cooling);
         }
     }
 }

@@ -182,7 +182,11 @@ std::optional<Error> tls::connection(const char *connection_host, uint16_t conne
     static const int tls_cipher_suites[2] = { MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 0 };
     mbedtls_ssl_conf_ciphersuites(&ssl_config, tls_cipher_suites);
 
-    mbedtls_ssl_set_hostname(&ssl_context, destination_host);
+    // The host name is also the name that the server certificate must have.
+    // If this fails (out of memory), do not continue without it.
+    if ((status = mbedtls_ssl_set_hostname(&ssl_context, destination_host)) != 0) {
+        return status == MBEDTLS_ERR_SSL_ALLOC_FAILED ? Error::Memory : Error::InternalError;
+    }
 
     if ((status = mbedtls_ssl_setup(&ssl_context, &ssl_config)) != 0) {
         return Error::InternalError;

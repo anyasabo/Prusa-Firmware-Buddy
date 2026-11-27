@@ -18,6 +18,7 @@ extern "C" {
 #define LWIP_ETHERNET        1
 #define LWIP_DNS_SECURE      7
 #define DNS_MAX_NAME_LENGTH  128
+#define DNS_TABLE_SIZE       2
 #define LWIP_RAW             1
 
 #if MDNS()

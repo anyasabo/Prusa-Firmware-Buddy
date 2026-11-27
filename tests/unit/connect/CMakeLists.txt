@@ -383,6 +383,18 @@ if(NOT WEBSOCKET)
   target_sources(connect_registration_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/transfers/decrypt.cpp)
 endif()
 
+# A separate binary: the X.509 verification links platform_util.c of mbedtls, and the connect_tests
+# stubs define mbedtls_platform_zeroize too.
+add_executable(
+  connect_trust_store_tests ${CMAKE_SOURCE_DIR}/src/connect/tls/trust_store.cpp trust_store.cpp
+                            trust_store_missing_functions.c
+  )
+target_include_directories(
+  connect_trust_store_tests PRIVATE . ${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src/connect
+  )
+target_link_libraries(connect_trust_store_tests mbedTLS)
+
 add_catch_test(connect_tests)
+add_catch_test(connect_trust_store_tests)
 add_catch_test(connect_planner_tests)
 add_catch_test(connect_registration_tests)

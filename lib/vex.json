@@ -1,6 +1,6 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:5a425548-f9c3-5f3a-b4e4-96de9ce1eaa6",
+ "@id": "urn:uuid:63f7d87f-2f12-572a-89c0-ff069301447b",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
  "timestamp": "2026-11-27T00:00:00Z",
  "version": 1,
@@ -432,7 +432,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-   "impact_statement": "CA-bit parsing differential needs user-supplied trust roots validated elsewhere; Buddy embeds one fixed CA."
+   "impact_statement": "CA-bit parsing differential: a certificate that an off-device validator accepts as an end entity, but mbedtls parses as a CA. The trusted roots are fixed (the Prusa CA, and with HAS_TLS_PUBLIC_CA the Let's Encrypt ECDSA roots). A public CA writes the basicConstraints extension itself, so a subscriber cannot get a certificate with the crafted encoding."
   },
   {
    "vulnerability": {
@@ -458,7 +458,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_in_execute_path",
-   "impact_statement": "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
+   "impact_statement": "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended."
   },
   {
    "vulnerability": {
@@ -471,7 +471,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off (include/mbedtls/cipher_config_ece.h)."
+   "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_RENEGOTIATION is off (include/mbedtls/cipher_config_ece.h). MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH is on only with HAS_TLS_PUBLIC_CA, where the buffers shrink once after the handshake."
   },
   {
    "vulnerability": {
@@ -484,7 +484,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off (include/mbedtls/cipher_config_ece.h)."
+   "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_RENEGOTIATION is off (include/mbedtls/cipher_config_ece.h). MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH is on only with HAS_TLS_PUBLIC_CA, where the buffers shrink once after the handshake."
   },
   {
    "vulnerability": {

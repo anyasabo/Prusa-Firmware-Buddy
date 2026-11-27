@@ -144,7 +144,7 @@ TRIAGE: dict[str, list[Decision]] = {
                      "ECDHE-PSK client; no PSK suites are enabled."),
         not_affected(
             ["CVE-2026-49300"], NCA,
-            "CA-bit parsing differential needs user-supplied trust roots validated elsewhere; Buddy embeds one fixed CA."
+            "CA-bit parsing differential: a certificate that an off-device validator accepts as an end entity, but mbedtls parses as a CA. The trusted roots are fixed (the Prusa CA, and with HAS_TLS_PUBLIC_CA the Let's Encrypt ECDSA roots). A public CA writes the basicConstraints extension itself, so a subscriber cannot get a certificate with the crafted encoding."
         ),
         not_affected(
             ["CVE-2026-54435"], NCA,
@@ -152,12 +152,12 @@ TRIAGE: dict[str, list[Decision]] = {
         ),
         not_affected(
             ["CVE-2026-54441"], NIEP,
-            "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
+            "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended."
         ),
         # November 2026 advisories (3.6.8, 4.1.2, 4.3.0). No 2.28 release has the fixes.
         not_affected(
             ["CVE-2026-115488", "CVE-2026-93844"], NP,
-            f"Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off ({MBEDTLS_CFG})."
+            f"Buffer resize at renegotiation; MBEDTLS_SSL_RENEGOTIATION is off ({MBEDTLS_CFG}). MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH is on only with HAS_TLS_PUBLIC_CA, where the buffers shrink once after the handshake."
         ),
         not_affected(
             ["CVE-2026-115489"], NIEP,

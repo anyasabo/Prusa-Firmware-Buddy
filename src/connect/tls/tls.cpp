@@ -1,5 +1,6 @@
 #include "tls.hpp"
-#include "certificate.h"
+#include "trust_store.hpp"
+#include <option/has_tls_public_ca.h>
 #include <string.h>
 #include <stdbool.h>
 #include <memory>
@@ -154,7 +155,7 @@ std::optional<Error> tls::connection(const char *connection_host, uint16_t conne
             return Error::Tls;
         }
     } else {
-        for (const auto &cert : certificates) {
+        for (const auto &cert : trust_anchors(destination_host)) {
             if ((status = mbedtls_x509_crt_parse_der_nocopy(&ctxs.x509_certificate, cert.data(), cert.size())) != 0) {
                 return Error::InternalError;
             }
@@ -175,6 +176,17 @@ std::optional<Error> tls::connection(const char *connection_host, uint16_t conne
     // Only use TLS 1.2
     mbedtls_ssl_conf_max_version(&ssl_config, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
     mbedtls_ssl_conf_min_version(&ssl_config, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
+#if HAS_TLS_PUBLIC_CA()
+    // The Prusa Connect server accepts 1 KiB records. With MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH,
+    // the receive buffer then shrinks from 16 KiB to 1 KiB after the handshake.
+    //
+    // Do not ask other servers: mbedtls 2.28 shrinks the buffer to the requested length also
+    // if the server ignored the request (mbedtls_ssl_get_input_max_frag_len). Go crypto/tls
+    // (Caddy) ignores it and sends records of up to 16 KiB, which then fail.
+    if (is_prusa_host(destination_host)) {
+        mbedtls_ssl_conf_max_frag_len(&ssl_config, MBEDTLS_SSL_MAX_FRAG_LEN_1024);
+    }
+#endif
     // Strictly ensure that certificates are signed by the CA
     mbedtls_ssl_conf_authmode(&ssl_config, MBEDTLS_SSL_VERIFY_REQUIRED);
 

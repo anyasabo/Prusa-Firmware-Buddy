@@ -51,7 +51,3 @@ constexpr const unsigned char ca_cert_der[] = {
 };
 
 constexpr unsigned int ca_cert_der_len = sizeof(ca_cert_der);
-
-constexpr std::array<std::span<const unsigned char>, 1> certificates = {
-    std::span { ca_cert_der, ca_cert_der_len }
-};

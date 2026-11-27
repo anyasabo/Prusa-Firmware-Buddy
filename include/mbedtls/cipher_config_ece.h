@@ -1,5 +1,6 @@
 #pragma once
 #include <option/has_e2ee_support.h>
+#include <option/has_tls_public_ca.h>
 
 /* System support */
 #define MBEDTLS_HAVE_ASM
@@ -69,10 +70,30 @@
 // Fast P-256 field reduction instead of generic bignum division. Costs <1 KB of flash
 // and no RAM, makes the TLS handshake ~5x faster (11 s -> 2.4 s on MK4).
 #define MBEDTLS_ECP_NIST_OPTIM
-#define MBEDTLS_SSL_MAX_CONTENT_LEN 1024
+#if HAS_TLS_PUBLIC_CA()
+    // Let's Encrypt signs its ECDSA intermediates and certificates with P-384 keys and
+    // SHA-384 (see src/connect/tls/public_ca.h).
+    #define MBEDTLS_SHA512_C
+    #define MBEDTLS_SHA512_SMALLER
+    #define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+    // With MBEDTLS_SHA512_C, the entropy module changes to SHA-512, and its context no longer
+    // fits the 512-byte lwIP pool (src/connect/tls/tls.cpp). Keep SHA-256.
+    #define MBEDTLS_ENTROPY_FORCE_SHA256
+    // The client cannot make a server send small records. Go crypto/tls (Caddy) ignores the
+    // max_fragment_length extension and sends records of up to 16 KiB. Its Certificate
+    // message for a Let's Encrypt chain is approximately 3.4 KiB in one record.
+    #define MBEDTLS_SSL_MAX_CONTENT_LEN 16384
+    #define MBEDTLS_SSL_IN_CONTENT_LEN  16384
+    // After the handshake, shrink the input buffer to the max_fragment_length that the
+    // server accepted (the Prusa Connect server accepts 1024). Without renegotiation
+    // (off), the buffers do not grow again.
+    #define MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH
+#else
+    #define MBEDTLS_SSL_MAX_CONTENT_LEN 1024
+    #define MBEDTLS_SSL_IN_CONTENT_LEN  1024
+#endif
 
 #define MBEDTLS_SSL_OUT_CONTENT_LEN 512
-#define MBEDTLS_SSL_IN_CONTENT_LEN  1024
 // Tell the server we don't want big fragments (relates to MBEDTLS_SSL_OUT_CONTENT_LEN)
 #define MBEDTLS_SSL_MAX_FRAGMENT_LENGTH
 // Prefer smaller code over fast computations (our CPU is idle most of the time anyway).

@@ -665,6 +665,21 @@ else()
   set_feature_for_printers_master_board(HAS_E2EE_SUPPORT "UNITTESTS")
 endif()
 
+# TLS to a self-hosted Connect with a Let's Encrypt certificate: the ISRG ECDSA roots, P-384,
+# SHA-384 and full-size TLS records. It costs RAM, so MINI does not have it.
+set_feature_for_printers_master_board(
+  HAS_TLS_PUBLIC_CA
+  "MK4"
+  "MK3.5"
+  "iX"
+  "COREONE"
+  "COREONE_INDX"
+  "COREONEL"
+  "COREONEL_INDX"
+  "XL"
+  "UNITTESTS"
+  )
+
 # Printers that support any form of backwards gcode compatibility modes XL: needed for XL-on-XLS
 # compat mode (xl_compatibility_mode in M106 fan scaling)
 set_feature_for_printers(HAS_GCODE_COMPATIBILITY "MK3.5" "MK4" "COREONE" "COREONEL" "XL")

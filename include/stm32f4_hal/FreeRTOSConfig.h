@@ -87,13 +87,13 @@
  *----------------------------------------------------------*/
 
 /* Section where include file can be added */
-#define traceTASK_SWITCHED_IN()                            \
-                                                           \
-    if (prvGetTCBFromHandle(NULL) == xIdleTaskHandle) {    \
-        SEGGER_SYSVIEW_OnIdle();                           \
-    } else {                                               \
-        SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB); \
-    }                                                      \
+#define traceTASK_SWITCHED_IN()                             \
+                                                            \
+    if (prvGetTCBFromHandle(NULL) == xIdleTaskHandles[0]) { \
+        SEGGER_SYSVIEW_OnIdle();                            \
+    } else {                                                \
+        SEGGER_SYSVIEW_OnTaskStartExec((U32)pxCurrentTCB);  \
+    }                                                       \
     buddy_prof_switched_in(pxCurrentTCB) /* EXPERIMENT: cpu_prof.h */
 
 #define traceTASK_SWITCHED_OUT() buddy_prof_switched_out(pxCurrentTCB) /* EXPERIMENT: cpu_prof.h */
@@ -114,15 +114,12 @@
 /* Ensure stdint is only used by the compiler, and not the assembler. */
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
     #include <stdint.h>
-extern uint32_t SystemCoreClock;
-    #ifdef __cplusplus
-extern "C"
-    #endif
-    uint32_t
-    buddy_run_time_counter(void);
+    // FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
     #ifdef __cplusplus
 extern "C" {
     #endif
+extern uint32_t SystemCoreClock;
+uint32_t buddy_run_time_counter(void);
 void buddy_prof_switched_in(void *tcb); // EXPERIMENT: cpu_prof.h
 void buddy_prof_switched_out(void *tcb);
     #ifdef __cplusplus
@@ -223,7 +220,14 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
+// FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
+#ifdef __cplusplus
+extern "C" {
+#endif
 __attribute__((noreturn)) void _bsod(const char *fmt, const char *file_name, int line_number, ...);
+#ifdef __cplusplus
+}
+#endif
 #define configASSERT(x)                                          \
     if ((x) == 0) {                                              \
         _bsod("freertos configASSERT", __FILE_NAME__, __LINE__); \

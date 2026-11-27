@@ -28,3 +28,11 @@ TEST_CASE("M959 rejects a frequency step that does not advance the frequency") {
     CHECK_FALSE(is_frequency_increment_valid(range_with_increment(0.001f)));
     CHECK_FALSE(is_frequency_increment_valid(range_with_increment(std::numeric_limits<float>::quiet_NaN())));
 }
+
+TEST_CASE("M959 rejects a frequency step that is too small for the end frequency") {
+    // M959 X F300000 G300001 H0.01: above 262144 Hz, frequency + 0.01 == frequency in float
+    CHECK_FALSE(is_frequency_increment_valid({ .start_frequency = 300000, .end_frequency = 300001, .frequency_increment = 0.01f }));
+    // M959 X G100000000: the default step of 1 Hz does not change a frequency of 1e8 Hz
+    CHECK_FALSE(is_frequency_increment_valid({ .start_frequency = 5, .end_frequency = 1e8f, .frequency_increment = 1 }));
+    CHECK(is_frequency_increment_valid({ .start_frequency = 300000, .end_frequency = 300010, .frequency_increment = 1 }));
+}

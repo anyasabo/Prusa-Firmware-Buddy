@@ -18,6 +18,14 @@ namespace {
 
     template <typename F>
     void jump(F &&set) {
+        // A position set first queues the last move that the planner dropped as too short. The
+        // jump comes after that block, and the checks need its float positions.
+        const uint8_t head = planner.block_buffer_head;
+        const MachinePosXYZE start = planner.position_float;
+        planner.flush_dropped_move();
+        if (planner.block_buffer_head != head) {
+            float_moves[head] = { start, planner.position_float };
+        }
         Jump j { taken_blocks.size() + planner.nonbusy_movesplanned(), planner.position, {}, {} };
         for (int i = 0; i < XYZE_N; ++i) {
             j.commanded_before[i] = int32_t(std::lround(current_position[i] * planner.settings.axis_msteps_per_mm[i]));
@@ -71,14 +79,19 @@ bool move_to(const xyze_pos_t &target, float fr_mm_s, MoveHints hints) {
     return queued;
 }
 
+// The jump reads the commanded position before the G92, so the G92 changes it inside the jump.
 void set_e_position(float e) {
-    current_position.e = e;
-    jump([&] { planner.set_e_position_mm(e); });
+    jump([&] {
+        current_position.e = e;
+        planner.set_e_position_mm(e);
+    });
 }
 
 void set_position(const xyze_pos_t &pos) {
-    current_position = pos;
-    jump([&] { planner.set_position_mm(pos); });
+    jump([&] {
+        current_position = pos;
+        planner.set_position_mm(pos);
+    });
 }
 
 size_t take(size_t n) {

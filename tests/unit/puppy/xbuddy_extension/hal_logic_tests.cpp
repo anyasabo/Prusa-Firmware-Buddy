@@ -14,6 +14,7 @@
 #include <limits>
 #include <utils/timing/timer_event_period_tracker.hpp>
 
+using register_encoding::rpm_register;
 using register_encoding::tenths_register;
 
 namespace {
@@ -224,4 +225,27 @@ TEST_CASE("xbe w_led: PWM timer prescaler", "[xbe][pwm]") {
     CHECK(hal::math::w_led_prescaler_register(100) == 2352 - 1);
     CHECK(hal::math::w_led_prescaler_register(4) == 58823 - 1);
     CHECK(hal::math::w_led_prescaler_register(65535) == 3 - 1);
+}
+
+TEST_CASE("xbe registers: RPM", "[xbe][registers]") {
+    CHECK(rpm_register(0) == 0);
+    CHECK(rpm_register(6700) == 6700);
+    CHECK(rpm_register(65535) == 65535);
+    CHECK(rpm_register(65536) == 65535);
+    CHECK(rpm_register(131578) == 65535);
+    CHECK(rpm_register(30'000'000) == 65535);
+}
+
+TEST_CASE("xbe tach: a noise edge does not give a plausible wrong RPM", "[xbe][tach]") {
+    // The input filter of TIM1 rejects pulses shorter than approximately
+    // 0.53 µs. A longer glitch on the tachometer wire is one more edge.
+    TachModel tach;
+    tach.run(3000, 100);
+    REQUIRE(rpm_register(tach.rpm()) == 3000);
+
+    // A glitch 228 µs after an edge: 131,578 RPM
+    tach.edge_at(tach.now + 228);
+    CHECK(tach.rpm() == 131578);
+    // The register must not wrap to 506 RPM, a speed that a slow fan can have
+    CHECK(rpm_register(tach.rpm()) == 65535);
 }

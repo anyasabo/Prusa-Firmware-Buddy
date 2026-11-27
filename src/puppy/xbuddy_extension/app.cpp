@@ -34,9 +34,9 @@
 namespace {
 
 void read_register_file_callback(xbuddy_extension::modbus::Status &status) {
-    status.fan_rpm[0] = hal::fan1::get_rpm();
-    status.fan_rpm[1] = hal::fan2::get_rpm();
-    status.fan_rpm[2] = hal::fan3::get_rpm();
+    status.fan_rpm[0] = register_encoding::rpm_register(hal::fan1::get_rpm());
+    status.fan_rpm[1] = register_encoding::rpm_register(hal::fan2::get_rpm());
+    status.fan_rpm[2] = register_encoding::rpm_register(hal::fan3::get_rpm());
     // Note: Mainboard expects this in decidegree Celsius.
     status.temperature = register_encoding::tenths_register(temperature::raw_to_celsius(hal::temperature::get_raw()));
     status.gpio_filament_sensor = static_cast<uint16_t>(hal::filament_sensor::get_gpio());

@@ -2,6 +2,7 @@
 /// Conversion of measured values to Modbus registers.
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 
@@ -25,6 +26,14 @@ constexpr uint16_t tenths_register(float value) {
         return std::numeric_limits<uint16_t>::max();
     }
     return static_cast<uint16_t>(tenths);
+}
+
+/// Encode a fan speed in RPM. Saturates at 65535.
+///
+/// The fans turn below 10,000 RPM. A higher value comes from a noise edge on
+/// the tachometer wire. A wrap would turn it into a plausible low speed.
+constexpr uint16_t rpm_register(uint32_t rpm) {
+    return static_cast<uint16_t>(std::min<uint32_t>(rpm, std::numeric_limits<uint16_t>::max()));
 }
 
 } // namespace register_encoding

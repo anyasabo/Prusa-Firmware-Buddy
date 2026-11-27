@@ -548,15 +548,13 @@ void GCodeInfo::parse_comment(GcodeBuffer::String comment, bool plaintext_gcodes
 
                 } else if (is_filament_used_mm) {
                     float val;
-                    sscanf(item->data(), "%f", &val);
-                    if (std::isfinite(val)) {
+                    if (sscanf(item->data(), "%f", &val) == 1 && std::isfinite(val)) {
                         per_extruder_info[extruder].filament_used_mm = val;
                     }
 
                 } else if (is_filament_used_g) {
                     float val;
-                    sscanf(item->data(), "%f", &val);
-                    if (std::isfinite(val)) {
+                    if (sscanf(item->data(), "%f", &val) == 1 && std::isfinite(val)) {
                         per_extruder_info[extruder].filament_used_g = val;
                     }
 
@@ -570,8 +568,9 @@ void GCodeInfo::parse_comment(GcodeBuffer::String comment, bool plaintext_gcodes
         else if (name == gcode_info::filament_wipe_tower_g) {
             // load amount of material used filament for wipe tower
             float temp;
-            sscanf(val.c_str(), "%f", &temp);
-            info_.filament_wipe_tower_g = temp;
+            if (sscanf(val.c_str(), "%f", &temp) == 1 && std::isfinite(temp)) {
+                info_.filament_wipe_tower_g = temp;
+            }
         } else if (name == gcode_info::total_toolchanges) {
             // Number of toolchanges over the whole print; used to estimate INDX nozzle-cleaner wastebin fill.
             uint16_t tmp = 0;

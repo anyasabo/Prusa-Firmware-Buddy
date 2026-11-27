@@ -86,6 +86,24 @@ TEST_CASE("GCodeInfo::total_toolchanges") {
     CHECK(load(NEW_PLAIN) == std::nullopt);
 }
 
+TEST_CASE("GCodeInfo ignores filament amounts that are not numbers") {
+    AnyGcodeFormatReader reader(FILAMENT_NOT_NUMBER);
+    REQUIRE(reader.is_open());
+    GCodeInfo info;
+    info.load(*reader.get());
+
+    const auto &first = info.get_extruder_info(0);
+    CHECK(first.filament_used_mm.value_or(0) == 100.5f);
+    CHECK(first.filament_used_g.value_or(0) == 1.5f);
+
+    const auto &second = info.get_extruder_info(1);
+    CHECK_FALSE(second.filament_used_mm.has_value());
+    CHECK_FALSE(second.filament_used_g.has_value());
+    CHECK_FALSE(second.used());
+
+    CHECK(info.get_filament_wipe_tower_g() == std::nullopt);
+}
+
 TEST_CASE("GCodeInfo::is_valid_for_print", "[slow]") {
     struct stat st;
     REQUIRE(stat(NEW_ENCRYPTED, &st) == 0);

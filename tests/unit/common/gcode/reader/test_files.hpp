@@ -8,6 +8,8 @@ constexpr static const char *BINARY_HEATSHRINK_FILE = "test_binary_heatshrink.bg
 constexpr static const char *BINARY_HEATSHRINK_MEATPACK_FILE = "test_binary_heatshrink_meatpack.bgcode";
 // Minimal plaintext gcode carrying a "total toolchanges" metadata line.
 constexpr static const char *TOTAL_TOOLCHANGES = "test_total_toolchanges.gcode";
+// Minimal plaintext gcode with filament amounts that are not numbers.
+constexpr static const char *FILAMENT_NOT_NUMBER = "test_filament_not_number.gcode";
 constexpr static const char *NEW_PLAIN = "box_new.gcode";
 constexpr static const char *NEW_BINARY = "box_new.bgcode";
 // Files with an alternative printer metadata block, with a format unknown to

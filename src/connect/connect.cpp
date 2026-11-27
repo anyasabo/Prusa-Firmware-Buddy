@@ -365,6 +365,7 @@ CommResult Connect::receive_command(CachedFactory &conn_factory) {
     constexpr size_t HDR_LEN = 9;
     uint8_t buffer[MAX_RESP_SIZE + HDR_LEN];
     variant<IgnoreCommand, DebugHandler, ChunkHandler, CommandHandler> handler;
+    const Timestamp start = now();
 
     while (more) {
         auto res = websocket->receive(first ? make_optional(0) : nullopt);
@@ -550,6 +551,20 @@ CommResult Connect::receive_command(CachedFactory &conn_factory) {
 
         if (fragment.last) {
             more = false;
+            // A file transfer arrives as a stream of small chunk messages. One pass of the main
+            // loop for each message costs much more CPU than the message itself, and an empty
+            // socket at the start of the next pass costs a sleep. Thus read the messages that are
+            // already queued, but only after a chunk (it touches no planner command, so the next
+            // message sees the planner as a new pass would) and only for a short time, so that
+            // telemetry and events are not late.
+            constexpr Duration chunk_batch_time = 50;
+            if (holds_alternative<ChunkHandler>(handler) && now() - start < chunk_batch_time) {
+                handler = IgnoreCommand {};
+                first = true;
+                more = true;
+                read = 0;
+                parsed = false;
+            }
         }
     }
 

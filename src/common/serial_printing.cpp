@@ -34,7 +34,7 @@ bool SerialPrinting::has_serial_timeouted() {
         return false;
     }
 
-    if (last_serial_indicator_ms != 0 && last_serial_indicator_ms <= curr_time && curr_time <= last_serial_indicator_ms + serial_printing_screen_timeout) {
+    if (last_serial_indicator_ms != 0 && curr_time - last_serial_indicator_ms <= serial_printing_screen_timeout) {
         return false;
     } else {
         return true;

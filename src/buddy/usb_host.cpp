@@ -49,6 +49,7 @@ namespace usbh_power_cycle {
 TimerHandle_t restart_timer;
 void restart_timer_callback(TimerHandle_t);
 
+constexpr int32_t block_one_click_print_ms = 800;
 uint32_t block_one_click_print_until_ms = 0;
 
 enum class RecoveryPhase : uint_fast8_t {
@@ -104,7 +105,7 @@ void restart_timer_callback(TimerHandle_t) {
         // Most USBs should initialize within a few hundreds of ms.
         // Some drives take ~3 s to reinitialize, but we don't want to block the OCP for that long.
         // If user disconnects and reconnects the drive, he can do it faster than that and we want the OCP to trigger.
-        block_one_click_print_until_ms = ticks_ms() + 800;
+        block_one_click_print_until_ms = ticks_ms() + block_one_click_print_ms;
 
         // Reinitialize the USB host low-level driver
         // This seems to fix BFW-5333
@@ -122,7 +123,10 @@ void restart_timer_callback(TimerHandle_t) {
 }
 
 bool block_one_click_print() {
-    return block_one_click_print_until_ms > ticks_ms();
+    // The upper limit stops a stale value: without it, the block starts again for up to 24.8 days
+    // when ticks_ms() wraps (each 49.7 days). With it, a stale value blocks for 800 ms each 49.7 days.
+    const int32_t remaining_ms = ticks_diff(block_one_click_print_until_ms, ticks_ms());
+    return remaining_ms > 0 && remaining_ms <= block_one_click_print_ms;
 }
 
 } // namespace usbh_power_cycle
@@ -154,7 +158,7 @@ void MX_USB_HOST_Init(void) {
 
 void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {
     // don't detect device at startup when ticks_ms() overflows (every ~50 days)
-    if (media_on_startup_detection_timeout != 0 && ticks_ms() >= media_on_startup_detection_timeout) {
+    if (media_on_startup_detection_timeout != 0 && ticks_diff(ticks_ms(), media_on_startup_detection_timeout) >= 0) {
         media_on_startup_detection_timeout = 0;
     }
 

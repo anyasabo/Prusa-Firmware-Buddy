@@ -70,7 +70,7 @@ void print_utils_loop() {
 
     static uint32_t current_time = ticks_ms();
 
-    if (!TaskDeps::check(TaskDeps::Dependency::autostart_done) && ticks_ms() >= current_time + rescan_delay) {
+    if (!TaskDeps::check(TaskDeps::Dependency::autostart_done) && ticks_ms() - current_time >= rescan_delay) {
         current_time += rescan_delay;
         if (usb_host::is_media_inserted() && thermalManager.temperatures_ready() && TaskDeps::check(TaskDeps::Dependency::gui_ready)) {
             run_once_after_boot();

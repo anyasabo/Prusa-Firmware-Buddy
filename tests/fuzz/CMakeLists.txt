@@ -186,3 +186,8 @@ buddy_add_fuzzer_from_test(
   SOURCES
   lwip_tcp_input.cpp
   )
+# A fixed initial sequence number: lwIP's default ISN grows with each connection and with the time,
+# so a crash input would not reproduce alone.
+target_compile_definitions(
+  fuzz_lwip_tcp_input PRIVATE "LWIP_HOOK_TCP_ISN(local_ip,local_port,remote_ip,remote_port)=6510u"
+  )

@@ -10,6 +10,10 @@
 //   3: ackno = snd_nxt of the connection - the low 8 bits of the record's ackno
 // One listening pcb (port 80) and one established pcb with unacked data exist at the start.
 // At the end, all pcbs are removed and a leaked pcb, segment or pool pbuf aborts.
+//
+// lwIP keeps timer state in statics. To make each input give the same result alone and in a run,
+// the ISN is fixed (LWIP_HOOK_TCP_ISN in CMakeLists.txt), tcp_ticks starts at 0, and each input
+// ends with an even count of tcp_tmr() calls (tcp_tmr() runs the slow timer on every second call).
 
 #include "tcp_helper.h"
 
@@ -32,6 +36,7 @@ constexpr u16_t REMOTE_PORT = 4321;
 constexpr size_t MAX_TCP_LEN = 1460;
 
 u32_t now_ms = 0;
+unsigned tmr_calls = 0;
 netif nif;
 test_tcp_txcounters tx;
 tcp_pcb *established = nullptr;
@@ -58,6 +63,9 @@ err_t accept_fn(void *, tcp_pcb *pcb, err_t err) {
 
 void setup() {
     helper_check_failures = 0;
+    now_ms = 0;
+    tmr_calls = 0;
+    tcp_ticks = 0;
     test_tcp_init_netif(&nif, &tx, &test_local_ip, &test_netmask);
     nif.input = ip4_input;
 
@@ -132,6 +140,7 @@ void send_packet(u8_t ctl, const u8_t *data, size_t len) {
     if (ctl & 0x01) {
         now_ms += TCP_TMR_INTERVAL;
         tcp_tmr();
+        tmr_calls++;
     }
 }
 
@@ -166,6 +175,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     tcp_remove_all(); // also checks that no pcb, segment or pool pbuf leaked
+    if (tmr_calls % 2 != 0) {
+        tcp_tmr(); // no pcbs are left, so this only resets the slow timer phase
+    }
     test_tcp_free_tx_packets(&tx);
     netif_list = nullptr;
     established = nullptr;

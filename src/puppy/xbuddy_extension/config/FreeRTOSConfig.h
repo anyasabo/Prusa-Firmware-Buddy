@@ -78,11 +78,10 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_vTaskDelay                      1
 #define INCLUDE_vTaskSuspend                    1
 
-// Unprivileged tasks run kernel calls on this stack, and an interrupt during a kernel call also
-// pushes its exception frame here. In a task that used the FPU, that frame is 104 B. The deepest
-// kernel call with interrupts enabled (a stream buffer receive) needs 136 B. With 64 words
-// (248 B usable after alignment), only 8 B would stay free. The stack limit register catches an
-// overflow, which halts the board. Each task control block holds one such stack.
+// Unprivileged tasks run kernel calls on this stack. An interrupt during a kernel call also pushes
+// its exception frame here; in a task that used the FPU, that frame is 104 B. Thus the size must
+// hold the deepest kernel call chain plus 108 B. The usable size is 8 B less than the buffer
+// because of the alignment. The stack limit register catches an overflow, which halts the board.
 #define configSYSTEM_CALL_STACK_SIZE 96
 
 /* Cortex-M specific definitions. */

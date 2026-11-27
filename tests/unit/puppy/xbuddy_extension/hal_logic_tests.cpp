@@ -256,3 +256,15 @@ TEST_CASE("xbe tach: a noise edge does not give a plausible wrong RPM", "[xbe][t
     // The register must not wrap to 506 RPM, a speed that a slow fan can have
     CHECK(rpm_register(tach.rpm()) == 65535);
 }
+
+TEST_CASE("xbe w_led: the prescaler fits the 16-bit PSC register", "[xbe][pwm]") {
+    // TIM3->PSC has 16 bits. A larger value loses its upper bits, and the
+    // frequency is then wrong by a large factor.
+    for (uint32_t freq = 1; freq <= 65535; ++freq) {
+        CAPTURE(freq);
+        REQUIRE(hal::math::w_led_prescaler_register(static_cast<uint16_t>(freq)) <= 0xFFFF);
+    }
+    // The lowest frequency is approximately 3.6 Hz
+    CHECK(hal::math::w_led_prescaler_register(1) == 0xFFFF);
+    CHECK(hal::math::w_led_prescaler_register(3) == 0xFFFF);
+}

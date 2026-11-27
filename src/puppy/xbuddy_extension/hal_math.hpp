@@ -2,6 +2,7 @@
 /// Calculations of the HAL that do not touch the hardware, so that host tests can use them.
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <utils/timing/timer_event_period_tracker.hpp>
 
@@ -32,11 +33,13 @@ inline constexpr uint32_t default_pwm_prescaler = 10;
 
 /// Value for TIM3->PSC that gives a PWM cycle of approximately \p freq Hz.
 /// \param freq frequency in Hz, 0 selects the default prescaler
+/// \returns at most 0xFFFF (the PSC register has 16 bits), thus below
+///          approximately 4 Hz the frequency is 3.6 Hz
 constexpr uint32_t w_led_prescaler_register(uint16_t freq) {
     uint32_t prescaler = default_pwm_prescaler;
     if (freq != 0) {
         const uint32_t timer_full_cycle = pwm_timer_base_hz / 255; // Counts down from this every full cycle
-        prescaler = timer_full_cycle / freq;
+        prescaler = std::min<uint32_t>(timer_full_cycle / freq, 0x1'0000);
     }
     return prescaler - 1;
 }

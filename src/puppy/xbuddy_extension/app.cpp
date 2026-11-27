@@ -8,6 +8,7 @@
 #include "hal_rs485.hpp"
 #include "hal_usb.hpp"
 #include "master_activity.hpp"
+#include "register_encoding.hpp"
 #include <modbus/modbus.hpp>
 #include "temperature.hpp"
 #include <ac_controller/modbus.hpp>
@@ -37,7 +38,7 @@ void read_register_file_callback(xbuddy_extension::modbus::Status &status) {
     status.fan_rpm[1] = hal::fan2::get_rpm();
     status.fan_rpm[2] = hal::fan3::get_rpm();
     // Note: Mainboard expects this in decidegree Celsius.
-    status.temperature = static_cast<uint16_t>(10 * temperature::raw_to_celsius(hal::temperature::get_raw()));
+    status.temperature = register_encoding::tenths_register(temperature::raw_to_celsius(hal::temperature::get_raw()));
     status.gpio_filament_sensor = static_cast<uint16_t>(hal::filament_sensor::get_gpio());
 
     {
@@ -145,9 +146,9 @@ void read_register_file_callback(ac_controller::modbus::Status &modbus_status) {
     ac_controller::Status status;
     cyphal::application().request_ac_controller(status);
 
-    modbus_status.mcu_temp = static_cast<uint16_t>(status.mcu_temp * 10);
-    modbus_status.bed_temp = static_cast<uint16_t>(status.bed_temp * 10);
-    modbus_status.bed_voltage = static_cast<uint16_t>(status.bed_voltage * 10);
+    modbus_status.mcu_temp = register_encoding::tenths_register(status.mcu_temp);
+    modbus_status.bed_temp = register_encoding::tenths_register(status.bed_temp);
+    modbus_status.bed_voltage = register_encoding::tenths_register(status.bed_voltage);
     modbus_status.bed_fan_rpm = status.bed_fan_rpm;
     modbus_status.psu_fan_rpm = status.psu_fan_rpm;
     const auto faults = static_cast<uint32_t>(status.faults);

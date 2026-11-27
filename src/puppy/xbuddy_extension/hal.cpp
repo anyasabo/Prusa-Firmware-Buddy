@@ -4,6 +4,7 @@
 #include "option/extension_variant.h"
 #include "hal_clock.hpp"
 #include "hal_ext_fs.hpp"
+#include "hal_math.hpp"
 #include "hal_mmu_port.hpp"
 #include "hal_pub.hpp"
 #include "hal_rs485.hpp"
@@ -28,7 +29,7 @@
 
 // Default prescaler for our timers.
 // 6 MHz clock (30 MHz peripheral clock, *2 to timer, /10 prescaler)
-static constexpr uint32_t default_prescaler = 10;
+static constexpr uint32_t default_prescaler = hal::math::default_pwm_prescaler;
 
 extern "C" void HAL_UART_MspInit(UART_HandleTypeDef *huart) {
     hal::rs485::msp_init(huart);
@@ -521,11 +522,7 @@ static uint32_t tim1_period_to_rpm(const TimerEventPeriodTracker &tracker) {
     const auto period = tracker.period_unsafe();
     TIM1->DIER = prev_dier;
 
-    if (period == TimerEventPeriodTracker::invalid_period || period == 0) {
-        return 0;
-    }
-    // 60 seconds in minute, 1 MHZ timer, 2 rising edges per revolution
-    return (60 * 1'000'000 / 2) / period;
+    return hal::math::tach_period_to_rpm(period);
 }
 
 // fan1 and fan2 are connected to the same pwm signal
@@ -611,15 +608,7 @@ void hal::w_led::set_pwm(DutyCycle duty_cycle) {
 }
 
 void hal::w_led::set_frequency(uint16_t freq) {
-    uint32_t prescaler = default_prescaler;
-    if (freq != 0) {
-        // Non-default feq requested.
-        const uint32_t timer_base_freq = 60000000;
-        const uint32_t timer_full_cycle = timer_base_freq / 255; // Counts down from this every full cycle
-        prescaler = timer_full_cycle / freq;
-    }
-
-    TIM3->PSC = prescaler - 1;
+    TIM3->PSC = hal::math::w_led_prescaler_register(freq);
 }
 #endif
 

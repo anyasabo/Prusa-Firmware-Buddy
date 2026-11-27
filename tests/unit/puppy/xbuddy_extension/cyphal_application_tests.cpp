@@ -1378,3 +1378,39 @@ TEST_CASE("tool offset sensor recovers from a board reset") {
     CHECK(mock.tool_offset_sensor_config_requests.back().node_id == node_id);
     CHECK(mock.tool_offset_sensor_config_requests.back().config == enabled_config);
 }
+
+TEST_CASE("ac controller recovers from a board reset") {
+    const auto bootloader = Heartbeat { Health::advisory, Mode::software_update, 0 };
+    const auto healthy_firmware = Heartbeat { Health::nominal, Mode::operational, 0 };
+    const auto node_id = NodeId { 1 };
+
+    MockPresentation mock;
+    Application app;
+    uint32_t time = 0;
+
+    // Bring the AC controller to life: allocation, info, matching hash.
+    app.receive_pnp_allocation(make_unique_id(0xac));
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_heartbeat(node_id, make_timepoint(time), healthy_firmware);
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_get_info_response(node_id, known_node_name);
+    run(app, mock, make_timepoint(time++));
+    REQUIRE(app.request().hash_request == cyphal::FirmwareFile::firmware_ac_controller);
+    const auto digest = generate_random_digest();
+    REQUIRE(app.receive_digest(cyphal::FirmwareFile::firmware_ac_controller, app.request().hash_salt, xbuddy_extension::DigestStatus::ok, digest));
+    app.receive_node_execute_command_response(node_id, 0, digest);
+    run(app, mock, make_timepoint(time++));
+    REQUIRE(app.request().hash_request == cyphal::FirmwareFile::none);
+
+    const auto commands_before = mock.node_execute_command_request.size();
+
+    // The board resets. Its bootloader waits for start_app (BootCancelled).
+    app.receive_node_heartbeat(node_id, make_timepoint(time), bootloader);
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_heartbeat(node_id, make_timepoint(time), bootloader);
+    run(app, mock, make_timepoint(time++));
+
+    // Without start_app the board stays in its bootloader: no bed heating, and the last status stays.
+    REQUIRE(mock.node_execute_command_request.size() == commands_before + 1);
+    CHECK(mock.node_execute_command_request.back() == ExecuteCommandRequest { node_id, Command::start_app });
+}

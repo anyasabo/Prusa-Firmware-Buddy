@@ -36,3 +36,33 @@ TEST_CASE("M959 rejects a frequency step that is too small for the end frequency
     CHECK_FALSE(is_frequency_increment_valid({ .start_frequency = 5, .end_frequency = 1e8f, .frequency_increment = 1 }));
     CHECK(is_frequency_increment_valid({ .start_frequency = 300000, .end_frequency = 300010, .frequency_increment = 1 }));
 }
+
+namespace {
+// An example step length (m)
+constexpr float step_len = 0.0000025f;
+} // namespace
+
+TEST_CASE("M958 accepts an excitation that moves the axis") {
+    using vibrate_measure::excitation_amplitude;
+    using vibrate_measure::is_excitation_amplitude_valid;
+    // The defaults of M958: 35 Hz at 2.5 m/s^2
+    CHECK(is_excitation_amplitude_valid(excitation_amplitude(35, 2.5f), step_len));
+    // Less than one step rounds up to one step
+    CHECK(is_excitation_amplitude_valid(excitation_amplitude(200, 0.001f), step_len));
+}
+
+TEST_CASE("M958 rejects an excitation with no steps or too many steps") {
+    using vibrate_measure::excitation_amplitude;
+    using vibrate_measure::is_excitation_amplitude_valid;
+    // M958 X A0: 0 steps in a period, and the step loop takes the step number modulo 0
+    CHECK_FALSE(is_excitation_amplitude_valid(excitation_amplitude(35, 0), step_len));
+    // M958 X F0: an infinite amplitude
+    CHECK_FALSE(is_excitation_amplitude_valid(excitation_amplitude(0, 2.5f), step_len));
+    // M958 X F0 A0: 0 / 0
+    CHECK_FALSE(is_excitation_amplitude_valid(excitation_amplitude(0, 0), step_len));
+    // M958 X F0.0001: the steps of one period do not fit in an int
+    CHECK_FALSE(is_excitation_amplitude_valid(excitation_amplitude(0.0001f, 2.5f), step_len));
+    // 4 * 2^29 steps in a period overflow an int
+    CHECK_FALSE(vibrate_measure::is_excitation_amplitude_valid(536870912.0f, 1));
+    CHECK(vibrate_measure::is_excitation_amplitude_valid(536870880.0f, 1));
+}

@@ -71,6 +71,11 @@ void GcodeSuite::M22() {
  *
  */
 void GcodeSuite::M23() {
+    // The parser sets string_arg for each M23, but M32 also calls M23.
+    if (!parser.string_arg) {
+        SERIAL_ERROR_MSG("No file name");
+        return;
+    }
     // Simplify3D includes the size, so zero out all spaces (#7227)
     for (char *fn = parser.string_arg; *fn; ++fn) {
         if (*fn == ' ') {
@@ -161,6 +166,11 @@ void GcodeSuite::M27() {
  *
  */
 void GcodeSuite::M32() {
+    // Without a file name, M24 starts the file that is already selected.
+    if (!parser.string_arg) {
+        SERIAL_ERROR_MSG("No file name");
+        return;
+    }
     M23();
     M24();
 }
@@ -199,6 +209,10 @@ void GcodeSuite::M29() {
  *    M30 [filename]
  */
 void GcodeSuite::M30() {
+    if (!parser.string_arg) {
+        SERIAL_ERROR_MSG("No file name");
+        return;
+    }
     ArrayStringBuilder<filename_defs::max_filename_length> filepath;
     filepath.append_printf("/usb/%s", parser.string_arg);
     DeleteResult result = DeleteResult::GeneralError;

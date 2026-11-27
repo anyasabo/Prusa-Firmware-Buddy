@@ -20,6 +20,8 @@ namespace vibrate_measure {
 enum class Error {
     aborted,
     failed,
+    /// A parameter of the G-code makes the measurement impossible. A repeat gives the same result.
+    invalid_argument,
 };
 
 template <typename T>

@@ -354,9 +354,18 @@ void M600_execute(mapi::ParkingPosition park_position, VirtualToolIndex target_t
  */
 #if HAS_LOADCELL()
 void PrusaGcodeSuite::M1601() {
+    // VirtualToolIndex::from_raw() calls bsod() for an index out of range.
+    const std::optional<VirtualToolIndex> tool = parser.seenval('V')
+        ? stdext::get_optional<VirtualToolIndex>(GcodeSuite::get_virtual_tool_from_command(parser.value_byte(), false))
+        : std::nullopt;
+    if (!tool.has_value()) {
+        SERIAL_ERROR_MSG("M1601: V must be a virtual tool");
+        return;
+    }
+
     M600_execute(
         mapi::get_parking_position(mapi::ParkPosition::filament_change),
-        VirtualToolIndex::from_raw(parser.intval('V', -1)),
+        *tool,
         current_position,
         std::nullopt, std::nullopt, std::nullopt,
         std::nullopt, std::nullopt,

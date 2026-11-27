@@ -61,9 +61,11 @@ target_sources(
           src/hal_tim.cpp
           src/hal_watchdog.cpp
           src/heater.cpp
+          src/heater_control.cpp
           src/hotend_temp_compensation.cpp
           src/main.cpp
           src/modbus.cpp
+          src/ringdown.cpp
           src/rtt.cpp
           src/spi_task.cpp
           src/startup.s

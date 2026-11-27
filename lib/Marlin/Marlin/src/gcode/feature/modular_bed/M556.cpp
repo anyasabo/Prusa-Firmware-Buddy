@@ -57,14 +57,23 @@ void GcodeSuite::M556() {
 
     // set bedlet based on XY coordinates
     if (parser.seen('X') && parser.seen('Y')) {
-        uint8_t x = parser.byteval('X');
-        uint8_t y = parser.byteval('Y');
+        const long x = parser.seenval('X') ? parser.value_long() : -1;
+        const long y = parser.seenval('Y') ? parser.value_long() : -1;
+        if (!WITHIN(x, 0, X_HBL_COUNT - 1) || !WITHIN(y, 0, Y_HBL_COUNT - 1)) {
+            SERIAL_ECHOLNPGM("?X or Y out of range");
+            return;
+        }
 
         affected_beds = 1 << advanced_modular_bed->idx(x, y);
 
     } else if (parser.seen("I")) {
         // set bedlet based on its index
-        affected_beds = 1 << (parser.byteval('I') - 1);
+        const long i = parser.seenval('I') ? parser.value_long() : 0;
+        if (!WITHIN(i, 1, std::numeric_limits<uint16_t>::digits)) {
+            SERIAL_ECHOLNPGM("?I out of range");
+            return;
+        }
+        affected_beds = 1 << (i - 1);
     }
 
     // now activate/deactivate selected bedlet

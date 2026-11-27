@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-26"
+REVIEWED = "2026-11-27"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -203,6 +203,10 @@ TRIAGE: dict[str, list[Decision]] = {
                      "ICMPv6; LWIP_IPV6 is off (include/buddy/lwipopts.h)."),
         not_affected(["CVE-2020-22284"], NP,
                      "6LoWPAN/ZEP netif; not compiled."),
+        not_affected(
+            ["CVE-2026-112062", "CVE-2026-119053", "CVE-2026-8836"], NP,
+            "mDNS and SNMP apps; src/apps is not vendored. The mDNS copy in lib/WUI/mdns has its own entry."
+        ),
     ],
     "lib/WUI/mdns": [
         not_affected(

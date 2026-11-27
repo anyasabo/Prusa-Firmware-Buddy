@@ -52,25 +52,25 @@ components:
 
   lib/Middlewares/Third_Party/LwIP:
     name: lwip
-    version: 2.1.2
+    version: 2.2.1
     repository: https://git.savannah.nongnu.org/git/lwip.git
-    upstream_commit: 159e31b689577dbf69cf0683bbaffbd71fa5ee10  # tag STABLE-2_1_2_RELEASE
-    subrepo_commit: fa41d53ac544119ccaf985d31e1670e2ddb6c63b
-    cpe: cpe:2.3:a:lwip_project:lwip:2.1.2:*:*:*:*:*:*:*
-    purl: pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40159e31b689577dbf69cf0683bbaffbd71fa5ee10
+    upstream_commit: 77dcd25a72509eb83f72b033d219b1d40cd8eb95  # tag STABLE-2_2_1_RELEASE
+    cpe: cpe:2.3:a:lwip_project:lwip:2.2.1:*:*:*:*:*:*:*
+    purl: pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95
     supplier: "Organization: lwIP project (Savannah)"
     license: BSD-3-Clause
     note: >-
-      The .gitrepo points at prusa3d/LwIP_212@buddy, whose only commit
-      (fa41d53) contains just a README; it says nothing about the code. Only
-      src/ is vendored; src/apps/ (httpd, mdns, mqtt, snmp, ...) is absent.
+      Only src/ is vendored, without src/apps/ and src/include/lwip/apps/
+      (httpd, mdns, mqtt, smtp, snmp, ...). The mDNS and SNTP apps are
+      separate copies in lib/WUI. system/ is the FreeRTOS port, not upstream
+      code. Before 2.2.1 this was a git-subrepo of prusa3d/LwIP_212 with
+      lwIP 2.1.2.
     patches:
-      - src/core/ipv4/etharp.c: ignore ARP replies used for DHCP conflict detection when sent by the ESP module
+      - src/core/ipv4/etharp.c: ignore ARP packets from our own MAC address (the ESP module) for address conflict detection
       - src/core/timeouts.c: use sys_timeout_abs() in sys_timeouts_init() to avoid core-lock assert
-      - src/core/altcp_tcp.c: debug hooks (compiled out)
-      - src/include/lwip/opt.h: include buddy/lwipopts.h; DNS_TABLE_SIZE 2, DNS_MAX_NAME_LENGTH 50
+      - src/include/lwip/opt.h: include buddy/lwipopts.h
       - src/include/lwip/priv/memp_std.h: include buddy/lwippools.h
-      - src/include/posix/: added
+      - "src/api/tcpip.c, src/include/lwip/priv/tcpip_priv.h, src/core/tcp.c, src/core/tcp_in.c, src/core/tcp_out.c, src/include/lwip/tcp.h: fork EXPERIMENT hooks (upload-experiments: timing, RX counters, advertised MSS, runtime receive window)"
 
   lib/Middlewares/Third_Party/FreeRTOS:
     name: freertos-kernel

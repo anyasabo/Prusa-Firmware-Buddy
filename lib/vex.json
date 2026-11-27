@@ -1,8 +1,8 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:be860b6b-d9bd-5026-990f-c37ce3bbb4c6",
+ "@id": "urn:uuid:cb2dfe15-26b1-55a5-8423-7135a6bba2d9",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
- "timestamp": "2026-11-26T00:00:00Z",
+ "timestamp": "2026-11-27T00:00:00Z",
  "version": 1,
  "statements": [
   {
@@ -635,7 +635,7 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40159e31b689577dbf69cf0683bbaffbd71fa5ee10"
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95"
     }
    ],
    "status": "not_affected",
@@ -648,12 +648,51 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/lwip@2.1.2?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40159e31b689577dbf69cf0683bbaffbd71fa5ee10"
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
    "impact_statement": "6LoWPAN/ZEP netif; not compiled."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-112062"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mDNS and SNMP apps; src/apps is not vendored. The mDNS copy in lib/WUI/mdns has its own entry."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-119053"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mDNS and SNMP apps; src/apps is not vendored. The mDNS copy in lib/WUI/mdns has its own entry."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-8836"
+   },
+   "products": [
+    {
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "mDNS and SNMP apps; src/apps is not vendored. The mDNS copy in lib/WUI/mdns has its own entry."
   },
   {
    "vulnerability": {

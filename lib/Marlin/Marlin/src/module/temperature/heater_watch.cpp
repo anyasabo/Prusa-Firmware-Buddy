@@ -10,6 +10,11 @@ void HeaterWatch::arm(int16_t target_temp) {
     state_ = (state_ == State::watching || state_ == State::retargeted) ? State::retargeted : State::pending;
 }
 
+void HeaterWatch::restart(int16_t target_temp) {
+    state_ = State::disarmed;
+    arm(target_temp);
+}
+
 bool HeaterWatch::engaged(float current_temp) const {
     return ((target_temp_celsius_ - current_temp) > config_.min_temp_diff) ^ config_.watch_cooling_instead;
 }

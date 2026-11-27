@@ -322,3 +322,45 @@ TEST_CASE("thermal protection: the checks work across the wrap of the millisecon
         CHECK(fired);
     }
 }
+
+TEST_CASE("heater watch: a restart starts a new period (INDX park and head reset)", "[thermal]") {
+    // IndxHotend::start_heating() and the head reset path restart the protection with the same
+    // target. manage(), and thus update(), does not run while the tool is parked.
+    constexpr HeaterWatch::Config indx { .temp_increase = 20, .period_s = 5, .min_temp_diff = 24 };
+    now_ms = 1;
+    HeaterWatch w(indx);
+    w.arm(250);
+    REQUIRE_FALSE(w.update(100)); // the period starts: 120 C after 5 s
+    now_ms += 2000;
+    REQUIRE_FALSE(w.update(110));
+
+    SECTION("park") {
+        // The tool is parked for 60 s and cools.
+        now_ms += 60'000;
+        w.restart(250);
+        CHECK_FALSE(w.update(60));
+        now_ms += 4000;
+        CHECK_FALSE(w.update(75));
+        now_ms += 2000;
+        // 20 C more than at the restart: no error.
+        CHECK_FALSE(w.update(81));
+    }
+
+    SECTION("head reset") {
+        // The head resets, the heating stops for a short time.
+        now_ms += 1000;
+        w.restart(250);
+        now_ms += 2500;
+        CHECK_FALSE(w.update(110));
+        now_ms += 4000;
+        CHECK_FALSE(w.update(131));
+    }
+
+    SECTION("a restart still finds a heater that does not heat") {
+        now_ms += 60'000;
+        w.restart(250);
+        CHECK_FALSE(w.update(60));
+        now_ms += 5000;
+        CHECK(w.update(61));
+    }
+}

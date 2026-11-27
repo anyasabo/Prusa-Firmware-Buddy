@@ -56,7 +56,16 @@ void IndxHotend::start_heating() {
     buddy::hotend_temp_model().set_tool(tool_.currently_selected_virtual_tool());
     // Sync now (manage() didn't run while parked) so the first manage() won't re-fire on a park-time reset.
     last_head_reset_count_ = buddy::puppies::indx.get_reset_counter();
+    restart_protection();
+}
+
+void IndxHotend::restart_protection() {
     handle_nozzle_target_change();
+#if WATCH_HOTENDS
+    // For the same target, arm() keeps a running watch period. It started before the park or the
+    // head reset, so it can already be over.
+    heater_watch_.restart(nozzle_target_temp());
+#endif
 }
 
 void IndxHotend::stop_heating() {
@@ -182,7 +191,7 @@ void IndxHotend::manage() {
         // Act as if nozzle target temp changed
         // This resets all the safety guards (heater watch, thermal runaway, ...)
         // to prevent them from semi-falsely triggering when the indx head reset (which caused a temporary heating dropout)
-        handle_nozzle_target_change();
+        restart_protection();
         // Re-init the thermal model so it doesn't run against the reset discontinuity
         buddy::hotend_temp_model().reset();
     }

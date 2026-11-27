@@ -51,6 +51,10 @@ protected:
     void handle_nozzle_target_change() override;
 
 private:
+    /// handle_nozzle_target_change(), and a new period of the heater watch also for the same target.
+    /// For the pickup and the head reset: manage() did not run, or the heating stopped.
+    void restart_protection();
+
     /// Fires heating side effects (safety_timer wake, power_on, watch reset, puppy push,
     /// temp model reset) and arms protection state machines.
     /// !!! Toolchanger-only: use at pickup, when transitioning into active heating. !!!

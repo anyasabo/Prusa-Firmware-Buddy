@@ -42,6 +42,10 @@ public:
     /// period, targets that change more often than the period would stop all checks.
     void arm(int16_t target_temp);
 
+    /// As arm(), but a running period stops: the next update() captures a new baseline.
+    /// For a reset of the protection after a time with no update() calls, for example a parked tool.
+    void restart(int16_t target_temp);
+
     /// Tick: captures baseline when pending, checks progress when the period elapses.
     /// @returns true when the watch fired; the caller is expected to raise its error
     [[nodiscard]] bool update(float current_temp);

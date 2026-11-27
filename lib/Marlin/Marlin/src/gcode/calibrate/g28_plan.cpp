@@ -4,8 +4,7 @@
 
 namespace g28 {
 
-Plan::Plan(const PlanFeatures &features, const PlanInput &input)
-    : requested(input.requested) {
+Plan::Plan(const PlanFeatures &features, const PlanInput &input) {
     for (uint8_t i = 0; i < requirements.size(); i++) {
         requirements[i].initial_level = input.initial_levels[i];
         if (input.requested[i]) {
@@ -74,7 +73,7 @@ bool Plan::measures_loadcell_liveness() const {
 }
 
 bool Plan::resets_max_printed_z() const {
-    return requested[axis_z];
+    return home_at_all(axis_z);
 }
 
 } // namespace g28

@@ -83,7 +83,6 @@ private:
     void join_xy();
 
     std::array<Requirement, 3> requirements;
-    std::array<bool, 3> requested;
 };
 
 } // namespace g28

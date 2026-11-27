@@ -225,3 +225,18 @@ TEST_CASE("g28_plan: CODEPENDENT_XY_HOMING homes both axes if one is not homed")
     CHECK(plan.home_to_level(axis_x, imprecise));
     CHECK(plan.home_to_level(axis_y, imprecise));
 }
+
+TEST_CASE("g28_plan: G28 O keeps the max printed Z if it does not home Z") {
+    // Z stays homed, so the print can still be on the bed
+    const Plan plan(coreone, g28_o_all({ not_homed, not_homed, full }));
+
+    CHECK(plan.home_to_level(axis_x, imprecise));
+    CHECK_FALSE(plan.home_at_all(axis_z));
+    CHECK_FALSE(plan.resets_max_printed_z());
+}
+
+TEST_CASE("g28_plan: G28 XY keeps the max printed Z") {
+    const Plan plan(coreone, { .requested = { true, true, false }, .initial_levels = { full, full, full } });
+
+    CHECK_FALSE(plan.resets_max_printed_z());
+}

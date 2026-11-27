@@ -268,22 +268,18 @@ TEST_CASE("toolchanger_indx: pickup fails twice in a print - user aborts") {
     CHECK(!world.head_tool);
 }
 
-// KNOWN BUG (fails, tagged [!shouldfail]): park_procedure() stops the heater first. If the nozzle is
-// still in the head after the park, park() returns false and the tool stays active, but not thermally
-// managed: M104 stores the target but does not apply it (BaseHotend::set_nozzle_target_temp() needs
-// is_thermally_managed()), M109 returns at once, and a tool_change() to the same tool is a no-op.
-// Only a change to another tool or a reboot restores it.
-TEST_CASE("toolchanger_indx: park fails outside a print", "[!shouldfail][known_bug]") {
+// park_procedure() stops the heater first. If the nozzle is still in the head after the park, the
+// tool stayed active but not thermally managed: M104 stored the target but did not apply it, M109
+// returned at once, and a tool_change() to the same tool was a no-op. Thus the printer stops with an
+// error (the fake fatal_error() throws).
+TEST_CASE("toolchanger_indx: park fails outside a print") {
     world.reset();
     std::mt19937 rng(11);
     set_offsets(rng);
     REQUIRE(change(T(2)));
 
     world.release_failures = 1;
-    CHECK_FALSE(change(T(6)));
-
-    // The tool is still in the head: it must stay the active tool, with its offset and its heater
-    check_consistent();
+    CHECK_THROWS_AS(change(T(6)), std::runtime_error);
     CHECK(world.head_tool == 2);
     CHECK(prusa_toolchanger.get_park_fail_count() == 1);
 }
@@ -298,17 +294,16 @@ TEST_CASE("toolchanger_indx: park fails in a print - retries succeed") {
     CHECK(world.shown_phases.empty());
 }
 
-// KNOWN BUG: the same heater state as in "park fails outside a print". Less important in a print,
-// because the abort turns the heaters off.
-TEST_CASE("toolchanger_indx: park fails in a print - user aborts", "[!shouldfail][known_bug]") {
+// The same heater state as in "park fails outside a print". After the abort the tool is still in the
+// head with its heater off, and the next print would start with it.
+TEST_CASE("toolchanger_indx: park fails in a print - user aborts") {
     world.reset();
     world.printing = true;
     REQUIRE(change(T(2)));
     world.release_failures = 3;
     world.responses = { Response::Abort, Response::Abort };
-    CHECK_FALSE(change(T(6)));
+    CHECK_THROWS_AS(change(T(6)), std::runtime_error);
     CHECK(world.aborted);
-    check_consistent();
     CHECK(world.head_tool == 2);
 }
 

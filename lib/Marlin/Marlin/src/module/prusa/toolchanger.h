@@ -388,6 +388,10 @@ private:
     /// Commit parked state (NoTool active, persisted, head open, loadcell reset).
     void commit_park(PhysicalToolIndex previous_tool);
 
+    /// After a failed park: stop with a red screen if the nozzle is still in the head.
+    /// That tool has its heater off and is not thermally managed any more.
+    void stop_if_tool_still_in_head(PhysicalToolIndex tool);
+
     /// Commit successful pickup: clear head_open, log, update odometer and active extruder state.
     void commit_pickup(PhysicalToolIndex tool, bool count_in_odometer, bool force_persist);
 

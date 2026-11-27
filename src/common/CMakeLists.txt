@@ -172,7 +172,7 @@ elseif(BOARD STREQUAL "XL_DEV_KIT_XLB")
 endif()
 
 if(HAS_POWER_PANIC)
-  target_sources(firmware PRIVATE power_panic.cpp)
+  target_sources(firmware PRIVATE power_panic.cpp power_panic_plan.cpp)
 
   if(${POWER_PANIC_STORAGE_IS_FLASH})
     target_sources(firmware PRIVATE power_panic_storage_flash.cpp)

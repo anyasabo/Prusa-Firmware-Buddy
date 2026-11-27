@@ -1,4 +1,5 @@
 #include "power_panic.hpp"
+#include "power_panic_plan.hpp"
 #include "power_panic_storage.hpp"
 #include "timing_precise.hpp"
 
@@ -110,8 +111,6 @@
 #include <option/xbuddy_extension_variant.h>
 
 namespace {
-
-constexpr uint16_t chamber_temp_off = 0xffff;
 
 constexpr bool power_panic_retracts =
     // Dwarf gets turned off during the shutdown loop, so no retraction can happen
@@ -247,25 +246,38 @@ static void atomic_reset() {
 static void atomic_finish() {
     HAL_NVIC_DisableIRQ(buddy::hw::acFault.getIRQn());
 
+    const plan::FinishInput finish_input {
 #if HAS_TOOLCHANGER() && HAS_INDX()
-    if (state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none) {
-        // Power panic hit during a toolchange; finish the toolchange on resume
-        marlin_server::powerpanic_finish_indx_toolchange();
-    } else
+        .indx_toolchange_in_progress = state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none,
+#else
+        .indx_toolchange_in_progress = false,
 #endif
 #if HAS_TOOLCHANGER() && HAS_TOOL_CRASH_RECOVERY()
-        if (prusa_toolchanger.is_pos_in_toolchange_area(state_buf.crash.crash_machine_position.xy()) && prusa_toolchanger.is_toolchanger_enabled()) {
-
-        // Continue with toolcrash recovery
-        marlin_server::powerpanic_finish_toolcrash();
-    } else
+        .crash_in_toolchange_area = prusa_toolchanger.is_pos_in_toolchange_area(state_buf.crash.crash_machine_position.xy()),
+        .toolchanger_enabled = prusa_toolchanger.is_toolchanger_enabled(),
+#else
+        .crash_in_toolchange_area = false,
+        .toolchanger_enabled = false,
 #endif
-    {
-        if (state_buf.planner.was_paused) {
-            marlin_server::powerpanic_finish_pause();
-        } else {
-            marlin_server::powerpanic_finish_recovery();
-        }
+        .was_paused = static_cast<bool>(state_buf.planner.was_paused),
+    };
+    switch (plan::finish_kind(finish_input)) {
+    case plan::FinishKind::indx_toolchange:
+#if HAS_TOOLCHANGER() && HAS_INDX()
+        marlin_server::powerpanic_finish_indx_toolchange();
+#endif
+        break;
+    case plan::FinishKind::toolcrash:
+#if HAS_TOOLCHANGER() && HAS_TOOL_CRASH_RECOVERY()
+        marlin_server::powerpanic_finish_toolcrash();
+#endif
+        break;
+    case plan::FinishKind::pause:
+        marlin_server::powerpanic_finish_pause();
+        break;
+    case plan::FinishKind::recovery:
+        marlin_server::powerpanic_finish_recovery();
+        break;
     }
     atomic_reset();
 
@@ -297,24 +309,11 @@ void resume_print() {
         mode_specific(state_buf.progress.stealth_mode, oProgressData.stealth_mode);
     }
 
-    const bool auto_recover = [] {
-        if (state_buf.print.odometer_e_start >= Odometer_s::instance().get_extruded_all()) {
-            // nothing has been extruded on the bed so far, it's safe to auto-resume irregardless of temp
-            return true;
-        }
-
-// check the bed temperature
 #if HAS_MODULAR_BED()
-        thermalManager.setEnabledBedletMask(state_buf.planner.enabled_bedlets_mask);
+    thermalManager.setEnabledBedletMask(state_buf.planner.enabled_bedlets_mask);
 #endif
-        const float current_bed_temp = thermalManager.degBed();
-
-        if (!state_buf.planner.target_bed || current_bed_temp >= state_buf.planner.target_bed) {
-            return true;
-        }
-
-        return (state_buf.planner.target_bed - current_bed_temp) < POWER_PANIC_MAX_BED_DIFF;
-    }();
+    const bool auto_recover = plan::can_auto_recover(state_buf.print.odometer_e_start, Odometer_s::instance().get_extruded_all(),
+        state_buf.planner.target_bed, thermalManager.degBed(), POWER_PANIC_MAX_BED_DIFF);
 
     if (resume_state == ResumeState::Setup && auto_recover) {
         resume_state = ResumeState::Resume;
@@ -354,7 +353,7 @@ void resume_loop() {
         // guard. But the ISR saved the native positions with the skew off, so convert them to the skew on. A pause
         // starts only between commands, so no guard is active. After a crash, the guard unwound before the power
         // loss, so the count does not tell the frame of the crash positions.
-        if (state_buf.planner.skew_disabled && !state_buf.planner.was_paused && !state_buf.planner.was_crashed) {
+        if (plan::needs_skew_conversion(state_buf.planner.skew_disabled, state_buf.planner.was_paused, state_buf.planner.was_crashed)) {
             state_buf.crash.crash_native_position.set(native_pos_with_skew(state_buf.crash.crash_native_position.xyz()));
             state_buf.crash.start_current_position.set(native_pos_with_skew(state_buf.crash.start_current_position.xyz()));
         }
@@ -371,11 +370,8 @@ void resume_loop() {
         buddy::set_active_motor_current_profile(static_cast<buddy::StandardMotorCurrentProfile>(state_buf.planner.current_profile));
 #endif
 #if HAS_INDX()
-        resume.active_tool = state_buf.planner.active_tool;
-        if (state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none) {
-            // During a toolchange planner.active_tool is pre-toolchange; use the target tool.
-            resume.active_tool = state_buf.toolchanger.tool_nr;
-        }
+        resume.active_tool = plan::resume_tool(state_buf.planner.active_tool, state_buf.toolchanger.tool_nr,
+            state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none);
 #endif
         marlin_server::set_resume_data(&resume);
 
@@ -418,10 +414,8 @@ void resume_loop() {
         // mid-print). Apply the saved pre-toolchange tool so subsequent E moves
         // are valid, including its tool offset. Prefer the one physically held
         // if toolchange is in progress.
-        const uint8_t effective_active_tool
-            = state_buf.toolchanger.phase == PrusaToolChanger::ToolchangePhase::after_lock
-            ? state_buf.toolchanger.tool_nr
-            : state_buf.planner.active_tool;
+        const uint8_t effective_active_tool = plan::held_tool(state_buf.planner.active_tool, state_buf.toolchanger.tool_nr,
+            state_buf.toolchanger.phase == PrusaToolChanger::ToolchangePhase::after_lock);
         if (effective_active_tool != PrusaToolChanger::MARLIN_NO_TOOL_PICKED) {
             const PhysicalToolIndex tool = PhysicalToolIndex::from_raw(effective_active_tool);
             prusa_toolchanger.set_active_extruder(tool);
@@ -449,11 +443,7 @@ void resume_loop() {
         spool_join.deserialize(state_buf.spool_join);
 #endif
 #if HAS_CHAMBER_API()
-        if (state_buf.chamber_target_temp == chamber_temp_off) {
-            buddy::chamber().set_target_temperature(std::nullopt);
-        } else {
-            buddy::chamber().set_target_temperature(state_buf.chamber_target_temp);
-        }
+        buddy::chamber().set_target_temperature(plan::restore_chamber_target(state_buf.chamber_target_temp));
 #endif
 #if HAS_TEMP_HEATBREAK_CONTROL
         for (auto tool : PhysicalToolIndex::all()) {
@@ -462,46 +452,53 @@ void resume_loop() {
 
 #endif
 
+        const plan::ResumeSteps steps = plan::resume_steps({
 #if HAS_TOOLCHANGER() && HAS_TOOL_CRASH_RECOVERY()
-        if (prusa_toolchanger.is_pos_in_toolchange_area(state_buf.crash.crash_machine_position.xy())) {
+            .crash_in_toolchange_area = prusa_toolchanger.is_pos_in_toolchange_area(state_buf.crash.crash_machine_position.xy()),
+#else
+            .crash_in_toolchange_area = false,
+#endif
+#if HAS_INDX()
+            .indx_toolchange_in_progress = state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none,
+#else
+            .indx_toolchange_in_progress = false,
+#endif
+            .recover_axis_state = static_cast<bool>(state_buf.crash.recover_flags & Crash_s::RECOVER_AXIS_STATE),
+            .x_or_y_homed = state_buf.crash.axes_home_level.is_homed(X_AXIS, AxisHomeLevel::imprecise) || state_buf.crash.axes_home_level.is_homed(Y_AXIS, AxisHomeLevel::imprecise),
+            .was_paused = static_cast<bool>(state_buf.planner.was_paused),
+            .current_z = current_position[Z_AXIS],
+            .crash_z = state_buf.crash.crash_native_position[Z_AXIS],
+            .z_homing_height = Z_HOMING_HEIGHT,
+        });
+
+        if (steps.rehome_z_lift) {
+            marlin_server::enqueue_gcode(plan::rehome_gcode(*steps.rehome_z_lift).data());
+        }
+
+        switch (steps.next) {
+        case plan::ResumeNext::toolcrash_finish:
+#if HAS_TOOLCHANGER() && HAS_TOOL_CRASH_RECOVERY()
             prusa_toolchanger.set_return_data({
                 PhysicalToolIndex::from_raw_notool(state_buf.toolchanger.tool_nr),
                 state_buf.toolchanger.return_type,
                 state_buf.toolchanger.return_pos,
             });
-            resume_state = ResumeState::Finish; // Do not reheat, do not unpark
-            break; // Skip lift and rehome
-            // Will continue with toolcrash recovery
-        }
 #endif
-#if HAS_INDX()
-        if (state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none) {
-            // Skip XY re-home. Already included in the toolchange recovery.
             resume_state = ResumeState::Finish;
             break;
-        }
-#endif
-
-        if (state_buf.crash.recover_flags & Crash_s::RECOVER_AXIS_STATE) {
-            // lift and rehome
-            if (state_buf.crash.axes_home_level.is_homed(X_AXIS, AxisHomeLevel::imprecise) || state_buf.crash.axes_home_level.is_homed(Y_AXIS, AxisHomeLevel::imprecise)) {
-                float z_dist = current_position[Z_AXIS] - state_buf.crash.crash_native_position[Z_AXIS];
-                float z_lift = z_dist < Z_HOMING_HEIGHT ? Z_HOMING_HEIGHT - z_dist : 0;
-                char cmd_buf[24];
-                snprintf(cmd_buf, sizeof(cmd_buf), "G28 X Y D R%f", (double)z_lift);
-                marlin_server::enqueue_gcode(cmd_buf);
-            }
-        }
-
-        if (state_buf.planner.was_paused) {
+        case plan::ResumeNext::finish:
+            resume_state = ResumeState::Finish;
+            break;
+        case plan::ResumeNext::park_for_pause:
             resume_state = ResumeState::ParkForPause;
-        } else {
+            break;
+        case plan::ResumeNext::wait_for_heaters:
             for (auto tool : PhysicalToolIndex::all()) {
                 thermalManager.setTargetHotend(state_buf.planner.target_nozzle[tool], tool);
             }
             // setTargetBed is already called higher up in this function
-
             resume_state = ResumeState::WaitForHeaters;
+            break;
         }
         break;
     }
@@ -537,13 +534,13 @@ void resume_loop() {
         }
 
         // forget the XYZ resume position if requested
-        if (!(state_buf.crash.recover_flags & Crash_s::RECOVER_XY_POSITION)) {
-            LOOP_XY(i) {
-                state_buf.crash.crash_native_position[i] = current_position[i];
-            }
-        }
-        if (!(state_buf.crash.recover_flags & Crash_s::RECOVER_Z_POSITION)) {
-            state_buf.crash.crash_native_position[Z_AXIS] = current_position[Z_AXIS];
+        {
+            auto &saved = state_buf.crash.crash_native_position;
+            const plan::Xyz target = plan::unpark_target({ saved.x, saved.y, saved.z }, { current_position.x, current_position.y, current_position.z },
+                state_buf.crash.recover_flags & Crash_s::RECOVER_XY_POSITION, state_buf.crash.recover_flags & Crash_s::RECOVER_Z_POSITION);
+            saved.x = target.x;
+            saved.y = target.y;
+            saved.z = target.z;
         }
 
         // unpark only if the position was known
@@ -581,24 +578,10 @@ void resume_loop() {
 
         // IS/PA
         LOOP_XYZ(i) {
-            if (state_buf.planner.axis_config[i].frequency == 0.f) {
-                input_shaper::set_axis_config((AxisEnum)i, std::nullopt);
-            } else {
-                input_shaper::set_axis_config((AxisEnum)i, state_buf.planner.axis_config[i]);
-            }
+            input_shaper::set_axis_config((AxisEnum)i, plan::restore_axis_config(state_buf.planner.axis_config[i]));
         }
-
-        if (state_buf.planner.original_y.frequency == 0.f) {
-            input_shaper::set_config_for_m74(Y_AXIS, std::nullopt);
-        } else {
-            input_shaper::set_config_for_m74(Y_AXIS, state_buf.planner.original_y);
-        }
-
-        if (state_buf.planner.axis_y_weight_adjust.frequency_delta != 0.f) {
-            input_shaper::set_axis_y_weight_adjust(std::nullopt);
-        } else {
-            input_shaper::set_axis_y_weight_adjust(state_buf.planner.axis_y_weight_adjust);
-        }
+        input_shaper::set_config_for_m74(Y_AXIS, plan::restore_axis_config(state_buf.planner.original_y));
+        input_shaper::set_axis_y_weight_adjust(plan::restore_weight_adjust(state_buf.planner.axis_y_weight_adjust));
 
         pressure_advance::set_axis_e_config(state_buf.planner.axis_e_config);
 
@@ -845,7 +828,7 @@ void panic_loop() {
         spool_join.serialize(state_buf.spool_join);
 #endif
 #if HAS_CHAMBER_API()
-        state_buf.chamber_target_temp = static_cast<uint16_t>(buddy::chamber().target_temperature().value_or(chamber_temp_off));
+        state_buf.chamber_target_temp = plan::save_chamber_target(buddy::chamber().target_temperature());
 #endif
 #if HAS_TEMP_HEATBREAK_CONTROL
         for (auto tool : PhysicalToolIndex::all()) {
@@ -901,28 +884,27 @@ void panic_loop() {
             } else
 #endif
             {
-                if (runtime_state.orig_axes_home_level.is_homed(test_axes, AxisHomeLevel::imprecise)) {
-                    // axis position is currently known, move to the closest endpoint
+                const plan::EscapeMove escape = plan::escape_move({
+                    .x = current_position.x,
+                    .y = current_position.y,
+                    .rect_min_x = print_rect.a.x,
+                    .rect_min_y = print_rect.a.y,
+                    .rect_max_x = print_rect.b.x,
+                    .rect_max_y = print_rect.b.y,
+                    .x_min_print_pos = X_MIN_PRINT_POS,
+                    .x_max_print_pos = X_MAX_PRINT_POS,
 #if ENABLED(COREXY)
-                    if (std::min(current_position.x - print_rect.a.x, print_rect.b.x - current_position.x)
-                        > std::min(current_position.y - print_rect.a.y, print_rect.b.y - current_position.y)) {
-                        // Move to the print-area Y edge in the direction of the nearest end of the
-                        // print area. Both Y_MIN_PRINT_POS and Y_MAX_PRINT_POS exclude any toolchanger
-                        // dock zone (per-printer config), so this never crosses dock hardware.
-                        current_position.y = (current_position.y < (print_rect.a.y + print_rect.b.y) / 2
-                                ? Y_MIN_PRINT_POS
-                                : Y_MAX_PRINT_POS);
-                    } else
-#endif /*ENABLED(COREXY)*/
-                    {
-                        // Move to X edge of printer in direction of nearest X end of print area.
-                        // X_*_PRINT_POS excludes per-printer hardware outside the print area (nozzle cleaner / waste bin).
-                        current_position.x = (current_position.x < (print_rect.a.x + print_rect.b.x) / 2 ? X_MIN_PRINT_POS : X_MAX_PRINT_POS);
-                    }
-                } else {
-                    // we might be anywhere, plan some move towards the endstop
-                    current_position.x = current_position.x - (X_MAX_POS - X_MIN_POS);
-                }
+                    .y_min_print_pos = Y_MIN_PRINT_POS,
+                    .y_max_print_pos = Y_MAX_PRINT_POS,
+#else
+                    .y_min_print_pos = 0,
+                    .y_max_print_pos = 0,
+#endif
+                    .x_axis_length = X_MAX_POS - X_MIN_POS,
+                    .corexy = ENABLED(COREXY),
+                    .xy_known = runtime_state.orig_axes_home_level.is_homed(test_axes, AxisHomeLevel::imprecise),
+                });
+                (escape.axis == plan::EscapeAxis::x ? current_position.x : current_position.y) = escape.target;
                 line_to_current_position(POWER_PANIC_X_FEEDRATE);
                 planner.start_moving();
             }
@@ -1112,24 +1094,10 @@ void ac_fault_isr() {
 
         // IS/PA
         LOOP_XYZ(i) {
-            if (!input_shaper::current_config().axis[i]) {
-                state_buf.planner.axis_config[i].frequency = 0.f;
-            } else {
-                state_buf.planner.axis_config[i] = *input_shaper::current_config().axis[i];
-            }
+            state_buf.planner.axis_config[i] = plan::save_axis_config(input_shaper::current_config().axis[i]);
         }
-
-        if (!input_shaper::get_config_for_m74().axis[Y_AXIS]) {
-            state_buf.planner.original_y.frequency = 0.f;
-        } else {
-            state_buf.planner.original_y = *input_shaper::get_config_for_m74().axis[Y_AXIS];
-        }
-
-        if (!input_shaper::current_config().weight_adjust_y) {
-            state_buf.planner.axis_y_weight_adjust.frequency_delta = 0.f;
-        } else {
-            state_buf.planner.axis_y_weight_adjust = *input_shaper::current_config().weight_adjust_y;
-        }
+        state_buf.planner.original_y = plan::save_axis_config(input_shaper::get_config_for_m74().axis[Y_AXIS]);
+        state_buf.planner.axis_y_weight_adjust = plan::save_weight_adjust(input_shaper::current_config().weight_adjust_y);
 
         state_buf.planner.axis_e_config = pressure_advance::get_axis_e_config();
 

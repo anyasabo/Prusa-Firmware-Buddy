@@ -164,7 +164,8 @@ void PrusaGcodeSuite::M862_3() {
         SERIAL_EOL();
     }
 
-    if (parser.boolval('P')) {
+    // M862.3 P1 has no string_arg
+    if (parser.boolval('P') && parser.string_arg) {
         const char *arg = parser.string_arg;
         while (*arg == ' ' || *arg == '\"') {
             arg++;

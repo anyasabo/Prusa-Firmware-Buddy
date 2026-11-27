@@ -19,7 +19,18 @@ endforeach()
 
 # The parser reads the line in place and the handlers read it again later. AddressSanitizer finds a
 # read past the end of the line, and UndefinedBehaviorSanitizer an overflow in the value accessors.
+# A toolchain without the sanitizer runtimes builds the tests without them.
 set(sanitizers -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_FLAGS ${sanitizers})
+set(CMAKE_REQUIRED_LINK_OPTIONS ${sanitizers})
+check_cxx_source_compiles("int main() { return 0; }" MARLIN_GCODE_PARSER_SANITIZERS)
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_LINK_OPTIONS)
+if(NOT MARLIN_GCODE_PARSER_SANITIZERS)
+  message(STATUS "marlin_gcode_parser_tests: no sanitizer runtimes, the tests run without them")
+  set(sanitizers)
+endif()
 
 add_library(marlin_gcode_parser STATIC ${mirror}/gcode/parser.cpp)
 target_include_directories(marlin_gcode_parser BEFORE PUBLIC ${mirror} ${mirror}/gcode)

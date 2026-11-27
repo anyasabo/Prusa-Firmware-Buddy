@@ -199,14 +199,15 @@ public:
   // Seen a parameter with a value
   static inline bool seenval(const char c) { return seen(c) && has_value(); }
 
-  // Float removes 'E' to prevent scientific notation interpretation
+  // Float removes 'E' to prevent scientific notation interpretation, and 'X' to prevent hexadecimal
+  // interpretation: G-code with no spaces (binary G-code) has "Z0X50", where X is the next parameter.
   static inline float value_float() {
     if (value_ptr) {
       char *e = value_ptr;
       for (;;) {
         const char c = *e;
         if (c == '\0' || c == ' ') break;
-        if (c == 'E' || c == 'e') {
+        if (c == 'E' || c == 'e' || c == 'X' || c == 'x') {
           *e = '\0';
           const float ret = strtof(value_ptr, nullptr);
           *e = c;

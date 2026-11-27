@@ -114,6 +114,29 @@ TEST_CASE("The value accessors convert as the handlers expect") {
     }
 }
 
+TEST_CASE("A zero value directly before X is not read as a hexadecimal number") {
+    // Binary G-code (MeatPack) removes the spaces of each G line, so "G1 Z0 X50" comes as
+    // "G1Z0X50". strtof() reads "0X50" as the hexadecimal 0x50 = 80, also in newlib on the printer.
+    // The X is the next parameter, as the E is in "G1X10E.5".
+    {
+        Line line("G1Z0X50");
+        REQUIRE(parser.seenval('Z'));
+        CHECK(parser.value_float() == 0);
+        REQUIRE(parser.seenval('X'));
+        CHECK(parser.value_float() == 50);
+    }
+    {
+        Line line("G1Y-0X1.5");
+        REQUIRE(parser.seenval('Y'));
+        CHECK(parser.value_float() == 0);
+    }
+    {
+        Line line("G1 Y0x10");
+        REQUIRE(parser.seenval('Y'));
+        CHECK(parser.value_float() == 0);
+    }
+}
+
 TEST_CASE("The parser reads the command letter, the number and the subcode") {
     Line line("N12 M862.3 P\"COREONEL\"*42");
     CHECK(parser.command_letter == 'M');

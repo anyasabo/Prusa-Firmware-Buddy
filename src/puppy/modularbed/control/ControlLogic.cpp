@@ -165,7 +165,10 @@ float DelinearizePWM(float pwm) {
 uint16_t PIDActionRegister(float action) {
     // A negative action is sent as a 16-bit two's complement value. The conversion through
     // int32_t gives the same result as the conversion to uint16_t on the Cortex-M0+ (soft float),
-    // but with no undefined behavior.
+    // but with no undefined behavior. A NaN is not limited by LimitValue, so it is sent as 0.
+    if (std::isnan(action)) {
+        return 0;
+    }
     const float scaled = LimitValue(action, -1, 1) * ((float)MODBUS_PID_SCALE) + 0.5f;
     return static_cast<uint16_t>(static_cast<int32_t>(scaled));
 }

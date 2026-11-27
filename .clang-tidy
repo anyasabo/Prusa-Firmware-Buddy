@@ -1,0 +1,18 @@
+# Checks with a good signal on this code base (triage of a full run on the CORE One L, 2026-11-27).
+# Each one found a real defect or gave almost no false findings. clangd shows the bugprone checks
+# in the editor. utils/clang_tidy_diff.sh runs all of them on the changed lines of a branch.
+Checks: >
+  -*,
+  bugprone-too-small-loop-variable,
+  bugprone-float-loop-counter,
+  bugprone-unchecked-string-to-number-conversion,
+  bugprone-suspicious-stringview-data-usage,
+  bugprone-use-after-move,
+  bugprone-move-forwarding-reference,
+  bugprone-incorrect-roundings,
+  bugprone-unused-return-value,
+  clang-analyzer-core.*,
+  clang-analyzer-unix.Stream
+CheckOptions:
+  bugprone-unused-return-value.AllowCastToVoid: true
+HeaderFilterRegex: '.*/(src|lib/Marlin)/.*'

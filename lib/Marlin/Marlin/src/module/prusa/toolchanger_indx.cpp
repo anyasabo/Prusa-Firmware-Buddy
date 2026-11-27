@@ -748,9 +748,10 @@ PrusaToolChanger::ToolchangeFailureAction PrusaToolChanger::apply_failure_action
 }
 
 bool PrusaToolChanger::pickup_procedure(PhysicalToolIndex tool) {
+    // Check the dock calibration first: ensure_head_open() moves into the area of the dock
+    const PrusaToolInfo &info = get_tool_info(tool, /*check_calibrated=*/true);
     ensure_head_open(tool);
 
-    const PrusaToolInfo &info = get_tool_info(tool, /*check_calibrated=*/true);
     const float safe_y = info.dock_y + DOCK_SAFE_Y_OFFSET;
 
     // Move to dock X, then to safe Y in front of dock

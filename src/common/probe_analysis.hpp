@@ -138,19 +138,6 @@ public:
         SegmentedR2s r2_60ms;
     };
 
-    struct VarianceInfo {
-        float total;
-        float unexplained;
-
-        VarianceInfo()
-            : total(0)
-            , unexplained(0) {}
-
-        VarianceInfo(float total, float unexplained)
-            : total(total)
-            , unexplained(unexplained) {}
-    };
-
     struct SamplesRange {
         Sample first;
         Sample last;
@@ -169,10 +156,6 @@ public:
 
         inline SamplesRange beginning(size_t size) const {
             return SamplesRange(first, std::min(first + size - 1, last));
-        }
-
-        inline SamplesRange ending(size_t size) const {
-            return SamplesRange(std::max(last - size + 1, last), last);
         }
     };
 
@@ -329,19 +312,21 @@ public:
     /// Calculates all load angles in the time ranges we are interested in
     void CalculateLoadAngles(Features &features) const;
 
-    VarianceInfo CalculateVariance(SamplesRange samples, Line regression);
+    /// The "R2" of the samples after a split point, as the classifier was trained on it.
+    ///
+    /// This is not the coefficient of determination: the sum of squares is centered on
+    /// (last load / number of samples), not on the mean load. For a segment far from zero load,
+    /// the value is approximately the uncentered R2, 1 - SSres / sum(load^2). The thresholds of
+    /// Classify() and HasOutOfRangeFeature() were trained on these values. The coefficient of
+    /// determination moves the features by about 1 and rejects most good probes, so change this
+    /// only together with a new classifier.
+    ///
+    /// @returns -inf if the sum of squares is 0
+    float CalculateTrainedR2(SamplesRange samples, Line regression);
 
-    template <typename Iterator>
-    float CalculateR2FromSegmentedVariance(Iterator begin, Iterator end) {
-        // FIXME: !!! accumulate functions are wrong, should return acc + r.load. Fixing this causes classify to fail however.
-        float totalVariance = std::accumulate(begin, end, 0.0f, []([[maybe_unused]] float acc, VarianceInfo const &r) { return r.total; });
-        float unexplainedVariance = std::accumulate(begin, end, 0.0f, []([[maybe_unused]] float acc, VarianceInfo const &r) { return r.unexplained; });
-        if (totalVariance == 0) {
-            return -std::numeric_limits<float>::infinity();
-        }
-        return 1 - (unexplainedVariance / totalVariance);
-    }
-
+    /// The trained R2 (see CalculateTrainedR2()) after each split point of the load lines.
+    ///
+    /// Each value uses only the first @p segment seconds after the split point, not the samples before it.
     SegmentedR2s CalculateSegmentedR2s(Features &features, float segment);
 
     float InterpolateFinalZCoordinate(Features &features);

@@ -60,7 +60,7 @@ void M74_internal(const M74Params &params) {
 void GcodeSuite::M74() {
     input_shaper::M74Params params;
 
-    if (parser.seen('W')) {
+    if (parser.seenval('W')) {
         const float m = parser.value_float();
         if (m >= 0.f) {
             params.mass = m;

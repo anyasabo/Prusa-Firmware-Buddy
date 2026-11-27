@@ -60,7 +60,7 @@ void GcodeSuite::M603() {
     }
 
     // Unload length
-    if (parser.seen('U')) {
+    if (parser.seenval('U')) {
         fc_settings[*virtual_tool].unload_length = ABS(parser.value_axis_units(E_AXIS));
 #if ENABLED(PREVENT_LENGTHY_EXTRUDE)
         NOMORE(fc_settings[*virtual_tool].unload_length, EXTRUDE_MAXLENGTH);
@@ -68,7 +68,7 @@ void GcodeSuite::M603() {
     }
 
     // Load length
-    if (parser.seen('L')) {
+    if (parser.seenval('L')) {
         fc_settings[*virtual_tool].load_length = ABS(parser.value_axis_units(E_AXIS));
 #if ENABLED(PREVENT_LENGTHY_EXTRUDE)
         NOMORE(fc_settings[*virtual_tool].load_length, EXTRUDE_MAXLENGTH);

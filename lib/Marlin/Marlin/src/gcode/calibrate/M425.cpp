@@ -55,7 +55,7 @@ void GcodeSuite::M425() {
     }
   }
 
-  if (parser.seen('F')) {
+  if (parser.seenval('F')) {
     planner.synchronize();
     backlash.set_correction(parser.value_float());
     noArgs = false;
@@ -63,7 +63,7 @@ void GcodeSuite::M425() {
 
   #ifdef BACKLASH_SMOOTHING_MM
     // #error dead code found by automatic analyses (see BFW-5461)
-    if (parser.seen('S')) {
+    if (parser.seenval('S')) {
       planner.synchronize();
       backlash.smoothing_mm = parser.value_linear_units();
       noArgs = false;

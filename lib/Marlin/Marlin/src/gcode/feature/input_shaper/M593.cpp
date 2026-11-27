@@ -158,7 +158,7 @@ void GcodeSuite::M593() {
     params.seen_z = parser.seen('Z');
     params.seen_w = parser.seen('W');
 
-    if (parser.seen('D')) {
+    if (parser.seenval('D')) {
         const float dr = parser.value_float();
         if (input_shaper::is_valid_damping_ratio(dr)) {
             params.axis.damping_ratio = dr;
@@ -167,7 +167,7 @@ void GcodeSuite::M593() {
         }
     }
 
-    if (parser.seen('F')) {
+    if (parser.seenval('F')) {
         const float f = parser.value_float();
         if (f >= 0) {
             params.axis.frequency = f;
@@ -176,7 +176,7 @@ void GcodeSuite::M593() {
         }
     }
 
-    if (parser.seen('T')) {
+    if (parser.seenval('T')) {
         const int t = parser.value_int();
         if (WITHIN(t, static_cast<int>(input_shaper::Type::first), static_cast<int>(input_shaper::Type::last))) {
             params.axis.type = static_cast<input_shaper::Type>(t);
@@ -185,7 +185,7 @@ void GcodeSuite::M593() {
         }
     }
 
-    if (parser.seen('R')) {
+    if (parser.seenval('R')) {
         const float vr = parser.value_float();
         if (input_shaper::is_valid_vibration_reduction(vr)) {
             params.axis.vibration_reduction = vr;
@@ -194,7 +194,7 @@ void GcodeSuite::M593() {
         }
     }
 
-    if (parser.seen('A')) {
+    if (parser.seenval('A')) {
         const float a = parser.value_float();
         if (a < 0) {
             params.weight_adjust.frequency_delta = a;
@@ -203,7 +203,7 @@ void GcodeSuite::M593() {
         }
     }
 
-    if (parser.seen('M')) {
+    if (parser.seenval('M')) {
         const float m = parser.value_float();
         if (m >= 0) {
             params.weight_adjust.mass_limit = m;

@@ -35,7 +35,7 @@
  */
 void GcodeSuite::G6() {
   // TODO: feedrate support?
-  if (parser.seen('R'))
+  if (parser.seenval('R'))
     planner.last_page_step_rate = parser.value_ulong();
 
   if (!DirectStepping::Config::DIRECTIONAL) {
@@ -57,7 +57,7 @@ void GcodeSuite::G6() {
   const page_idx_t page_idx = (page_idx_t)parser.value_ulong();
 
   uint16_t num_steps = DirectStepping::Config::TOTAL_STEPS;
-  if (parser.seen('S')) num_steps = parser.value_ushort();
+  if (parser.seenval('S')) num_steps = parser.value_ushort();
 
   planner.buffer_page(page_idx, 0, num_steps);
 }

@@ -22,6 +22,7 @@
 
 #include "../gcode.h"
 #include "../../module/planner.h"
+#include <cmath>
 #include <utils/variant_utils.hpp>
 #include <option/has_indx.h>
 
@@ -116,6 +117,11 @@ void GcodeSuite::M92() {
     LOOP_XYZE(i) {
       if (parser.seenval(axis_codes[i])) {
         const float value = parser.value_per_axis_units((AxisEnum)i);
+        // The planner divides by the steps per unit.
+        if (!(value > 0 && std::isfinite(value))) {
+          SERIAL_ERROR_MSG("?Steps per unit must be more than 0");
+          continue;
+        }
 
         if (i == E_AXIS) {
 #if E_STEPPERS == 1

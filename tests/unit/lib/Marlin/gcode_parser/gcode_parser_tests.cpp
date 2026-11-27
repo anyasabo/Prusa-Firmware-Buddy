@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <string_view>
 
@@ -158,4 +159,45 @@ TEST_CASE("A letter with no value is seen, but has no value and reads as 0") {
     CHECK(parser.value_long() == 0);
     CHECK(parser.value_bool());
     CHECK(parser.seenval('X') == false);
+}
+
+TEST_CASE("A time in seconds out of the millis_t range saturates") {
+    // G4, M0, M1, M84 and M86 read seconds. A negative time is 0 ms, as on the ARM CPU, where the
+    // float conversion saturates. UndefinedBehaviorSanitizer finds a conversion out of range.
+    {
+        Line line("G4 S-3");
+        REQUIRE(parser.seenval('S'));
+        CHECK(parser.value_millis_from_seconds() == 0);
+    }
+    {
+        Line line("G4 S99999999");
+        REQUIRE(parser.seenval('S'));
+        CHECK(parser.value_millis_from_seconds() == std::numeric_limits<millis_t>::max());
+    }
+    {
+        Line line("G4 S1.5");
+        REQUIRE(parser.seenval('S'));
+        CHECK(parser.value_millis_from_seconds() == 1500);
+    }
+}
+
+TEST_CASE("A command number out of range is an unknown command") {
+    // A number past INT_MAX overflowed and wrapped: G4294967324 ran G28. A subcode past 255 wrapped:
+    // M862.257 ran M862.1.
+    for (const char *text : { "G4294967324 X1", "G16666666601 X F0", "M862.257 P1", "M99999999999" }) {
+        CAPTURE(text);
+        Line line(text);
+        CHECK(parser.command_letter == '?');
+    }
+    {
+        Line line("G2147483647");
+        CHECK(parser.command_letter == 'G');
+        CHECK(parser.codenum == 2147483647);
+    }
+    {
+        Line line("M862.255");
+        CHECK(parser.command_letter == 'M');
+        CHECK(parser.codenum == 862);
+        CHECK(parser.subcode == 255);
+    }
 }

@@ -60,7 +60,7 @@ void GcodeSuite::M556() {
         const long x = parser.seenval('X') ? parser.value_long() : -1;
         const long y = parser.seenval('Y') ? parser.value_long() : -1;
         if (!WITHIN(x, 0, X_HBL_COUNT - 1) || !WITHIN(y, 0, Y_HBL_COUNT - 1)) {
-            SERIAL_ECHOPGM("?X or Y out of range");
+            SERIAL_ECHOLNPGM("?X or Y out of range");
             return;
         }
 
@@ -70,7 +70,7 @@ void GcodeSuite::M556() {
         // set bedlet based on its index
         const long i = parser.seenval('I') ? parser.value_long() : 0;
         if (!WITHIN(i, 1, std::numeric_limits<uint16_t>::digits)) {
-            SERIAL_ECHOPGM("?I out of range");
+            SERIAL_ECHOLNPGM("?I out of range");
             return;
         }
         affected_beds = 1 << (i - 1);

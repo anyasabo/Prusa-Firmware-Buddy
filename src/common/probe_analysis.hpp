@@ -315,11 +315,13 @@ public:
     /// The "R2" of the samples after a split point, as the classifier was trained on it.
     ///
     /// This is not the coefficient of determination: the sum of squares is centered on
-    /// (last load / number of samples), not on the mean load. For a segment far from zero load,
-    /// the value is approximately the uncentered R2, 1 - SSres / sum(load^2). The thresholds of
-    /// Classify() and HasOutOfRangeFeature() were trained on these values. The coefficient of
-    /// determination moves the features by about 1 and rejects most good probes, so change this
-    /// only together with a new classifier.
+    /// (last load / number of samples), not on the mean load. Thus the value compares the
+    /// residuals with the load level of the segment, not with its variation: on a flat segment at
+    /// load L with N samples, the sum of squares is about N * L^2 * (1 - 1/N)^2, and the value is
+    /// near 1 when L is large compared with the residuals. The thresholds of Classify() and
+    /// HasOutOfRangeFeature() were trained on these values. With the real mean, the features of a
+    /// flat segment go to about 0 and the classifier rejects most good probes (BFW-5406), so
+    /// change this only together with a new classifier.
     ///
     /// @returns -inf if the sum of squares is 0
     float CalculateTrainedR2(SamplesRange samples, Line regression);

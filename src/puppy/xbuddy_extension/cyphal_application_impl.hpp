@@ -360,6 +360,11 @@ private:
                     case NodeName::none:
                         break;
                     case NodeName::cz_prusa3d_honeybee_ac_controller:
+                        // Activation is also executed when the board was reset, and then it has its default
+                        // configuration. Its status reports the configuration, but not the LED configuration.
+                        application->ac_controller.active = ac_controller::Config {};
+                        application->ac_controller.led_active = ac_controller::LedConfig {};
+
                         return AcControllerAlive {
                             .ac_controller = &application->ac_controller,
                         };

@@ -37,13 +37,20 @@ public:
 
     /// Set the watch target. Baseline is captured by the next update().
     /// target_temp <= 0 disarms.
+    /// A new target during a running period keeps that period and its baseline. The next update()
+    /// disarms the watch if the new target no longer needs it. If each new target started a new
+    /// period, targets that change more often than the period would stop all checks.
     void arm(int16_t target_temp);
+
+    /// As arm(), but a running period stops: the next update() captures a new baseline.
+    /// For a reset of the protection after a time with no update() calls, for example a parked tool.
+    void restart(int16_t target_temp);
 
     /// Tick: captures baseline when pending, checks progress when the period elapses.
     /// @returns true when the watch fired; the caller is expected to raise its error
     [[nodiscard]] bool update(float current_temp);
 
-    /// @returns true when armed (pending or watching).
+    /// @returns true when armed (pending, watching or retargeted).
     bool is_running() const {
         return state_ != State::disarmed;
     }
@@ -53,7 +60,12 @@ private:
         disarmed,
         pending,
         watching,
+        /// watching, and the target changed since the last update()
+        retargeted,
     };
+
+    /// @returns true if the difference between the target and \p current_temp needs the watch
+    bool engaged(float current_temp) const;
 
     const Config config_;
     State state_ = State::disarmed;

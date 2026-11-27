@@ -1,6 +1,7 @@
 #include "gcode_parser.hpp"
 #include "gcode_parser_helper.hpp"
 
+#include <cmath>
 #include <cstring>
 #include <cstdarg>
 #include <cinttypes>
@@ -83,6 +84,11 @@ GCodeParser2::StoreOptionResult GCodeParser2::store_option_if_present(char key, 
     const auto err = from_chars_light(str->begin(), str->end(), val);
     if (err.ec != std::errc {}) {
         report_option_error(key, "Float parsing failed");
+        return std::unexpected(OptionError::parse_error);
+
+    } else if (std::isnan(val)) {
+        // strtof() accepts "nan". A NaN passes the range check below and each later comparison.
+        report_option_error(key, "Not a number");
         return std::unexpected(OptionError::parse_error);
 
     } else if (val < min_value || val > max_value) {

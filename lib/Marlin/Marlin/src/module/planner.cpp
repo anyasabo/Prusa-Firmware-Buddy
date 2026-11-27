@@ -1701,7 +1701,7 @@ bool Planner::_populate_block(block_t * const block,
        * Also always normalize when float position is not available and there is E component.
        */
       if (ENABLED(IS_CORE))
-        (void)normalize_junction_vector(unit_vec); // A block has a length, so the vector is not marginal
+        normalize_block_vector(unit_vec);
       else
         unit_vec *= inverse_millimeters;
 

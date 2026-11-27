@@ -47,7 +47,8 @@ void reset(const Settings &settings = {});
 
 /// G0/G1 to `target` (machine mm) at `fr_mm_s`, as prepare_move_to_destination() without
 /// segmentation: Planner::buffer_line() and current_position = target.
-bool move_to(const xyze_pos_t &target, float fr_mm_s, MoveHints hints = {});
+/// With raw_block, the planner keeps the block although it is short (as homing and probing).
+bool move_to(const xyze_pos_t &target, float fr_mm_s, MoveHints hints = {}, bool raw_block = false);
 
 /// G92 E<e>, G92 with all axes.
 void set_e_position(float e);

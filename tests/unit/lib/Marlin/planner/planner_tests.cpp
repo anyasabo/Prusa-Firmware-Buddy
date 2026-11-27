@@ -34,8 +34,8 @@ struct Runner {
             take(std::uniform_int_distribution<>(1, 3)(rng));
         }
     }
-    void move(const xyze_pos_t &target, float fr, MoveHints hints = {}) {
-        move_to(target, fr, hints);
+    void move(const xyze_pos_t &target, float fr, MoveHints hints = {}, bool raw_block = false) {
+        move_to(target, fr, hints, raw_block);
         expected.max_fr = std::max(expected.max_fr, fr);
         after_command();
     }
@@ -331,4 +331,17 @@ TEST_CASE("planner: a position set queues the dropped short move itself") {
         // CoreXY: X moves both motors
         CHECK(sum_msteps(A_AXIS) == int32_t(std::lround(10.03f * planner.settings.axis_msteps_per_mm[X_AXIS])));
     }
+}
+
+// A block with the raw_block hint can be shorter than MIN_STEPS_PER_SEGMENT (homing and probing
+// queue such blocks). Its float length can be below the marginal length of a junction vector, and
+// its direction must still be a unit vector: the junction to the next block uses it.
+TEST_CASE("planner: the junction after a very short raw block uses its direction") {
+    Runner r;
+    r.take_rate = 0;
+    r.move({ 50, 50, 0.2f, 0 }, 100);
+    r.move({ 50, 50.001f, 0.2f, 0 }, 100, {}, true); // 0.001 mm in Y: squared length 1e-6
+    r.move({ 50, 40, 0.2f, 0 }, 100); // a reversal: the junction must stop (a 90 degree corner hides the defect)
+    require_clean(r.finish());
+    REQUIRE(taken().size() == 3);
 }

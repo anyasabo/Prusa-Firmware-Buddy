@@ -918,7 +918,17 @@ class Planner : public PlannerSkew {
       /// direction (about 0.08 deg between the two vectors). The value of upstream Marlin (#28433).
       static constexpr float junction_vector_marginal_sq = 2.0e-6f;
 
-      /// Scale vector to the length 1.
+      /// Scale the direction of a block to the length 1. A block with the raw_block hint can be
+      /// shorter than the marginal length of a junction vector, and its direction is still valid.
+      FORCE_INLINE static void normalize_block_vector(MachinePosXYZE &vector) {
+        float magnitude_sq = 0;
+        LOOP_XYZE(idx) if (vector[idx]) magnitude_sq += sq(vector[idx]);
+        if (magnitude_sq > 0) {
+          vector *= RSQRT(magnitude_sq);
+        }
+      }
+
+      /// Scale the difference of two block directions to the length 1.
       /// @returns false, and does not change vector, if its squared length is junction_vector_marginal_sq or less
       FORCE_INLINE static bool normalize_junction_vector(MachinePosXYZE &vector) {
         float magnitude_sq = 0;

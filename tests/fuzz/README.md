@@ -12,6 +12,7 @@ with the unit-test tree, so they share its stubs and mocks.
 | `e2ee_identity` | `e2ee::read_and_verify_identity_block` | encrypted `.bgcode` |
 | `gcode_parser` | `GCodeParser2` (options, quoted strings, number conversion) | every executed G-code line |
 | `marlin_parser` | Marlin `GCodeParser` (`lib/Marlin/Marlin/src/gcode/parser.cpp`) and the value accessors of the handlers | every executed G-code line |
+| `lwip_tcp_input` | lwIP `ip4_input` and `tcp_input` with the Buddy TCP settings and `lib/WUI/ooseq_limit.cpp`. An lwIP assert or a leaked pcb, segment or pbuf is a crash | TCP packets from any LAN host (PrusaLink, port 80) |
 | `motion_klipper` | `PreciseStepping` with the input shaper and pressure advance step generators, compared with Klipper's step generation | G-code moves and M593/M572 parameters (an oracle test, not a parser) |
 
 `corpus/<name>/` holds seed inputs. ctest replays them in both build flavours, so they double as

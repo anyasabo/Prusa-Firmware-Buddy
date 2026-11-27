@@ -304,11 +304,10 @@ uint32_t wrong_rpm_with_irq_latency(uint32_t rpm, uint32_t expected, uint64_t fi
 
 TEST_CASE("xbe tach: an edge and an overflow in one IRQ", "[xbe][tach]") {
     // The tracker decides the order by the captured value (below 0x800: the
-    // overflow came first), and it corrects a negative period. For a period
-    // below one timer cycle, the result is correct for an IRQ latency below
-    // 2048 µs.
+    // overflow came first). That is correct for an IRQ latency below 2048 µs.
+    // Below 458 RPM, a period is longer than one timer cycle.
     const uint64_t latency = GENERATE(1u, 20u, 200u, 2000u);
-    const uint32_t rpm = GENERATE(1000u, 3000u, 6700u);
+    const uint32_t rpm = GENERATE(100u, 300u, 457u, 1000u, 3000u, 6700u);
     CAPTURE(latency, rpm);
     const uint64_t period = 30'000'000 / rpm;
     if (latency >= period) {

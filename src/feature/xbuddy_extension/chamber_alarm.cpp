@@ -1,5 +1,7 @@
 #include "chamber_alarm.hpp"
 
+#include "cooling.hpp"
+
 namespace buddy {
 
 ChamberAlarm::Actions ChamberAlarm::step(const Inputs &inputs) {
@@ -10,8 +12,9 @@ ChamberAlarm::Actions ChamberAlarm::step(const Inputs &inputs) {
         // the user can heat again outside a print. Then a second time at the critical temperature
         // must turn off the heaters again. The warning comes again only for a new time at the
         // critical temperature, so that it does not come back at each step after the user closes it.
-        const bool new_time_at_critical_temp = inputs.at_critical_temp && !was_at_critical_temp;
-        if (!critical_warning_shown || inputs.printing || inputs.at_critical_temp) {
+        const bool now_at_critical_temp = inputs.temperature >= FanCooling::critical_temp;
+        const bool new_time_at_critical_temp = now_at_critical_temp && !at_critical_temp;
+        if (!critical_warning_shown || inputs.printing || now_at_critical_temp) {
             actions.abort_print = true;
             actions.disable_heaters = true;
             actions.show_critical_warning = !critical_warning_shown || inputs.printing || new_time_at_critical_temp;
@@ -27,7 +30,11 @@ ChamberAlarm::Actions ChamberAlarm::step(const Inputs &inputs) {
         critical_warning_shown = false;
     }
 
-    was_at_critical_temp = inputs.at_critical_temp;
+    if (inputs.temperature >= FanCooling::critical_temp) {
+        at_critical_temp = true;
+    } else if (inputs.temperature < FanCooling::critical_temp - rewarn_hysteresis) {
+        at_critical_temp = false;
+    }
     return actions;
 }
 

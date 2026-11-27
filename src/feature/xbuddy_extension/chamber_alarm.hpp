@@ -1,5 +1,7 @@
 #pragma once
 
+#include <temperature.hpp>
+
 namespace buddy {
 
 /// Decides how the printer responds to a chamber that is too hot.
@@ -14,9 +16,9 @@ public:
         /// FanCooling::get_overheating_temp_flag()
         bool overheating_flag;
 
-        /// The chamber temperature is FanCooling::critical_temp or more. The critical flag
+        /// The chamber temperature that FanCooling::compute_pwm_step() got. The critical flag
         /// stays set down to FanCooling::recovery_temp.
-        bool at_critical_temp;
+        Temperature temperature;
 
         /// marlin_server::is_printing()
         bool printing;
@@ -37,7 +39,11 @@ public:
 private:
     bool overheating_warning_shown = false;
     bool critical_warning_shown = false;
-    bool was_at_critical_temp = false;
+    /// Set at FanCooling::critical_temp, cleared under critical_temp - rewarn_hysteresis.
+    bool at_critical_temp = false;
+
+    /// A reading with noise at the critical temperature must not show the warning again at each step.
+    static constexpr Temperature rewarn_hysteresis = 1.0f;
 };
 
 } // namespace buddy

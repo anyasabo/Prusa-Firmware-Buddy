@@ -1,4 +1,5 @@
 #include <feature/xbuddy_extension/chamber_alarm.hpp>
+#include <feature/xbuddy_extension/cooling.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -8,11 +9,16 @@ namespace {
 
 using Inputs = ChamberAlarm::Inputs;
 
-constexpr Inputs normal { .critical_flag = false, .overheating_flag = false, .at_critical_temp = false, .printing = true, .overheating_warning_active = false };
-constexpr Inputs overheating { .critical_flag = false, .overheating_flag = true, .at_critical_temp = false, .printing = true, .overheating_warning_active = false };
-constexpr Inputs critical { .critical_flag = true, .overheating_flag = true, .at_critical_temp = true, .printing = true, .overheating_warning_active = false };
+constexpr Inputs normal { .critical_flag = false, .overheating_flag = false, .temperature = 30, .printing = true, .overheating_warning_active = false };
+constexpr Inputs overheating { .critical_flag = false, .overheating_flag = true, .temperature = FanCooling::overheating_temp, .printing = true, .overheating_warning_active = false };
+constexpr Inputs critical { .critical_flag = true, .overheating_flag = true, .temperature = FanCooling::critical_temp, .printing = true, .overheating_warning_active = false };
 /// After the critical temperature, the chamber cooled, but not under the recovery temperature.
-constexpr Inputs after_critical { .critical_flag = true, .overheating_flag = true, .at_critical_temp = false, .printing = true, .overheating_warning_active = false };
+constexpr Inputs after_critical { .critical_flag = true, .overheating_flag = true, .temperature = FanCooling::recovery_temp + 1, .printing = true, .overheating_warning_active = false };
+
+Inputs at(Inputs inputs, Temperature temperature) {
+    inputs.temperature = temperature;
+    return inputs;
+}
 
 Inputs not_printing(Inputs inputs) {
     inputs.printing = false;
@@ -119,4 +125,27 @@ TEST_CASE("chamber alarm: one critical warning for each time at the critical tem
     }
     CHECK(no_actions(alarm.step(not_printing(after_critical))));
     CHECK(alarm.step(not_printing(critical)).show_critical_warning);
+}
+
+TEST_CASE("chamber alarm: a reading with noise at the critical temperature shows one warning", "[chamber]") {
+    ChamberAlarm alarm;
+    REQUIRE(alarm.step(not_printing(critical)).show_critical_warning);
+    for (int i = 0; i < 20; ++i) {
+        const Temperature t = FanCooling::critical_temp + (i % 2 ? 0.1f : -0.1f);
+        CAPTURE(i, t);
+        const auto a = alarm.step(not_printing(at(critical, t)));
+        CHECK_FALSE(a.show_critical_warning);
+        CHECK(a.disable_heaters == (t >= FanCooling::critical_temp));
+    }
+}
+
+TEST_CASE("chamber alarm: an aborted print at the critical temperature", "[chamber]") {
+    ChamberAlarm alarm;
+    REQUIRE(alarm.step(critical).show_critical_warning);
+    // print_abort() makes is_printing() false. The chamber is still at the critical temperature.
+    for (int i = 0; i < 5; ++i) {
+        const auto a = alarm.step(not_printing(critical));
+        CHECK(a.disable_heaters);
+        CHECK_FALSE(a.show_critical_warning);
+    }
 }

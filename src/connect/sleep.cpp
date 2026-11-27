@@ -348,7 +348,14 @@ void Sleep::perform(Printer &printer, Planner &planner) {
 
         if (do_sleep) {
             Duration left = min(milliseconds, IDLE_WAIT - took);
-            sleep_raw(left);
+            if (wake_on_readable != nullptr) {
+                // Data from the server ends the sleep at once (the next step of the connection
+                // task sees it). A plain sleep made each message of a file transfer wait up to
+                // 100 ms when it arrived just after the check.
+                wake_on_readable->poll_readable(left);
+            } else {
+                sleep_raw(left);
+            }
 
             Timestamp after_sleep = now();
             took = after_sleep - after;

@@ -261,3 +261,62 @@ TEST_CASE("xbe w_led: the prescaler fits the 16-bit PSC register", "[xbe][pwm]")
     CHECK(hal::math::w_led_prescaler_register(1) == 0xFFFF);
     CHECK(hal::math::w_led_prescaler_register(3) == 0xFFFF);
 }
+
+namespace {
+
+/// Like TachModel, but the IRQ handler runs \p latency ticks after the first
+/// pending event. Thus an edge and an overflow near each other come in one
+/// IRQ, in either order. The tracker then must guess the order from the
+/// captured value.
+/// \returns the number of edges after which the RPM was not \p expected
+uint32_t wrong_rpm_with_irq_latency(uint32_t rpm, uint32_t expected, uint64_t first_edge, uint64_t latency, uint32_t edges) {
+    uint32_t wrong = 0;
+    TimerEventPeriodTracker tracker;
+    const uint64_t period = 30'000'000 / rpm;
+    uint64_t next_edge = first_edge;
+    uint64_t next_overflow = 0x1'0000;
+    uint32_t edges_done = 0;
+    while (edges_done < edges) {
+        const uint64_t irq_at = std::min(next_edge, next_overflow) + latency;
+        bool capture = false;
+        bool overflow = false;
+        uint16_t ccr = 0;
+        if (next_edge <= irq_at) {
+            capture = true;
+            ccr = static_cast<uint16_t>(next_edge & 0xFFFF);
+            next_edge += period;
+            ++edges_done;
+            REQUIRE(next_edge > irq_at); // One capture for each IRQ, no overcapture
+        }
+        if (next_overflow <= irq_at) {
+            overflow = true;
+            next_overflow += 0x1'0000;
+        }
+        tracker.handle_multi_event(ccr, capture, overflow);
+        if (capture && edges_done >= 2 && hal::math::tach_period_to_rpm(tracker.period_unsafe()) != expected) {
+            ++wrong;
+        }
+    }
+    return wrong;
+}
+
+} // namespace
+
+TEST_CASE("xbe tach: an edge and an overflow in one IRQ", "[xbe][tach]") {
+    // The tracker decides the order by the captured value (below 0x800: the
+    // overflow came first). That is correct for an IRQ latency below 2048 µs.
+    // Below 458 RPM, a period is longer than one timer cycle.
+    const uint64_t latency = GENERATE(1u, 20u, 200u, 2000u);
+    const uint32_t rpm = GENERATE(100u, 300u, 457u, 1000u, 3000u, 6700u);
+    CAPTURE(latency, rpm);
+    const uint64_t period = 30'000'000 / rpm;
+    if (latency >= period) {
+        SKIP("The IRQ must come before the next edge");
+    }
+    const uint32_t expected = 30'000'000 / period;
+    // Put the edges just before and just after many overflows
+    for (uint64_t first_edge = 0x1'0000 - 2 * latency - 3; first_edge < 0x1'0000 + 2 * latency + 3; first_edge += std::max<uint64_t>(1, latency / 8)) {
+        CAPTURE(first_edge);
+        REQUIRE(wrong_rpm_with_irq_latency(rpm, expected, first_edge, latency, 200) == 0);
+    }
+}

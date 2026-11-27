@@ -158,7 +158,8 @@ static void tim1_init() {
     // input mode, without remapping
     constexpr const uint32_t capture_compare_selection = 0b01;
 
-    // 0110:fSAMPLING = fDTS/4, N = 6; was getting false edges on fans with longer wire - BFW-7090
+    // 0111: fSAMPLING = fDTS/4, N = 8 (pulses shorter than approximately 0.53 µs are filtered);
+    // was getting false edges on fans with longer wire - BFW-7090
     constexpr const uint32_t input_capture_filter = 0b0111;
 
     // no prescaler, capture is done each time an edge is detected on the capture input
@@ -188,10 +189,9 @@ static void tim1_init() {
     // enable interrupts on channels
     TIM1->DIER = TIM_DIER_UIE | TIM_DIER_CC1IE | TIM_DIER_CC2IE | TIM_DIER_CC3IE;
 
-    // 1 MHz clock (30 MHz peripheral clock, *2 to timer, /60 prescaler)
     // This gives us 16-bit counter overflow every 65ms.
     // Period is about 2ms at max RPM and 32ms at min RPM so we should be good.
-    TIM1->PSC = 60 - 1;
+    TIM1->PSC = hal::math::tach_timer_prescaler - 1;
 
     // enable counter
     TIM1->CR1 = TIM_CR1_CEN | TIM_CR1_URS;

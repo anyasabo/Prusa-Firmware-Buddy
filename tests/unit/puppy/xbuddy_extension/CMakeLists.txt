@@ -37,3 +37,22 @@ target_include_directories(
   cyphal_nfc_node_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension
   )
 add_catch_test(cyphal_nfc_node_tests)
+
+# mmu_include has option/has_mmu2.h. The test does not use the include directory of the other
+# targets, because its freertos/timing.hpp has an inline millis() and the test defines its own.
+add_executable(
+  xbuddy_extension_mmu_bridge_tests
+  ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension/mmu.cpp
+  ${CMAKE_SOURCE_DIR}/lib/Prusa-Firmware-MMU/src/modules/protocol.cpp
+  ${CMAKE_SOURCE_DIR}/lib/Prusa-Firmware-MMU/src/modules/crc.cpp mmu_bridge_tests.cpp
+  )
+target_include_directories(
+  xbuddy_extension_mmu_bridge_tests
+  PRIVATE mmu_include
+          ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension
+          ${CMAKE_SOURCE_DIR}/src/freertos/include
+          ${CMAKE_SOURCE_DIR}/src/module/utils/byte_utils/include
+          ${CMAKE_SOURCE_DIR}/lib/Prusa-Firmware-MMU/src
+  )
+target_link_libraries(xbuddy_extension_mmu_bridge_tests modbus xbuddy_extension)
+add_catch_test(xbuddy_extension_mmu_bridge_tests)

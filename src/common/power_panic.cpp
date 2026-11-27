@@ -309,10 +309,14 @@ void resume_print() {
         mode_specific(state_buf.progress.stealth_mode, oProgressData.stealth_mode);
     }
 
+    const float extruded_all = Odometer_s::instance().get_extruded_all();
 #if HAS_MODULAR_BED()
-    thermalManager.setEnabledBedletMask(state_buf.planner.enabled_bedlets_mask);
+    // Only if something was extruded: then degBed() below reads the bedlets of the print.
+    if (state_buf.print.odometer_e_start < extruded_all) {
+        thermalManager.setEnabledBedletMask(state_buf.planner.enabled_bedlets_mask);
+    }
 #endif
-    const bool auto_recover = plan::can_auto_recover(state_buf.print.odometer_e_start, Odometer_s::instance().get_extruded_all(),
+    const bool auto_recover = plan::can_auto_recover(state_buf.print.odometer_e_start, extruded_all,
         state_buf.planner.target_bed, thermalManager.degBed(), POWER_PANIC_MAX_BED_DIFF);
 
     if (resume_state == ResumeState::Setup && auto_recover) {

@@ -55,7 +55,7 @@
  *    M302 S170 P1 ; set min extrude temp to 170 but leave disabled
  */
 void GcodeSuite::M302() {
-  const bool seen_S = parser.seen('S');
+  const bool seen_S = parser.seenval('S');
   if (seen_S) {
     thermalManager.extrude_min_temp = static_cast<int16_t>(parser.value_celsius());
     thermalManager.allow_cold_extrude = (thermalManager.extrude_min_temp == 0);

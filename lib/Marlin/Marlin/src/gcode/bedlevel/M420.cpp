@@ -185,7 +185,7 @@ void GcodeSuite::M420() {
   #endif // HAS_MESH
 
   #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
-    if (parser.seenval('Z')) set_z_fade_height(parser.value_linear_units(), false);
+    if (parser.seen('Z')) set_z_fade_height(parser.value_linear_units(), false);
   #endif
 
   // Enable leveling if specified, or if previously active

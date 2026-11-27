@@ -61,8 +61,8 @@ void GcodeSuite::M421() {
              hasJ = ij.y >= 0,
              hasC = parser.seen('C'),
              hasN = parser.seen('N'),
-             hasZ = parser.seen('Z'),
-             hasQ = !hasZ && parser.seen('Q');
+             hasZ = parser.seenval('Z'),
+             hasQ = !hasZ && parser.seenval('Q');
 
   if (hasC) ij = ubl.find_closest_mesh_point_of_type(REAL, current_position.xy());
 

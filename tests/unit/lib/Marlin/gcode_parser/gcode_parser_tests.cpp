@@ -148,8 +148,8 @@ TEST_CASE("An empty line is not a command") {
 }
 
 TEST_CASE("A letter with no value is seen, but has no value and reads as 0") {
-    // "M593 X F" set the input shaper frequency to 0, and "M603 U" the unload length. The
-    // handlers use seenval(). utils/check_gcode_seen_value.py finds a seen() + value_*() read.
+    // A handler that reads a value after seen() gets 0 for "M593 X F". The handlers use seenval(),
+    // and utils/check_gcode_seen_value.py finds a value read after seen() with no value check.
     Line line("M593 X F");
     CHECK(parser.seen('F'));
     CHECK_FALSE(parser.has_value());

@@ -455,7 +455,7 @@
       }
     }
 
-    if (parser.seen('P')) {
+    if (parser.seenval('P')) {
       if (WITHIN(g29_phase_value, 0, 1) && storage_slot == -1) {
         storage_slot = 0;
         SERIAL_ECHOLNPGM("Default storage slot 0 selected.");

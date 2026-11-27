@@ -69,9 +69,9 @@ void GcodeSuite::M350() {
     phase_stepping::EnsureDisabled phstep_guard;
   #endif
 
-  if (parser.seen('S')) for (uint8_t i = 0; i <= 4; i++) stepper.microstep_mode(i, parser.value_byte());
-  LOOP_XYZE(i) if (parser.seen(axis_codes[i])) stepper.microstep_mode(i, parser.value_byte());
-  if (parser.seen('B')) stepper.microstep_mode(4, parser.value_byte());
+  if (parser.seenval('S')) for (uint8_t i = 0; i <= 4; i++) stepper.microstep_mode(i, parser.value_byte());
+  LOOP_XYZE(i) if (parser.seenval(axis_codes[i])) stepper.microstep_mode(i, parser.value_byte());
+  if (parser.seenval('B')) stepper.microstep_mode(4, parser.value_byte());
   stepper.microstep_readings();
 
 

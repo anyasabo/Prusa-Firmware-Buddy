@@ -104,7 +104,7 @@ void GcodeSuite::M201() {
   // INDX has passive tools (single E stepper), so apply even with no tool selected.
   static_assert(E_STEPPERS == 1, "INDX assumes a single E stepper");
   LOOP_XYZE(i) {
-    if (parser.seen(axis_codes[i])) {
+    if (parser.seenval(axis_codes[i])) {
       planner.set_max_acceleration(i, parser.value_axis_units((AxisEnum)i));
     }
   }
@@ -113,7 +113,7 @@ void GcodeSuite::M201() {
   if (!tool.has_value()) return;
 
   LOOP_XYZE(i) {
-    if (parser.seen(axis_codes[i])) {
+    if (parser.seenval(axis_codes[i])) {
       const uint8_t a = (i == E_AXIS ? uint8_t(E_AXIS_N(tool->to_raw())) : i);
       planner.set_max_acceleration(a, parser.value_axis_units((AxisEnum)a));
     }
@@ -156,7 +156,7 @@ void GcodeSuite::M203() {
   // INDX has passive tools (single E stepper), so apply even with no tool selected.
   static_assert(E_STEPPERS == 1, "INDX assumes a single E stepper");
   LOOP_XYZE(i)
-    if (parser.seen(axis_codes[i])) {
+    if (parser.seenval(axis_codes[i])) {
       planner.set_max_feedrate(i, parser.value_axis_units((AxisEnum)i));
     }
 #else
@@ -164,7 +164,7 @@ void GcodeSuite::M203() {
   if (!tool.has_value()) return;
 
   LOOP_XYZE(i)
-    if (parser.seen(axis_codes[i])) {
+    if (parser.seenval(axis_codes[i])) {
       const uint8_t a = (i == E_AXIS ? uint8_t(E_AXIS_N(tool->to_raw())) : i);
       planner.set_max_feedrate(a, parser.value_axis_units((AxisEnum)a));
     }
@@ -250,9 +250,9 @@ void GcodeSuite::M205() {
   {
     auto s = planner.user_settings;
 
-    if (parser.seen('B')) s.min_segment_time_us = parser.value_ulong();
-    if (parser.seen('S')) s.min_feedrate_mm_s = parser.value_linear_units();
-    if (parser.seen('T')) s.min_travel_feedrate_mm_s = parser.value_linear_units();
+    if (parser.seenval('B')) s.min_segment_time_us = parser.value_ulong();
+    if (parser.seenval('S')) s.min_feedrate_mm_s = parser.value_linear_units();
+    if (parser.seenval('T')) s.min_travel_feedrate_mm_s = parser.value_linear_units();
 
     planner.apply_settings(s);
   }
@@ -267,9 +267,9 @@ void GcodeSuite::M205() {
     }
   #endif
   #if HAS_CLASSIC_JERK
-    if (parser.seen('X')) planner.set_max_jerk(X_AXIS, parser.value_linear_units());
-    if (parser.seen('Y')) planner.set_max_jerk(Y_AXIS, parser.value_linear_units());
-    if (parser.seen('Z')) {
+    if (parser.seenval('X')) planner.set_max_jerk(X_AXIS, parser.value_linear_units());
+    if (parser.seenval('Y')) planner.set_max_jerk(Y_AXIS, parser.value_linear_units());
+    if (parser.seenval('Z')) {
       planner.set_max_jerk(Z_AXIS, parser.value_linear_units());
       #if HAS_MESH && DISABLED(LIMITED_JERK_EDITING)
         if (planner.settings.max_jerk.z <= 0.1f)
@@ -277,7 +277,7 @@ void GcodeSuite::M205() {
       #endif
     }
     #if HAS_CLASSIC_E_JERK
-      if (parser.seen('E')) planner.set_max_jerk(E_AXIS, parser.value_linear_units());
+      if (parser.seenval('E')) planner.set_max_jerk(E_AXIS, parser.value_linear_units());
     #endif
   #endif
 }

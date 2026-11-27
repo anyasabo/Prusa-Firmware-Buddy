@@ -58,10 +58,10 @@ void reset(const Settings &s) {
     planner.refresh_positioning();
 }
 
-bool move_to(const xyze_pos_t &target, float fr_mm_s, MoveHints hints) {
+bool move_to(const xyze_pos_t &target, float fr_mm_s, MoveHints hints, bool raw_block) {
     const uint8_t head = planner.block_buffer_head;
     const MachinePosXYZE start = planner.position_float;
-    const bool queued = planner.buffer_line(to_machine_pos(target), fr_mm_s, PhysicalToolIndex {}, PlannerHints { .move = hints });
+    const bool queued = planner.buffer_line(to_machine_pos(target), fr_mm_s, PhysicalToolIndex {}, PlannerHints { .raw_block = raw_block, .move = hints });
     current_position = target;
     if (planner.block_buffer_head != head) {
         float_moves[head] = { start, planner.position_float };

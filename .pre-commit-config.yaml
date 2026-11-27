@@ -77,6 +77,22 @@ repos:
       always_run: true
       language: python
       language_version: python3
+    - id: check-gcode-string-arg
+      name: check-gcode-string-arg
+      description: This hook fails if a G-code handler reads parser.string_arg with no null check.
+      entry: python utils/check_gcode_string_arg.py
+      files: \.(c|cpp|h|hpp)$
+      pass_filenames: false
+      language: python
+      language_version: python3
+    - id: check-gcode-string-arg-test
+      name: check-gcode-string-arg-test
+      description: Tests of utils/check_gcode_string_arg.py.
+      entry: python -m unittest utils/check_gcode_string_arg_test.py
+      files: ^utils/check_gcode_string_arg(_test)?\.py$
+      pass_filenames: false
+      language: python
+      language_version: python3
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.

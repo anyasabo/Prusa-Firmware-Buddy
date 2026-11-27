@@ -60,6 +60,7 @@
 
 #if HAS_PRECISE_HOMING_COREXY()
   #include "../../module/prusa/homing_corexy.hpp"
+  #include "corexy_refine_policy.hpp"
   #include <mapi/parking.hpp>
 #endif
 
@@ -104,6 +105,8 @@
 #endif
 
 #include <raii/scope_guard.hpp>
+#include "g28_plan.hpp"
+#include <optional>
 #include <marlin_server.hpp>
 #include <feature/print_status_message/print_status_message_guard.hpp>
 #include <config_store/store_instance.hpp>
@@ -399,90 +402,36 @@ void GcodeSuite::G28() {
 /** @}*/
 
 bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
-  struct AxisHomingRequirement {
-    // !!! Keep before initial_level, someone might be not using a designated initializer and expect .expand({AxisHomeLevel::something}) to work.
-    AxisHomeLevel required_level = AxisHomeLevel::not_homed;
-
-    /// Whether the homing is optional or enforced
-    bool force = false;
-
-    /// Initial home level of the axis at homing start
-    AxisHomeLevel initial_level = AxisHomeLevel::not_homed;
-
-    void expand(const AxisHomingRequirement &other, bool condition = true) {
-      if(condition) {
-        required_level = std::max(required_level, other.required_level);
-        force |= other.force;
-      }
-    }
-  };
-  std::array<AxisHomingRequirement, 3> requirements;
-
-  /// \returns whether there should be any homing done for the specified axis during the G28
-  const auto should_home_at_all = [&](AxisEnum axis) {
-    const auto &r = requirements[axis];
-    return r.force || (r.initial_level < r.required_level);
-  };
-
-  /// \returns whether the axis should be homed to (or above) the specified level during the G28
-  /// In some cases, the G28 might only require precise refinement and not base homing,
-  // at which point should_home_to_level(imprecise) would be false and should_home_to_level(full) would be true
-  const auto should_home_to_level = [&](AxisEnum axis, AxisHomeLevel to_level = AxisHomeLevel::full) {
-    const auto &r = requirements[axis];
-    return (to_level <= r.required_level) && (r.force || r.initial_level < to_level);
-  };
-
-  // Setup basic requirements
-  {
-    const AxisHomingRequirement req {
-      .required_level = (flags.precise ? AxisHomeLevel::full : AxisHomeLevel::imprecise),
-      .force = !flags.only_if_needed,
-    };
-
-    for(uint8_t i = 0; i < axes_home_level.size(); i++) {
-      requirements[i].initial_level = axes_home_level[i];
-    }
-
-    requirements[X_AXIS].expand(req, X);
-    requirements[Y_AXIS].expand(req, Y);
-    requirements[Z_AXIS].expand(req, Z);
-  }
-
-  // On Z_SAFE_HOMING, if we need to home Z, we need to have X and Y homed as well
-  if(ENABLED(Z_SAFE_HOMING) && should_home_at_all(Z_AXIS)) {
-    static constexpr AxisHomingRequirement req {
-      .required_level = AxisHomeLevel::imprecise,
-    };
-    requirements[X_AXIS].expand(req);
-    requirements[Y_AXIS].expand(req);
-  }
-
 #if HAS_TOOLCHANGER()
-  // For Z homing, we need a tool pick. That means that we need precise homing for the toolchange.
-  // !! This one is a MUST - without this, the toolchange would trigger a nested G28 internally, which would break things
-  if(should_home_at_all(Z_AXIS) && std::holds_alternative<NoTool>(PhysicalToolIndex::currently_selected())) {
-    static constexpr AxisHomingRequirement req {
-      .required_level = AxisHomeLevel::full,
-    };
-    requirements[X_AXIS].expand(req);
-    requirements[Y_AXIS].expand(req);
-  }
+  const bool no_tool = std::holds_alternative<NoTool>(PhysicalToolIndex::currently_selected());
+#else
+  const bool no_tool = false;
 #endif
 
-  // On CODEPENDENT_XY_HOMING, we need to home both axes
-  if constexpr(ENABLED(CODEPENDENT_XY_HOMING)) {
-    requirements[X_AXIS].expand(requirements[Y_AXIS]);
-    requirements[Y_AXIS] = requirements[X_AXIS];
-  }
+  static_assert(X_AXIS == g28::axis_x && Y_AXIS == g28::axis_y && Z_AXIS == g28::axis_z);
+  const g28::Plan plan(
+    {
+      .z_safe_homing = ENABLED(Z_SAFE_HOMING),
+      .codependent_xy_homing = ENABLED(CODEPENDENT_XY_HOMING),
+      .precise_homing_corexy = HAS_PRECISE_HOMING_COREXY(),
+    },
+    {
+      .requested = { X, Y, Z },
+      .precise = flags.precise,
+      .only_if_needed = flags.only_if_needed,
+      .initial_levels = axes_home_level,
+      .z_needs_tool_pick = no_tool,
+    });
 
-  // Precise COREXY homing is XY codependent, even if the imprecise homing isn't
-  if(HAS_PRECISE_HOMING_COREXY() && (should_home_to_level(X_AXIS, AxisHomeLevel::full) || should_home_to_level(Y_AXIS, AxisHomeLevel::full))) {
-    requirements[X_AXIS].expand(requirements[Y_AXIS]);
-    requirements[Y_AXIS] = requirements[X_AXIS];
-  }
+  const auto should_home_at_all = [&](AxisEnum axis) {
+    return plan.home_at_all(axis);
+  };
+  const auto should_home_to_level = [&](AxisEnum axis, AxisHomeLevel to_level = AxisHomeLevel::full) {
+    return plan.home_to_level(axis, to_level);
+  };
 
   // Home (O)nly if position is unknown with respect to the required axes
-  if (!should_home_at_all(X_AXIS) && !should_home_at_all(Y_AXIS) && !should_home_at_all(Z_AXIS)) {
+  if (plan.nothing_to_do()) {
     return true;
   }
 
@@ -523,7 +472,7 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
   planner.synchronize();          // Wait for planner moves to finish!
 
   // If we are homing Z, assume that max_printed_z is zero (the Z homing couldn't be safe otherwise)
-  if(Z && Z_HOME_DIR < 0) {
+  if(plan.resets_max_printed_z() && Z_HOME_DIR < 0) {
     planner.max_printed_z = 0;
   }
 
@@ -690,7 +639,7 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
 
   #if HAS_LOADCELL_HX717()
     // Measure whether the load cell feels the XY homing, before Z homing trusts it
-    if (!failed && should_home_at_all(Z_AXIS) && (should_home_to_level(X_AXIS, AxisHomeLevel::imprecise) || should_home_to_level(Y_AXIS, AxisHomeLevel::imprecise))) {
+    if (!failed && plan.measures_loadcell_liveness()) {
       loadcell.start_liveness_window();
     }
   #endif
@@ -764,7 +713,7 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
 
   #if HAS_PRECISE_HOMING_COREXY()
     // absolute refinement requires both axes to be already probed
-    if (!failed && (should_home_to_level(X_AXIS, AxisHomeLevel::full) || should_home_to_level(Y_AXIS, AxisHomeLevel::full))) {
+    if (!failed && plan.refines_xy()) {
       #if !HAS_TOOLCHANGER()
         // skip refinement without data if we're not allowed to calibrate
         const bool do_refine = (corexy_home_is_calibrated() || flags.can_calibrate || flags.force_calibrate);
@@ -968,205 +917,155 @@ bool GcodeSuite::G28_no_parser(bool X, bool Y, bool Z, const G28Flags& flags) {
 }
 
 #if HAS_PRECISE_HOMING_COREXY()
-enum class RefineResult {
-  success,
-  hard_fail, ///< Failed hard, cannot recover
-  refine_fail, ///< Failed to refine, but could potentially continue unrefined
-  calibrate_from_menu, ///< Needs calibration but cannot do it en-situ. The user needs to abort/ignroe and do it from the calibrations menu.
-};
-
-RefineResult corexy_calibrate_homing_during_G28(float xy_mm_s, const G28Flags &flags) {
-  // We cannot calibrate -> this are bad, abort
-  if (!flags.can_calibrate) {
-    return RefineResult::calibrate_from_menu;
-  }
-
-#if HAS_SWITCHABLE_HOMING_CALIBRATION()
-  Tristate calibration_approved = flags.force_calibrate ? Tristate::yes : config_store().auto_recalibrate_precise_homing.get();
-
-  // Prompt the user that we would like to do the calibration (if the calibration was not triggered from gcode)
-  if(calibration_approved == Tristate::other) {
-    switch(marlin_server::prompt_warning(WarningType::HomingCalibrationNeeded, 60'000)) {
-
-    case Response::Calibrate:
-    case Response::_none: // In case of timeout
-    default: // To stop the compiler from complaining
-      calibration_approved = Tristate::yes;
-      break;
-
-    case Response::Skip:
-      calibration_approved = Tristate::no;
-      break;
-
-    case Response::Always:
-      calibration_approved = Tristate::yes;
-      config_store().auto_recalibrate_precise_homing.set(Tristate::yes);
-      break;
-
-    case Response::Never:
-      calibration_approved = Tristate::no;
-      config_store().auto_recalibrate_precise_homing.set(Tristate::no);
-      break;
-
-    }
-  }
-#else
-  // The calibration is not user-configurable, run it whenever needed
-  const Tristate calibration_approved = Tristate::yes;
-#endif
-
-  // Regardless of whether the calibration will run or not, reset homing instability history
-  // In both cases, we want a clean slate so that the user is not bothered with "please recalibrate" right away
-  config_store().precise_homing_instability_history.set(0);
-
-  if(calibration_approved == false) {
-    // User decided to not do the calibration at his own risk -> consider the point refined
-    return RefineResult::success;
-  }
-
-  PrintStatusMessageGuard status_guard;
-  status_guard.update<PrintStatusMessage::recalibrating_home>({});
+namespace {
 
 #if HAS_TRINAMIC && defined(XY_HOMING_MEASURE_SENS_MIN)
-  // Try calibrating motor sensitivity before calibration
-  if (!corexy_sens_calibrate(xy_mm_s)) {
-    return RefineResult::hard_fail;
-  }
-
-  // After calibrating sensitivity, we need to rehome
-  if (!corexy_rehome_xy(xy_mm_s)) {
-    return RefineResult::hard_fail;
-  }
+constexpr bool calibrates_sensitivity = true;
+#else
+constexpr bool calibrates_sensitivity = false;
 #endif
 
-  for (uint8_t retry = 0; retry < PRECISE_HOMING_COREXY_RETRIES; retry++) {
-    if (planner.draining()) {
-      return RefineResult::hard_fail;
-    }
+class G28RefineHooks final : public corexy_refine::RefineHooks {
+public:
+  explicit G28RefineHooks(float fr_mm_s)
+    // Do not handle feedrate defaults again within precise homing: do it here
+    : fr_mm_s(fr_mm_s ?: homing_feedrate(A_AXIS)) {}
 
-    if (corexy_home_refine(xy_mm_s, CoreXYCalibrationMode::force)) {
-      return RefineResult::success;
-    }
+  bool draining() override {
+    return planner.draining();
+  }
 
-    // Always re-home to ensure we are in the right position
-    if (!corexy_rehome_xy(xy_mm_s)) {
-      return RefineResult::hard_fail;
+  void move_to_start() override {
+    // Move to the home position via a parking move. Refinement can now be done separately to the imprecise homing and the head can be anywhere,
+    // so we need the collision avoidance of a parking move (e.g. to navigate around the nozzle cleaner / wastebin on INDX/iX).
+    // The position taken from corexy_rehome_and_phase
+    mapi::park({
+      .x = base_home_pos(X_AXIS) - XY_HOMING_ORIGIN_OFFSET * X_HOME_DIR,
+      .y = base_home_pos(Y_AXIS) - XY_HOMING_ORIGIN_OFFSET * Y_HOME_DIR,
+    });
+  }
+
+  bool is_calibrated() override {
+    return corexy_home_is_calibrated();
+  }
+
+  bool refine(bool calibrate) override {
+    return corexy_home_refine(fr_mm_s, calibrate ? CoreXYCalibrationMode::force : CoreXYCalibrationMode::disallow);
+  }
+
+  bool is_unstable() override {
+    return corexy_home_is_unstable();
+  }
+
+  bool rehome() override {
+    return corexy_rehome_xy(fr_mm_s);
+  }
+
+  bool calibrate_sensitivity() override {
+#if HAS_TRINAMIC && defined(XY_HOMING_MEASURE_SENS_MIN)
+    return corexy_sens_calibrate(fr_mm_s);
+#else
+    bsod_unreachable();
+#endif
+  }
+
+  void clear_calibration() override {
+    corexy_clear_homing_calibration();
+  }
+
+  uint16_t push_instability(bool unstable) override {
+    config_store().precise_homing_instability_history.transform([unstable](uint16_t history) {
+      return corexy_refine::push_instability_bit(history, unstable);
+    });
+    return config_store().precise_homing_instability_history.get();
+  }
+
+  void reset_instability_history() override {
+    config_store().precise_homing_instability_history.set(0);
+  }
+
+  Tristate auto_recalibrate() override {
+#if HAS_SWITCHABLE_HOMING_CALIBRATION()
+    return config_store().auto_recalibrate_precise_homing.get();
+#else
+    bsod_unreachable();
+#endif
+  }
+
+  void set_auto_recalibrate([[maybe_unused]] Tristate value) override {
+#if HAS_SWITCHABLE_HOMING_CALIBRATION()
+    config_store().auto_recalibrate_precise_homing.set(value);
+#else
+    bsod_unreachable();
+#endif
+  }
+
+  corexy_refine::CalibrationAnswer ask_calibration() override {
+    using Answer = corexy_refine::CalibrationAnswer;
+    switch(marlin_server::prompt_warning(WarningType::HomingCalibrationNeeded, 60'000)) {
+    case Response::Calibrate:
+      return Answer::calibrate;
+    case Response::Skip:
+      return Answer::skip;
+    case Response::Always:
+      return Answer::always;
+    case Response::Never:
+      return Answer::never;
+    case Response::_none:
+    default:
+      return Answer::timeout;
     }
   }
 
-  // If recalibration was attempted and failed, clear the old (now known-invalid) calibration data.
-  // This mostly just removes the green tickmark in calibration menu - even
-  // if we kept the data, it would try to recalibrate next time anyway.
-  corexy_clear_homing_calibration();
-
-  return RefineResult::refine_fail;
-}
-
-RefineResult corexy_refine_during_G28_once(float fr_mm_s, const G28Flags &flags) {
-  // Move to the home position via a parking move. Refinement can now be done separately to the imprecise homing and the head can be anywhere,
-  // so we need the collision avoidance of a parking move (e.g. to navigate around the nozzle cleaner / wastebin on INDX/iX).
-  // The position taken from corexy_rehome_and_phase
-  mapi::park({
-    .x = base_home_pos(X_AXIS) - XY_HOMING_ORIGIN_OFFSET * X_HOME_DIR,
-    .y = base_home_pos(Y_AXIS) - XY_HOMING_ORIGIN_OFFSET * Y_HOME_DIR,
-  });
-
-  // Do not handle feedrate defaults again within precise homing: do it here
-  fr_mm_s = fr_mm_s ?: homing_feedrate(A_AXIS);
-
-  if (flags.force_calibrate || !corexy_home_is_calibrated()) {
-    // Calibration is required, do not even attempt to naively refine
-    return corexy_calibrate_homing_during_G28(fr_mm_s, flags);
-  }
-
-  // Retry the refinement a few times
-  for (uint8_t retry = 0; retry < PRECISE_HOMING_COREXY_RETRIES; retry++) {
-    if (planner.draining()) {
-      return RefineResult::hard_fail;
-    }
-
-    if (corexy_home_refine(fr_mm_s, CoreXYCalibrationMode::disallow)) {
-      // Successfully refined the home
-
-      // Record whether the refinement found a stable home
-      config_store().precise_homing_instability_history.transform([is_unstable = corexy_home_is_unstable()] (auto val) {
-        return (val << 1) | is_unstable;
-      });
-
-      // If at least history_threshold out of last history_window refinements were unstable, trigger calibration
-      static constexpr auto history_threshold = 6;
-      static constexpr auto history_window = 10;
-
-      // Check that we have the requested history window actually stored
-      using History = decltype(config_store_ns::CurrentStore::precise_homing_instability_history)::value_type;
-      static_assert(history_window <= sizeof(History) * 8);
-      static constexpr History history_mask = ((1 << history_window) - 1);
-
-      const auto recent_instability_count = std::popcount(static_cast<History>(config_store().precise_homing_instability_history.get() & history_mask));
-      if(flags.can_calibrate && recent_instability_count >= history_threshold) {
-        break; // Break out of the loop -> offer calibration
-      }
-
-      return RefineResult::success;
-    }
-
-    // instead of blindly retrying internally on the same location, move the gantry
-    if (!corexy_rehome_xy(fr_mm_s)) {
-      return RefineResult::hard_fail;
-    }
-  }
-
-  // If we've exhausted retries, force calibration
-  return corexy_calibrate_homing_during_G28(fr_mm_s, flags);
-}
-
-bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags) {
-  RefineResult result;
-  while (true) {
-    result = corexy_refine_during_G28_once(fr_mm_s, flags);
-    switch(result) {
-
-      case RefineResult::success:
-        // Mark the axes as precisely homed
-        axes_home_level[X_AXIS] = AxisHomeLevel::full;
-        axes_home_level[Y_AXIS] = AxisHomeLevel::full;
-        return true;
-
-      case RefineResult::hard_fail:
-        return false;
-
-      case RefineResult::refine_fail:
-      case RefineResult::calibrate_from_menu:
-        break;
-    }
-
-    if(planner.draining()) {
-      // We're quick stopping, do not repeat
-      return false;
-    }
-
-    const auto warning_type = (result == RefineResult::calibrate_from_menu) ? WarningType::HomingCalibrationFromMenuNeeded : WarningType::HomingRefinementFailed;
-    const auto prompt_result = marlin_server::prompt_warning(warning_type);
-    switch(prompt_result) {
-
+  corexy_refine::FailureAnswer ask_failure(corexy_refine::FailureWarning warning) override {
+    const auto warning_type = (warning == corexy_refine::FailureWarning::calibrate_from_menu) ? WarningType::HomingCalibrationFromMenuNeeded : WarningType::HomingRefinementFailed;
+    switch(marlin_server::prompt_warning(warning_type)) {
     case Response::Retry:
-      continue;
-
+      return corexy_refine::FailureAnswer::retry;
     case Response::Abort:
-      marlin_server::quick_stop();
-      marlin_server::print_abort();
-      return false;
-
+      return corexy_refine::FailureAnswer::abort;
     case Response::Ignore:
-      // The user decided to ignore the problem at his own risk, consider the homing calibrated for now
-      axes_home_level[X_AXIS] = AxisHomeLevel::full;
-      axes_home_level[Y_AXIS] = AxisHomeLevel::full;   
-      return true;
-
+      return corexy_refine::FailureAnswer::ignore;
     default:
       bsod_unreachable();
-
     }
   }
+
+  void abort_print() override {
+    marlin_server::quick_stop();
+    marlin_server::print_abort();
+  }
+
+  void begin_recalibration_status() override {
+    status_guard.emplace();
+    status_guard->update<PrintStatusMessage::recalibrating_home>({});
+  }
+
+  void end_recalibration_status() override {
+    status_guard.reset();
+  }
+
+private:
+  const float fr_mm_s;
+  std::optional<PrintStatusMessageGuard> status_guard;
+};
+
+} // namespace
+
+bool corexy_refine_during_G28(float fr_mm_s, const G28Flags &flags) {
+  static constexpr corexy_refine::Config config {
+    .retries = PRECISE_HOMING_COREXY_RETRIES,
+    .switchable_calibration = HAS_SWITCHABLE_HOMING_CALIBRATION(),
+    .calibrates_sensitivity = calibrates_sensitivity,
+  };
+  G28RefineHooks hooks(fr_mm_s);
+  if (!corexy_refine::refine(hooks, config, { .can_calibrate = flags.can_calibrate, .force_calibrate = flags.force_calibrate })) {
+    return false;
+  }
+
+  // Mark the axes as precisely homed
+  axes_home_level[X_AXIS] = AxisHomeLevel::full;
+  axes_home_level[Y_AXIS] = AxisHomeLevel::full;
+  return true;
 }
 #endif

@@ -68,7 +68,7 @@ Result calibrate(RefineHooks &hooks, const Config &config, const Flags &flags) {
 
     // Regardless of whether the calibration will run or not, reset homing instability history
     // In both cases, we want a clean slate so that the user is not bothered with "please recalibrate" right away
-    hooks.set_instability_history(0);
+    hooks.reset_instability_history();
 
     if (calibration_approved == Tristate::no) {
         // User decided to not do the calibration at his own risk -> consider the point refined
@@ -127,9 +127,7 @@ Result refine_once(RefineHooks &hooks, const Config &config, const Flags &flags)
 
         if (hooks.refine(false)) {
             // Record whether the refinement found a stable home
-            const bool is_unstable = hooks.is_unstable();
-            const History history = static_cast<History>((hooks.instability_history() << 1) | is_unstable);
-            hooks.set_instability_history(history);
+            const History history = hooks.push_instability(hooks.is_unstable());
 
             const auto recent_instability_count = std::popcount(static_cast<History>(history & instability_mask));
             if (flags.can_calibrate && recent_instability_count >= instability_threshold) {

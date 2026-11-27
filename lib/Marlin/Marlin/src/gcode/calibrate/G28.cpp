@@ -106,6 +106,7 @@
 
 #include <raii/scope_guard.hpp>
 #include "g28_plan.hpp"
+#include <optional>
 #include <marlin_server.hpp>
 #include <feature/print_status_message/print_status_message_guard.hpp>
 #include <config_store/store_instance.hpp>
@@ -972,12 +973,15 @@ public:
     corexy_clear_homing_calibration();
   }
 
-  uint16_t instability_history() override {
+  uint16_t push_instability(bool unstable) override {
+    config_store().precise_homing_instability_history.transform([unstable](uint16_t history) {
+      return corexy_refine::push_instability_bit(history, unstable);
+    });
     return config_store().precise_homing_instability_history.get();
   }
 
-  void set_instability_history(uint16_t history) override {
-    config_store().precise_homing_instability_history.set(history);
+  void reset_instability_history() override {
+    config_store().precise_homing_instability_history.set(0);
   }
 
   Tristate auto_recalibrate() override {

@@ -60,6 +60,11 @@ struct Flags {
 inline constexpr int instability_threshold = 6;
 inline constexpr int instability_window = 10;
 
+/// \returns the instability history with the bit of the newest refinement pushed in
+constexpr uint16_t push_instability_bit(uint16_t history, bool unstable) {
+    return static_cast<uint16_t>((history << 1) | unstable);
+}
+
 class RefineHooks {
 public:
     virtual ~RefineHooks() = default;
@@ -89,8 +94,11 @@ public:
 
     virtual void clear_calibration() = 0;
 
-    virtual uint16_t instability_history() = 0;
-    virtual void set_instability_history(uint16_t history) = 0;
+    /// Pushes one bit into the stored instability history (see push_instability_bit()) in one store transaction
+    /// \returns the new history
+    virtual uint16_t push_instability(bool unstable) = 0;
+
+    virtual void reset_instability_history() = 0;
 
     /// The stored user decision about the calibration (Tristate::other: ask)
     virtual Tristate auto_recalibrate() = 0;

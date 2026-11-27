@@ -49,6 +49,8 @@ public:
     }
     bool refine(bool calibrate) override {
         log.push_back(calibrate ? "refine_calibrate" : "refine");
+        // The status message shows during the whole calibration, and only then
+        CHECK(status_depth == (calibrate ? 1 : 0));
         return pop(refine_results, refine_default);
     }
     bool is_unstable() override {
@@ -66,11 +68,12 @@ public:
         log.push_back("clear");
         calibrated = false;
     }
-    uint16_t instability_history() override {
+    uint16_t push_instability(bool unstable) override {
+        history = push_instability_bit(history, unstable);
         return history;
     }
-    void set_instability_history(uint16_t value) override {
-        history = value;
+    void reset_instability_history() override {
+        history = 0;
     }
     Tristate auto_recalibrate() override {
         return stored_auto;

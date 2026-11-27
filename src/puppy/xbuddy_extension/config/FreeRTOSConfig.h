@@ -65,10 +65,15 @@ extern uint32_t SystemCoreClock;
 #define configCPU_CLOCK_HZ     (SystemCoreClock)
 #define configTICK_RATE_HZ     ((TickType_t)1000)
 
-#define configSUPPORT_DYNAMIC_ALLOCATION        0
-#define configSUPPORT_STATIC_ALLOCATION         1
-#define configMINIMAL_STACK_SIZE                32
-#define configSYSTEM_CALL_STACK_SIZE            64
+#define configSUPPORT_DYNAMIC_ALLOCATION 0
+#define configSUPPORT_STATIC_ALLOCATION  1
+#define configMINIMAL_STACK_SIZE         32
+// Unprivileged tasks run kernel calls on this stack, and an interrupt during a kernel call also
+// pushes its exception frame here. In a task that used the FPU, that frame is 104 B. The deepest
+// kernel call with interrupts enabled (a stream buffer receive) needs 136 B, so 64 words
+// (248 B usable after alignment) left only 8 B. The stack limit register catches an overflow,
+// which halts the board. Each task control block holds one such stack.
+#define configSYSTEM_CALL_STACK_SIZE            96
 #define configPROTECTED_KERNEL_OBJECT_POOL_SIZE 32
 #define configUSE_PREEMPTION                    1
 #define configUSE_IDLE_HOOK                     0

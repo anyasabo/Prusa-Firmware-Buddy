@@ -18,6 +18,14 @@ namespace {
 
     template <typename F>
     void jump(F &&set) {
+        // A position set first queues the last move that the planner dropped as too short. The
+        // jump comes after that block, and the checks need its float positions.
+        const uint8_t head = planner.block_buffer_head;
+        const MachinePosXYZE start = planner.position_float;
+        planner.flush_dropped_move();
+        if (planner.block_buffer_head != head) {
+            float_moves[head] = { start, planner.position_float };
+        }
         Jump j { taken_blocks.size() + planner.nonbusy_movesplanned(), planner.position, {}, {} };
         for (int i = 0; i < XYZE_N; ++i) {
             j.commanded_before[i] = int32_t(std::lround(current_position[i] * planner.settings.axis_msteps_per_mm[i]));

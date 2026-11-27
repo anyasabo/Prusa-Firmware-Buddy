@@ -221,7 +221,7 @@ TEST_CASE("planner: M221 flow scales the total E of many short moves", "[!should
 
 // The planner drops a move with fewer than MIN_STEPS_PER_SEGMENT steps on each axis and adds it to
 // the next move. A G92 directly after it discards it.
-TEST_CASE("planner: a short move before G92 E0 is not lost", "[!shouldfail][known_bug]") {
+TEST_CASE("planner: a short move before G92 E0 is not lost") {
     Runner r;
     r.take_rate = 1;
     r.move({ 10, 0, 0.2f, 0.5f }, 100);

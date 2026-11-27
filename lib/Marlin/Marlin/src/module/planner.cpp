@@ -327,6 +327,20 @@ struct PlannerMoveTools {
   }
 };
 
+namespace {
+/// The last move that _populate_block() dropped because it is shorter than MIN_MSTEPS_PER_SEGMENT.
+/// The planner position stays behind it, so the next move carries its steps. A position set
+/// (G92) would throw them away, so it queues this move first (Planner::flush_dropped_move()).
+struct DroppedMove {
+  xyze_msteps_t target;
+  MachinePosXYZE target_float;
+  feedRate_t fr_mm_s;
+  PlannerMoveTools tools;
+  PlannerHints hints;
+};
+std::optional<DroppedMove> dropped_move;
+} // namespace
+
 
 static float get_move_e_factor(const PlannerMoveTools &tools, const MoveHints &hints) {
   #if HAS_INDX()
@@ -347,6 +361,7 @@ static float get_move_e_factor(const PlannerMoveTools &tools, const MoveHints &h
  */
 
 void Planner::init() {
+  dropped_move.reset();
   position = {};
   position_float = {};
   previous_speed = {};
@@ -1182,8 +1197,12 @@ bool Planner::_buffer_msteps(const xyze_msteps_t &target, const MachinePosXYZE &
   if (!_populate_block(block, target, target_float, fr_mm_s, tools, hints)) {
     // Movement was not queued, probably because it was too short.
     // Simply accept that as movement queued and done
+    if (!hints.raw_block) {
+      dropped_move = DroppedMove { target, target_float, fr_mm_s, tools, hints };
+    }
     return true;
   }
+  dropped_move.reset();
 
   if (block_buffer_head == block_buffer_tail) {
     // If it was the first queued block, set the 1st block delivery delay to
@@ -2376,6 +2395,20 @@ bool Planner::buffer_raw_line(const MachinePosXYZE &cart, const float accelerati
  * by converting mm into mini-steps.
  */
 
+void Planner::flush_dropped_move() {
+  if (!dropped_move.has_value()) {
+    return;
+  }
+  DroppedMove move = *dropped_move;
+  dropped_move.reset();
+  if (draining() || PreciseStepping::stopping()) {
+    // A stop throws away the queued moves too, and the position comes from the steppers
+    return;
+  }
+  move.hints.raw_block = true; // keep it although it is short
+  _buffer_msteps(move.target, move.target_float, move.fr_mm_s, move.tools, move.hints);
+}
+
 void Planner::set_machine_position_mm_planner_only(const MachinePosXYZE &xyze) {
   #if ENABLED(DISTINCT_E_FACTORS)
     // #error dead code found by automatic analyses (see BFW-5461)
@@ -2391,6 +2424,7 @@ void Planner::set_machine_position_mm_planner_only(const MachinePosXYZE &xyze) {
 }
 
 void Planner::set_machine_position_mm(const MachinePosXYZE &xyze) {
+  flush_dropped_move();
   set_machine_position_mm_planner_only(xyze);
 
   if (processing()) {
@@ -2428,6 +2462,8 @@ void Planner::set_e_position_mm(const float e, std::optional<uint8_t> e_axis_ind
       e_axis_index = E_AXIS_N(*current_tool);
   }
 
+  flush_dropped_move();
+
   #if ENABLED(DISTINCT_E_FACTORS)
     // #error dead code found by automatic analyses (see BFW-5461)
     last_extruder = active_extruder;
@@ -2442,6 +2478,7 @@ void Planner::set_e_position_mm(const float e, std::optional<uint8_t> e_axis_ind
 }
 
 void Planner::reset_position() {
+  dropped_move.reset(); // the steppers give the real position
   MachinePosXYZE pos;
   
   // Sample position from steppers

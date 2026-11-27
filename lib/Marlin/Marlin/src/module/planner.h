@@ -617,6 +617,10 @@ class Planner {
     /// Only sets the position to the planner, not steppers
     static void set_machine_position_mm_planner_only(const MachinePosXYZE &xyze);
 
+    /// Queue the last move that was dropped as too short, if any, before the position is set.
+    /// Else a G92 directly after a short move throws its steps away.
+    static void flush_dropped_move();
+
     /**
      * Set the planner.position and individual stepper positions.
      *

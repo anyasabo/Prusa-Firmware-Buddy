@@ -32,6 +32,15 @@ constexpr auto execute_command_timeout = std::chrono::seconds { 1 };
 // already too high).
 constexpr auto transfer_inactivity_timeout = std::chrono::seconds { 2 };
 
+/// Time from \p since to \p now, correct across the wrap of the 32-bit tick.
+///
+/// Compare this with a timeout. Do not compare \p now with \p since plus a
+/// timeout: std::chrono::seconds has 64 bits, thus the sum does not wrap, and
+/// after the wrap of the tick (49.7 days) the comparison stays wrong.
+constexpr freertos::Clock::duration elapsed(cyphal::TimePoint now, cyphal::TimePoint since) {
+    return now - since;
+}
+
 uint32_t get_random_salt() {
     return hal::rng::get();
 }
@@ -377,7 +386,7 @@ private:
         }
 
         bool execute_command(Presentation &presentation, TimePoint now, NodeId node_id, Command command, Bytes parameter) {
-            if (last_command_valid && now < last_command.timepoint + execute_command_timeout) {
+            if (last_command_valid && elapsed(now, last_command.timepoint) < execute_command_timeout) {
                 // Waiting for response. Let other nodes make progress.
                 return false;
             }
@@ -408,7 +417,7 @@ private:
                 return true;
             }
 
-            if (heartbeat_valid && now > heartbeat_timestamp + heartbeat_offline_timeout && verified()) {
+            if (heartbeat_valid && elapsed(now, heartbeat_timestamp) > heartbeat_offline_timeout && verified()) {
                 // Node may have died. Let's forget everything we know about it.
                 heartbeat_valid = false;
                 state = InitialInfo {
@@ -697,7 +706,7 @@ private:
     ///
     /// Return true if the state machine made progress.
     bool application_step(Presentation &presentation, const TimePoint now) {
-        if (now > last_heartbeat + heartbeat_max_publication_period) {
+        if (elapsed(now, last_heartbeat) > heartbeat_max_publication_period) {
             const uint32_t uptime = duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
             const uint16_t master_activity_snapshot = master_activity.load(std::memory_order_relaxed);
             const bool healthy = master_activity_snapshot != last_master_activity;
@@ -798,7 +807,7 @@ private:
     }
 
     void filesystem_check_timeout(TimePoint now) {
-        if (filesystem.current_node && now > filesystem.last_activity + transfer_inactivity_timeout) {
+        if (filesystem.current_node && elapsed(now, filesystem.last_activity) > transfer_inactivity_timeout) {
             // No activity for a long time. This transfer is likely dead, we cancel it and possibly go to the next one.
             nodes[*filesystem.current_node].state = Node::Flash {};
             filesystem.reset();

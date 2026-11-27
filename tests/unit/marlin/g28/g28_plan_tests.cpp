@@ -199,3 +199,29 @@ TEST_CASE("g28_plan: G28 O homes Z when only Z is not homed") {
     CHECK_FALSE(plan.measures_loadcell_liveness());
     CHECK(plan.resets_max_printed_z());
 }
+
+TEST_CASE("g28_plan: joined X and Y start from the lower home level") {
+    // A G28 O must not take the home level of X for Y: then it skips the homing of an unhomed Y
+    const auto features = GENERATE(coreone, xl);
+    const auto levels = GENERATE(
+        std::array { full, not_homed, full },
+        std::array { not_homed, full, full },
+        std::array { full, imprecise, full },
+        std::array { imprecise, full, full });
+    const Plan plan(features, g28_o_all(levels));
+
+    CHECK_FALSE(plan.nothing_to_do());
+    CHECK(plan.home_at_all(axis_x));
+    CHECK(plan.home_at_all(axis_y));
+    CHECK(plan.refines_xy());
+    const bool base_homing = levels[axis_x] == not_homed || levels[axis_y] == not_homed;
+    CHECK(plan.home_to_level(axis_x, imprecise) == base_homing);
+    CHECK(plan.home_to_level(axis_y, imprecise) == base_homing);
+}
+
+TEST_CASE("g28_plan: CODEPENDENT_XY_HOMING homes both axes if one is not homed") {
+    const Plan plan(coreone, { .requested = { true, true, false }, .precise = false, .only_if_needed = true, .initial_levels = { imprecise, not_homed, full } });
+
+    CHECK(plan.home_to_level(axis_x, imprecise));
+    CHECK(plan.home_to_level(axis_y, imprecise));
+}

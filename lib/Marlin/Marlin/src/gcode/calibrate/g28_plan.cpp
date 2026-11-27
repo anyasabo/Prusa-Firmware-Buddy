@@ -46,6 +46,8 @@ void Plan::join_xy() {
     auto &x = requirements[axis_x];
     auto &y = requirements[axis_y];
     expand(axis_x, y.required_level, y.force);
+    // The pair is homed only as well as its worse axis. A copy of the X level would hide an unhomed Y.
+    x.initial_level = std::min(x.initial_level, y.initial_level);
     y = x;
 }
 

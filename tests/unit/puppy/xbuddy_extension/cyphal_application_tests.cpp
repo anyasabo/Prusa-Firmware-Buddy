@@ -384,6 +384,32 @@ SCENARIO("heart beats") {
     }
 }
 
+SCENARIO("heart beats across the wrap of the millisecond tick") {
+    // The FreeRTOS tick has 32 bits and wraps after 49.7 days. The AC
+    // controller goes to its safe state when the heartbeats stop.
+    GIVEN("an application that ran for almost 49.7 days") {
+        MockPresentation mock;
+        Application app;
+        run(app, mock, make_timepoint(0xFFFF'F000));
+        REQUIRE(mock.heartbeat_count == 1);
+
+        WHEN("the tick wraps") {
+            uint32_t ms = 0xFFFF'F000;
+            for (int i = 0; i < 20; ++i) {
+                ms += 500;
+                run(app, mock, make_timepoint(ms));
+            }
+
+            THEN("the heartbeats continue") {
+                // With steps of 500 ms, a heartbeat comes each 1.5 s: 6 in 10 s.
+                // A comparison that is not safe across the wrap stops at 3.
+                CHECK(mock.heartbeat_count == 1 + 6);
+                CHECK(mock.last_heartbeat_healthy);
+            }
+        }
+    }
+}
+
 SCENARIO("basic allocation") {
     GIVEN("initial application state") {
         MockPresentation mock;

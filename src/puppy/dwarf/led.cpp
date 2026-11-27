@@ -60,7 +60,7 @@ namespace {
         static uint32_t loop_tick_start_ms { 0 }; ///< Remember when ticks start to ease on division
         auto ticks_now_ms = ticks_ms();
 
-        if (ticks_now_ms > loop_tick_start_ms + period) { // Ticker overflow
+        if (ticks_now_ms - loop_tick_start_ms > period) {
             loop_tick_start_ms = ticks_now_ms - ticks_now_ms % (period); // Synchronized flashing start
         }
 

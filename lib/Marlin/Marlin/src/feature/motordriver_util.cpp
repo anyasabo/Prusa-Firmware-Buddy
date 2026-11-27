@@ -205,7 +205,7 @@ bool stepper_wait_for_standstill(uint8_t axis_mask, millis_t max_delay) {
         if (stst) {
             break;
         }
-        if (millis() > timeout || TERN0(HAS_PLANNER(), planner.draining())) {
+        if (ELAPSED(millis(), timeout) || TERN0(HAS_PLANNER(), planner.draining())) {
             return false;
         }
         safe_delay(10);

@@ -5,6 +5,7 @@
 #include "stubs/stub_interfaces.h"
 
 #include <deque>
+#include <limits>
 #include <regex>
 #include <string>
 
@@ -258,6 +259,18 @@ void CommandOperation(MMU2::ProtocolLogic &pl, std::string cmdRq) {
 TEST_CASE("Marlin::MMU2::ProtocolLogic Idle", "[Marlin][MMU2]") {
     using namespace MMU2;
     InitEnvironment(MMU2::FilamentState::NOT_PRESENT);
+    ProtocolLogic pl(&mmu2Serial, MMU2_TOOL_CHANGE_LOAD_LENGTH, PULLEY_SLOW_FEED_RATE);
+
+    InitCommunication(pl);
+    IdleOperation(pl);
+}
+
+/// Verify the protocol_logic layer - the link timeout is correct when millis() wraps (each 2^32 ms, 49.7 days)
+TEST_CASE("Marlin::MMU2::ProtocolLogic no timeout when millis wraps", "[Marlin][MMU2]") {
+    using namespace MMU2;
+    InitEnvironment(MMU2::FilamentState::NOT_PRESENT);
+    // The communication starts 5 ms before the wrap. InitCommunication steps 10 ms and expects no timeout.
+    SetMillis(std::numeric_limits<uint32_t>::max() - 5);
     ProtocolLogic pl(&mmu2Serial, MMU2_TOOL_CHANGE_LOAD_LENGTH, PULLEY_SLOW_FEED_RATE);
 
     InitCommunication(pl);

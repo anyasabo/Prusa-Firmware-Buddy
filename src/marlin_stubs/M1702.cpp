@@ -138,7 +138,7 @@ namespace {
 
             auto progress = [](auto) {}; // intentionally empty
             auto mmu_on_timed = [&]() {
-                return MMU2::mmu2.Enabled() == true || millis() < deadline;
+                return MMU2::mmu2.Enabled() == true || PENDING(millis(), deadline);
             };
 
             filament_gcodes::mmu_off();

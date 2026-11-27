@@ -109,6 +109,22 @@ repos:
       pass_filenames: false
       language: python
       language_version: python3
+    - id: check-raw-tick-compare
+      name: check-raw-tick-compare
+      description: This hook fails if code compares a tick counter with <, >, <= or >=, which is wrong at the wrap.
+      entry: python utils/check_raw_tick_compare.py
+      files: (\.(c|cpp|h|hpp)|^utils/check_raw_tick_compare\.py)$
+      pass_filenames: false
+      language: python
+      language_version: python3
+    - id: check-raw-tick-compare-test
+      name: check-raw-tick-compare-test
+      description: Tests of utils/check_raw_tick_compare.py.
+      entry: python -m unittest utils/check_raw_tick_compare_test.py
+      files: ^utils/check_raw_tick_compare(_test)?\.py$
+      pass_filenames: false
+      language: python
+      language_version: python3
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.

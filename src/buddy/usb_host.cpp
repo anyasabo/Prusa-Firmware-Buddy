@@ -14,7 +14,7 @@ USBH_HandleTypeDef hUsbHostHS;
 
 static std::atomic<bool> media_inserted = false;
 static std::atomic<bool> media_inserted_since_startup = false;
-static uint32_t media_on_startup_detection_timeout = 0;
+static uint32_t media_startup_detection_end_s = 0;
 
 namespace usb_host {
 
@@ -49,6 +49,7 @@ namespace usbh_power_cycle {
 TimerHandle_t restart_timer;
 void restart_timer_callback(TimerHandle_t);
 
+constexpr int32_t block_one_click_print_ms = 800;
 uint32_t block_one_click_print_until_ms = 0;
 
 enum class RecoveryPhase : uint_fast8_t {
@@ -104,7 +105,7 @@ void restart_timer_callback(TimerHandle_t) {
         // Most USBs should initialize within a few hundreds of ms.
         // Some drives take ~3 s to reinitialize, but we don't want to block the OCP for that long.
         // If user disconnects and reconnects the drive, he can do it faster than that and we want the OCP to trigger.
-        block_one_click_print_until_ms = ticks_ms() + 800;
+        block_one_click_print_until_ms = ticks_ms() + block_one_click_print_ms;
 
         // Reinitialize the USB host low-level driver
         // This seems to fix BFW-5333
@@ -122,7 +123,10 @@ void restart_timer_callback(TimerHandle_t) {
 }
 
 bool block_one_click_print() {
-    return block_one_click_print_until_ms > ticks_ms();
+    // The upper limit stops a stale value: without it, the block starts again for up to 24.8 days
+    // when ticks_ms() wraps (each 49.7 days). With it, a stale value blocks for 800 ms each 49.7 days.
+    const int32_t remaining_ms = ticks_diff(block_one_click_print_until_ms, ticks_ms());
+    return remaining_ms > 0 && remaining_ms <= block_one_click_print_ms;
 }
 
 } // namespace usbh_power_cycle
@@ -137,8 +141,10 @@ void MX_USB_HOST_Init(void) {
     osDelay(200);
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);
 #endif
-    // A delay of 3000ms for detecting USB device (flash drive) was present at start
-    media_on_startup_detection_timeout = ticks_ms() + 3000;
+    // A USB device (flash drive) that is detected in the first 3 s was present at start. Seconds
+    // do not wrap in the life of the printer, so this deadline needs no wrap handling. The
+    // resolution of 1 s makes the window 3 to 4 s.
+    media_startup_detection_end_s = ticks_s() + 4;
 
     usbh_power_cycle::init();
     if (USBH_Init(&hUsbHostHS, USBH_UserProcess, HOST_HS) != USBH_OK) {
@@ -153,9 +159,8 @@ void MX_USB_HOST_Init(void) {
 }
 
 void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {
-    // don't detect device at startup when ticks_ms() overflows (every ~50 days)
-    if (media_on_startup_detection_timeout != 0 && ticks_ms() >= media_on_startup_detection_timeout) {
-        media_on_startup_detection_timeout = 0;
+    if (media_startup_detection_end_s != 0 && ticks_s() >= media_startup_detection_end_s) {
+        media_startup_detection_end_s = 0;
     }
 
     switch (id) {
@@ -179,7 +184,7 @@ void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {
             break;
         }
 
-        media_inserted_since_startup = (media_on_startup_detection_timeout != 0);
+        media_inserted_since_startup = (media_startup_detection_end_s != 0);
         media_inserted = true;
 
         // Do not initialize marlin_client here - it blocks and media error

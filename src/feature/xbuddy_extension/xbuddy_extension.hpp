@@ -2,6 +2,7 @@
 
 #include <option/xbuddy_extension_variant.h>
 #if XBUDDY_EXTENSION_VARIANT_IS_STANDARD()
+    #include "chamber_alarm.hpp"
     #include "cooling.hpp"
 #endif
 
@@ -189,8 +190,7 @@ private:
     EnumArray<Fan, utils::LatchingDebouncer, xbuddy_extension::fan_count> fan_failure_latch = {};
 
     bool can_auto_cool_ = false;
-    bool overheating_warning_shown = false;
-    bool critical_warning_shown = false;
+    ChamberAlarm chamber_alarm_;
 
 #elif XBUDDY_EXTENSION_VARIANT_IS_iX()
     uint32_t hbr_fan_start_timestamp;

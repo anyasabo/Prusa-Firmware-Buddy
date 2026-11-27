@@ -156,23 +156,24 @@ void XBuddyExtension::step() {
         set_fan_pwm(Fan::cooling_fan_2, cooling_fans_actual_pwm_);
         set_fan_pwm(Fan::filtration_fan, filtration_fan_actual_pwm_);
 
-        if (chamber_cooling.get_critical_temp_flag()) {
-            // executed from task marlin_server, marlin_server must be called directly
-            if (!critical_warning_shown || marlin_server::is_printing()) {
-                marlin_server::print_abort();
-                thermalManager.disable_all_heaters();
-                marlin_server::set_warning(WarningType::ChamberCriticalTemperature);
-                critical_warning_shown = true;
-            }
-        } else if (chamber_cooling.get_overheating_temp_flag()) {
-            // executed from task marlin_server, marlin_server must be called directly
-            if (!marlin_server::is_warning_active(WarningType::ChamberOverheatingTemperature) && !overheating_warning_shown) {
-                marlin_server::set_warning(WarningType::ChamberOverheatingTemperature);
-                overheating_warning_shown = true;
-            }
-        } else {
-            overheating_warning_shown = false;
-            critical_warning_shown = false;
+        const auto alarm = chamber_alarm_.step({
+            .critical_flag = chamber_cooling.get_critical_temp_flag(),
+            .overheating_flag = chamber_cooling.get_overheating_temp_flag(),
+            .printing = marlin_server::is_printing(),
+            .overheating_warning_active = marlin_server::is_warning_active(WarningType::ChamberOverheatingTemperature),
+        });
+        // executed from task marlin_server, marlin_server must be called directly
+        if (alarm.abort_print) {
+            marlin_server::print_abort();
+        }
+        if (alarm.disable_heaters) {
+            thermalManager.disable_all_heaters();
+        }
+        if (alarm.show_critical_warning) {
+            marlin_server::set_warning(WarningType::ChamberCriticalTemperature);
+        }
+        if (alarm.show_overheating_warning) {
+            marlin_server::set_warning(WarningType::ChamberOverheatingTemperature);
         }
 
     } // else -> comm not working, we'll set it next time (instead of setting

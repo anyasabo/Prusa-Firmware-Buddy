@@ -173,7 +173,7 @@ TRIAGE: dict[str, list[Decision]] = {
                 "CVE-2026-115493", "CVE-2026-93833", "CVE-2026-93835",
                 "CVE-2026-93842"
             ], NCA,
-            "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+            "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. No core that links mbedtls executes loads speculatively: the Cortex-M4 main board (STM32F4) and the Cortex-M0+ and Cortex-M33 puppies (anfc, tool_offset_sensor). Arm lists no Cortex-M core as affected by Spectre. The firmware runs no untrusted code."
         ),
         not_affected(["CVE-2026-116462"], NP,
                      "CRL name matching; MBEDTLS_X509_CRL_PARSE_C is off."),

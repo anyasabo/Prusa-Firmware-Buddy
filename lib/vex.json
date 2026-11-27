@@ -1,6 +1,6 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:d842e21b-cf27-5040-9ba7-9baac1156c3d",
+ "@id": "urn:uuid:5a425548-f9c3-5f3a-b4e4-96de9ce1eaa6",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
  "timestamp": "2026-11-27T00:00:00Z",
  "version": 1,
@@ -523,7 +523,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. No core that links mbedtls executes loads speculatively: the Cortex-M4 main board (STM32F4) and the Cortex-M0+ and Cortex-M33 puppies (anfc, tool_offset_sensor). Arm lists no Cortex-M core as affected by Spectre. The firmware runs no untrusted code."
   },
   {
    "vulnerability": {
@@ -536,7 +536,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. No core that links mbedtls executes loads speculatively: the Cortex-M4 main board (STM32F4) and the Cortex-M0+ and Cortex-M33 puppies (anfc, tool_offset_sensor). Arm lists no Cortex-M core as affected by Spectre. The firmware runs no untrusted code."
   },
   {
    "vulnerability": {
@@ -549,7 +549,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. No core that links mbedtls executes loads speculatively: the Cortex-M4 main board (STM32F4) and the Cortex-M0+ and Cortex-M33 puppies (anfc, tool_offset_sensor). Arm lists no Cortex-M core as affected by Spectre. The firmware runs no untrusted code."
   },
   {
    "vulnerability": {
@@ -562,7 +562,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. No core that links mbedtls executes loads speculatively: the Cortex-M4 main board (STM32F4) and the Cortex-M0+ and Cortex-M33 puppies (anfc, tool_offset_sensor). Arm lists no Cortex-M core as affected by Spectre. The firmware runs no untrusted code."
   },
   {
    "vulnerability": {

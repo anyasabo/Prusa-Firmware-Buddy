@@ -6,6 +6,8 @@
 #include "../common/timing_precise.hpp"
 #include <device/hal.h>
 #include <limits>
+#include <FreeRTOS.h>
+#include <task.h>
 
 /**
  * Update period in ticks = 2^calculation_period_ticks_power_2
@@ -99,4 +101,23 @@ extern "C" void cpu_utils::compute_cpu_load() {
 
 int osGetCPUUsage() {
     return cpu_usage_percent;
+}
+
+static volatile uint32_t inherited_priority_tick_count = 0;
+
+extern "C" void cpu_utils::sample_inherited_priority() {
+    static_assert(INCLUDE_uxTaskPriorityGet == 1 && configUSE_MUTEXES == 1, "uxTaskBasePriorityGetFromISR() needs these");
+    // The tick hook runs in the tick interrupt, at the kernel interrupt priority, so the FromISR
+    // functions are correct here. nullptr is the task that the tick interrupted. Its priority is
+    // above its base priority after a task with a higher priority waited for a mutex that it
+    // holds. FreeRTOS restores the base priority when the task gives back its last mutex.
+    // The cost is two short critical sections in each tick: about 100 instructions (disassembly
+    // of the COREONEL release build), below 0.1 % of the CPU.
+    if (uxTaskPriorityGetFromISR(nullptr) != uxTaskBasePriorityGetFromISR(nullptr)) {
+        inherited_priority_tick_count = inherited_priority_tick_count + 1;
+    }
+}
+
+uint32_t cpu_utils::inherited_priority_ticks() {
+    return inherited_priority_tick_count;
 }

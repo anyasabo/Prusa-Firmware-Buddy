@@ -10,11 +10,7 @@
 
 extern "C" {
 
-void SysTick_Handler() {
-    // call FreeRtos's systick, as we have disabled its own SysTick_Handler
-    extern void xPortSysTickHandler();
-    xPortSysTickHandler();
-}
+// The SysTick interrupt handler (SysTick_Handler) is in the ARM_CM0 port of FreeRTOS (FreeRTOS 11 uses the CMSIS name).
 
 void DMA1_Channel1_IRQHandler() {
     HAL_DMA_IRQHandler(&hdma_adc1);

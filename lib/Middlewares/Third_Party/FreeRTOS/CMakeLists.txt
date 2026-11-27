@@ -15,7 +15,9 @@ if(MCU MATCHES "STM32F4")
   target_sources(FreeRTOS PRIVATE Source/portable/GCC/ARM_CM4F/port.c)
   target_include_directories(FreeRTOS PUBLIC Source/portable/GCC/ARM_CM4F)
 elseif(MCU MATCHES "STM32G0" OR MCU MATCHES "STM32C0")
-  target_sources(FreeRTOS PRIVATE Source/portable/GCC/ARM_CM0/port.c)
+  target_sources(
+    FreeRTOS PRIVATE Source/portable/GCC/ARM_CM0/port.c Source/portable/GCC/ARM_CM0/portasm.c
+    )
   target_include_directories(FreeRTOS PUBLIC Source/portable/GCC/ARM_CM0)
 elseif(MCU MATCHES "STM32H5")
   target_include_directories(FreeRTOS PUBLIC Source/portable/GCC/ARM_CM33_NTZ/non_secure)

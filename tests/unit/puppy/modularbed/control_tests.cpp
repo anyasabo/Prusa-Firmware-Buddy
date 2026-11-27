@@ -384,3 +384,51 @@ TEST_CASE("modularbed: the preheat check uses the exact minimum rise (MB-1)") {
         CHECK(test::system_fault_status() == 0);
     }
 }
+
+TEST_CASE("modularbed: a bedlet that heats has the thermal runaway checks (MB-2)") {
+    test::boot();
+
+    SECTION("a new target within 1 °C of the temperature") {
+        // For example a new print right after a cancel, or the main board sends the targets
+        // again after a reset of the puppy during a print. The bed is still at the target.
+        heat_to_stable(60);
+        test::write_all_targets(0);
+        test::run_ms(3000, true);
+        REQUIRE(world.temperature[4] > 59.0f);
+        test::write_all_targets(60);
+    }
+
+    SECTION("a reset of the puppy while the bed is hot") {
+        world.temperature.fill(60.0f);
+        test::boot_with_world();
+        test::write_all_targets(60);
+    }
+
+    test::run_ms(10'000, true);
+    for (uint32_t i = 0; i < all_bedlets; i++) {
+        CAPTURE(i);
+        CHECK(fake::duty(i) > 0);
+        CHECK(test::bedlet(i).m_State != HeatbedletState::Inactive);
+    }
+
+    // The heater of bedlet 4 stops. Its temperature falls 11 °C below the target.
+    world.frozen[4] = true;
+    world.temperature[4] = 49;
+    test::run_ms(400'000, true);
+    CHECK(bedlet_faults(4) == flag(HeatbedletError::TemperatureDropDetected));
+}
+
+TEST_CASE("modularbed: a clear of the bedlet errors keeps the checks if the target is set (MB-2)") {
+    test::boot();
+    heat_to_stable(60);
+
+    // The main board does not clear errors now, but the registers allow it.
+    StateLogic::SetHBErrorFlag(4, HeatbedletError::TestHeatingError);
+    test::write_coil(std::to_underlying(HBCoil::clear_fault_status) + 4, true);
+    test::write_coil(std::to_underlying(SystemCoil::clear_fault_status), true);
+    REQUIRE(test::system_fault_status() == 0);
+
+    test::run_ms(10'000, true);
+    CHECK(fake::duty(4) > 0);
+    CHECK(test::bedlet(4).m_State != HeatbedletState::Inactive);
+}

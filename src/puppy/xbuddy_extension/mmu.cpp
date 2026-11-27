@@ -292,7 +292,8 @@ MMU::StepStatus MMU::ExpectingMessage() {
 }
 
 bool MMU::Elapsed(uint32_t timeout) const {
-    return freertos::millis() >= (lastUARTActivityMs + timeout);
+    // The difference in uint32_t is correct across the wrap of the counter
+    return static_cast<uint32_t>(freertos::millis() - lastUARTActivityMs) >= timeout;
 }
 
 void MMU::RecordUARTActivity() {

@@ -423,6 +423,7 @@ bool PrusaToolChanger::manual_tool_park(std::optional<PhysicalToolIndex> tool) {
         log_info(PrusaToolChanger, "Bump to dock %u succeeded, parking tool", t.to_raw());
         set_active_extruder(t);
         persist_last_picked_tool(t);
+        AutoRestore no_stop(stop_on_failed_park, false);
         if (!park(t)) {
             log_warning(PrusaToolChanger, "Manual park of tool #%u failed", t.to_raw());
             return false;
@@ -590,6 +591,25 @@ void PrusaToolChanger::commit_park(PhysicalToolIndex previous_tool) {
     persist_last_picked_tool(NoTool {});
 }
 
+void PrusaToolChanger::stop_if_tool_still_in_head(PhysicalToolIndex tool) {
+    // park_procedure() stops the heater before it releases the nozzle. A tool that is still in the
+    // head after a failed park stays the active tool, but it is not thermally managed any more:
+    // M104 does not apply its target, M109 returns at once, and a tool change to the same tool does
+    // nothing. A print (also the next one) would continue with a cold nozzle. Thus stop.
+    if (!stop_on_failed_park || verify_nozzle_state(tool, false, WaitMode::bail_on_power_panic)) {
+        return; // released after all (the caller commits the park), or the manual park handles it
+    }
+#if HAS_POWER_PANIC()
+    if (power_panic::panic_is_active()) {
+        return; // the check above bails out on a power panic: no result
+    }
+#endif
+    // A text red screen: a new error code needs translations, and the park failure code is a
+    // dialog that asks to press Retry.
+    // At most 107 characters (bsod.h). The check also fails when the nozzle sensor does not answer.
+    fatal_error("The nozzle is still detected after parking, or its sensor does not answer. Its heater is off.", "TOOL PARK FAILED");
+}
+
 bool PrusaToolChanger::park(PhysicalToolIndex tool) {
     uint8_t max_retry_cnt = 2;
 
@@ -619,6 +639,7 @@ bool PrusaToolChanger::park(PhysicalToolIndex tool) {
         // (the failure dialog assumes printing). Bail out
         // and let the caller — typically selftest — decide how to handle it.
         if (!marlin_server::is_printing()) {
+            stop_if_tool_still_in_head(tool);
             return false;
         }
 
@@ -632,6 +653,7 @@ bool PrusaToolChanger::park(PhysicalToolIndex tool) {
         // Nozzle still detected -- handle failure
         switch (apply_failure_action(handle_park_failure())) {
         case ToolchangeFailureAction::abort:
+            stop_if_tool_still_in_head(tool);
             return false;
         case ToolchangeFailureAction::retry:
             continue;

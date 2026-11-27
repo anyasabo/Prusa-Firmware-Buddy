@@ -277,6 +277,10 @@ private:
     static constexpr uint8_t TOOL_CHECK_FAILS_LIMIT = 3; ///< Limit of tool_check_fails before toolfall
     #endif
     std::atomic<bool> block_tool_check = false; ///< When true, block toolchange recursion and (on Dwarf) loop() with toolfall detection
+    /// When false, a failed park with the nozzle still in the head returns false and does not stop
+    /// the printer. Only for the manual park of an unknown nozzle: its heater was never on, and the
+    /// user can select another dock.
+    bool stop_on_failed_park = true;
     std::atomic<bool> quick_stopped = false; ///< The current toolchange was quick-stopped
 
     /**
@@ -387,6 +391,10 @@ private:
 
     /// Commit parked state (NoTool active, persisted, head open, loadcell reset).
     void commit_park(PhysicalToolIndex previous_tool);
+
+    /// After a failed park: stop with a red screen if the nozzle is still in the head.
+    /// That tool has its heater off and is not thermally managed any more.
+    void stop_if_tool_still_in_head(PhysicalToolIndex tool);
 
     /// Commit successful pickup: clear head_open, log, update odometer and active extruder state.
     void commit_pickup(PhysicalToolIndex tool, bool count_in_odometer, bool force_persist);

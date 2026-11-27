@@ -74,7 +74,7 @@ dependencies = {
         # Host: Linux x86_64 with GLIBC 2.38 or newer, and libisl23, libmpc3, libmpfr6,
         # libgmp10, zlib1g and libzstd1 (Ubuntu package names). objdump and readelf also need
         # libdebuginfod1t64 (the build does not use them).
-        'version': '16.2.0',
+        'version': '15.3.1',
         'archives': {
             'Linux-x86_64': [
                 {

@@ -71,14 +71,19 @@ bool move_to(const xyze_pos_t &target, float fr_mm_s, MoveHints hints) {
     return queued;
 }
 
+// The jump reads the commanded position before the G92, so the G92 changes it inside the jump.
 void set_e_position(float e) {
-    current_position.e = e;
-    jump([&] { planner.set_e_position_mm(e); });
+    jump([&] {
+        current_position.e = e;
+        planner.set_e_position_mm(e);
+    });
 }
 
 void set_position(const xyze_pos_t &pos) {
-    current_position = pos;
-    jump([&] { planner.set_position_mm(pos); });
+    jump([&] {
+        current_position = pos;
+        planner.set_position_mm(pos);
+    });
 }
 
 size_t take(size_t n) {

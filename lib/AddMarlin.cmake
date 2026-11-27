@@ -66,6 +66,7 @@ if(BOARD_IS_MASTER_BOARD)
             Marlin/Marlin/src/gcode/bedlevel/ubl/G29.cpp
             Marlin/Marlin/src/gcode/bedlevel/ubl/M421.cpp
             Marlin/Marlin/src/gcode/calibrate/G28.cpp
+            Marlin/Marlin/src/gcode/calibrate/g28_plan.cpp
             Marlin/Marlin/src/gcode/calibrate/G80.cpp
             Marlin/Marlin/src/gcode/calibrate/M666.cpp
             Marlin/Marlin/src/gcode/calibrate/M852.cpp
@@ -182,7 +183,10 @@ if(BOARD_IS_MASTER_BOARD)
 
   if(HAS_PRECISE_HOMING_COREXY)
     # corexy precise homing
-    target_sources(Marlin PRIVATE Marlin/Marlin/src/module/prusa/homing_corexy.cpp)
+    target_sources(
+      Marlin PRIVATE Marlin/Marlin/src/gcode/calibrate/corexy_refine_policy.cpp
+                     Marlin/Marlin/src/module/prusa/homing_corexy.cpp
+      )
   endif()
 
   if(HAS_PRECISE_HOMING_COREXY OR HAS_INDX)

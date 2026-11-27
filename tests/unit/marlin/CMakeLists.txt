@@ -47,3 +47,4 @@ add_catch_test(thermal_protection_tests)
 
 add_subdirectory(toolchanger_indx)
 add_subdirectory(tool_mapping)
+add_subdirectory(g28)

@@ -25,6 +25,8 @@
  */
 
 #include "parser.h"
+#include <climits>
+#include <cstdint>
 
 #include <option/has_mmu2.h>
 #include "../Marlin.h"
@@ -115,6 +117,8 @@ void GCodeParser::parse(char *p) {
     starpos[1] = '\0';
   }
 
+  bool out_of_range = false;
+
   // Bail if the letter is not G, M, T or P
   // (or a valid parameter for the current motion mode)
   switch (letter) {
@@ -142,18 +146,31 @@ void GCodeParser::parse(char *p) {
       // A '?' signifies an unknown command
       command_letter = letter;
 
-      // Get the code number - integer digits only
+      // Get the code number - integer digits only. A number out of range is an unknown command:
+      // a wrapped number can be a valid command.
       codenum = 0;
-      do { codenum *= 10, codenum += *p++ - '0'; } while (NUMERIC(*p));
+      do {
+        const int digit = *p++ - '0';
+        if (codenum > (INT_MAX - digit) / 10) out_of_range = true;
+        else codenum = codenum * 10 + digit;
+      } while (NUMERIC(*p));
 
       // Allow for decimal point in command
       #if USE_GCODE_SUBCODES
       if (*p == '.') {
         p++;
-        while (NUMERIC(*p))
-        subcode *= 10, subcode += *p++ - '0';
+        while (NUMERIC(*p)) {
+          const int digit = *p++ - '0';
+          if (subcode > (UINT8_MAX - digit) / 10) out_of_range = true;
+          else subcode = subcode * 10 + digit;
+        }
       }
       #endif
+
+      if (out_of_range) {
+        command_letter = '?';
+        codenum = -1;
+      }
 
       // Skip all spaces to get to the first argument, or nul
       while (*p == ' ') p++;

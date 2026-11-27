@@ -50,6 +50,7 @@ components:
       - library/platform_util.c: use gmtime_r() instead of gmtime()+memcpy
       - include/mbedtls/net_sockets.h: make mbedtls_net_context an opaque struct
       - library/ssl_tls.c: 64-byte padbuf in ssl_calc_finished_tls_sha384 (GCC LTO stringop-overflow warning)
+      - library/ssl_tls.c: a client without a configured max_fragment_length keeps MBEDTLS_SSL_IN_CONTENT_LEN after the handshake (MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH)
       # Visual Studio project files differ only in line endings.
 
   lib/Middlewares/Third_Party/LwIP:

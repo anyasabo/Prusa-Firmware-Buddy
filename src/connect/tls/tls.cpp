@@ -180,11 +180,17 @@ std::optional<Error> tls::connection(const char *connection_host, uint16_t conne
     // The Prusa Connect server accepts 1 KiB records. With MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH,
     // the receive buffer then shrinks from 16 KiB to 1 KiB after the handshake.
     //
-    // Do not ask other servers: mbedtls 2.28 shrinks the buffer to the requested length also
-    // if the server ignored the request (mbedtls_ssl_get_input_max_frag_len). Go crypto/tls
-    // (Caddy) ignores it and sends records of up to 16 KiB, which then fail.
+    // Do not ask other servers. mbedtls 2.28 shrinks the buffer to the requested length also
+    // if the server ignored the request (mbedtls_ssl_get_input_max_frag_len()). Go crypto/tls
+    // (Caddy) ignores it and sends records of up to 16 KiB.
+    //
+    // Not 512: the Prusa server then splits its Certificate message into two records, and
+    // mbedtls 2.28 cannot join handshake fragments.
+    static_assert(MBEDTLS_SSL_OUT_CONTENT_LEN >= 1024, "mbedtls_ssl_conf_max_frag_len refuses 1024");
     if (is_prusa_host(destination_host)) {
-        mbedtls_ssl_conf_max_frag_len(&ssl_config, MBEDTLS_SSL_MAX_FRAG_LEN_1024);
+        if ((status = mbedtls_ssl_conf_max_frag_len(&ssl_config, MBEDTLS_SSL_MAX_FRAG_LEN_1024)) != 0) {
+            return Error::InternalError;
+        }
     }
 #endif
     // Strictly ensure that certificates are signed by the CA
@@ -201,7 +207,7 @@ std::optional<Error> tls::connection(const char *connection_host, uint16_t conne
     }
 
     if ((status = mbedtls_ssl_setup(&ssl_context, &ssl_config)) != 0) {
-        return Error::InternalError;
+        return status == MBEDTLS_ERR_SSL_ALLOC_FAILED ? Error::Memory : Error::InternalError;
     }
 
     mbedtls_ssl_set_bio(&ssl_context, &net_context, mbedtls_net_send, mbedtls_net_recv, NULL);

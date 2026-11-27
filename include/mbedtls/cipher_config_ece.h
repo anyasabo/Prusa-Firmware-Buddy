@@ -84,16 +84,19 @@
     // message for a Let's Encrypt chain is approximately 3.4 KiB in one record.
     #define MBEDTLS_SSL_MAX_CONTENT_LEN 16384
     #define MBEDTLS_SSL_IN_CONTENT_LEN  16384
-    // After the handshake, shrink the input buffer to the max_fragment_length that the
-    // server accepted (the Prusa Connect server accepts 1024). Without renegotiation
-    // (off), the buffers do not grow again.
+    // After the handshake, shrink the input buffer to the max_fragment_length that the client
+    // asked for (only from Prusa hosts, see src/connect/tls/tls.cpp). Without a request, the
+    // buffer stays at 16 KiB (a Prusa patch in mbedtls_ssl_get_input_max_frag_len()).
+    // Renegotiation is off, so the buffers do not grow again.
     #define MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH
+    // mbedtls_ssl_conf_max_frag_len() accepts only lengths up to the output length.
+    #define MBEDTLS_SSL_OUT_CONTENT_LEN 1024
 #else
     #define MBEDTLS_SSL_MAX_CONTENT_LEN 1024
     #define MBEDTLS_SSL_IN_CONTENT_LEN  1024
+    #define MBEDTLS_SSL_OUT_CONTENT_LEN 512
 #endif
 
-#define MBEDTLS_SSL_OUT_CONTENT_LEN 512
 // Tell the server we don't want big fragments (relates to MBEDTLS_SSL_OUT_CONTENT_LEN)
 #define MBEDTLS_SSL_MAX_FRAGMENT_LENGTH
 // Prefer smaller code over fast computations (our CPU is idle most of the time anyway).

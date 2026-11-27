@@ -5128,6 +5128,14 @@ size_t mbedtls_ssl_get_input_max_frag_len(const mbedtls_ssl_context *ssl)
     /* Use the configured MFL for the client if we're past SERVER_HELLO_DONE */
     if (ssl->conf->endpoint == MBEDTLS_SSL_IS_CLIENT &&
         ssl->state >= MBEDTLS_SSL_SERVER_HELLO_DONE) {
+        /* Prusa: without a configured MFL, the server can send records of
+         * MBEDTLS_SSL_IN_CONTENT_LEN. ssl_mfl_code_to_length() gives
+         * MBEDTLS_TLS_EXT_ADV_CONTENT_LEN, the smaller of the input and output
+         * lengths, and MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH then shrinks the
+         * input buffer below the records that the server sends. */
+        if (ssl->conf->mfl_code == MBEDTLS_SSL_MAX_FRAG_LEN_NONE) {
+            return MBEDTLS_SSL_IN_CONTENT_LEN;
+        }
         return ssl_mfl_code_to_length(ssl->conf->mfl_code);
     }
 

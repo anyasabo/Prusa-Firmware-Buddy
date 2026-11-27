@@ -1,6 +1,6 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:63f7d87f-2f12-572a-89c0-ff069301447b",
+ "@id": "urn:uuid:1d2a79cc-7ed4-51a5-90b0-12ed38b4142f",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
  "timestamp": "2026-11-27T00:00:00Z",
  "version": 1,
@@ -432,7 +432,7 @@
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-   "impact_statement": "CA-bit parsing differential: a certificate that an off-device validator accepts as an end entity, but mbedtls parses as a CA. The trusted roots are fixed (the Prusa CA, and with HAS_TLS_PUBLIC_CA the Let's Encrypt ECDSA roots). A public CA writes the basicConstraints extension itself, so a subscriber cannot get a certificate with the crafted encoding."
+   "impact_statement": "CA-bit parsing differential: a certificate that an off-device validator accepts as an end entity, but mbedtls parses as a CA. The trusted roots are the Prusa CA, the Let's Encrypt ECDSA roots (HAS_TLS_PUBLIC_CA), or one connect.der that the printer owner puts on USB. A public CA writes the basicConstraints extension itself, so a subscriber cannot get a certificate with the crafted encoding."
   },
   {
    "vulnerability": {
@@ -470,7 +470,7 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
+   "justification": "vulnerable_code_not_in_execute_path",
    "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_RENEGOTIATION is off (include/mbedtls/cipher_config_ece.h). MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH is on only with HAS_TLS_PUBLIC_CA, where the buffers shrink once after the handshake."
   },
   {
@@ -483,7 +483,7 @@
     }
    ],
    "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
+   "justification": "vulnerable_code_not_in_execute_path",
    "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_RENEGOTIATION is off (include/mbedtls/cipher_config_ece.h). MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH is on only with HAS_TLS_PUBLIC_CA, where the buffers shrink once after the handshake."
   },
   {

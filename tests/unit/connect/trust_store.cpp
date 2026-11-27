@@ -75,3 +75,37 @@ TEST_CASE("connect::trust_store Let's Encrypt chains", "[connect][tls]") {
     CHECK(Verify(self_hosted).add(le_ye1).add(isrg_root_ye_by_x2).flags() == 0);
 }
 #endif
+
+#if HAS_TLS_PUBLIC_CA()
+    #include <mbedtls/ssl.h>
+
+namespace {
+
+// The input record length that MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH shrinks the buffer to after
+// the handshake.
+size_t input_length_after_handshake(unsigned char mfl_code) {
+    mbedtls_ssl_config conf;
+    mbedtls_ssl_context ssl;
+    mbedtls_ssl_config_init(&conf);
+    mbedtls_ssl_init(&ssl);
+    REQUIRE(mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) == 0);
+    if (mfl_code != MBEDTLS_SSL_MAX_FRAG_LEN_NONE) {
+        REQUIRE(mbedtls_ssl_conf_max_frag_len(&conf, mfl_code) == 0);
+    }
+    REQUIRE(mbedtls_ssl_setup(&ssl, &conf) == 0);
+    ssl.state = MBEDTLS_SSL_SERVER_HELLO_DONE;
+    const size_t length = mbedtls_ssl_get_input_max_frag_len(&ssl);
+    mbedtls_ssl_free(&ssl);
+    mbedtls_ssl_config_free(&conf);
+    return length;
+}
+
+} // namespace
+
+TEST_CASE("connect::tls input records after the handshake", "[connect][tls]") {
+    // Prusa hosts: the client asks for 1 KiB records.
+    CHECK(input_length_after_handshake(MBEDTLS_SSL_MAX_FRAG_LEN_1024) == 1024);
+    // Other hosts (Go/Caddy send up to 16 KiB): the buffer must keep its full size.
+    CHECK(input_length_after_handshake(MBEDTLS_SSL_MAX_FRAG_LEN_NONE) == MBEDTLS_SSL_IN_CONTENT_LEN);
+}
+#endif

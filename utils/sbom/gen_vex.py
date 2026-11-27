@@ -144,7 +144,7 @@ TRIAGE: dict[str, list[Decision]] = {
                      "ECDHE-PSK client; no PSK suites are enabled."),
         not_affected(
             ["CVE-2026-49300"], NCA,
-            "CA-bit parsing differential: a certificate that an off-device validator accepts as an end entity, but mbedtls parses as a CA. The trusted roots are fixed (the Prusa CA, and with HAS_TLS_PUBLIC_CA the Let's Encrypt ECDSA roots). A public CA writes the basicConstraints extension itself, so a subscriber cannot get a certificate with the crafted encoding."
+            "CA-bit parsing differential: a certificate that an off-device validator accepts as an end entity, but mbedtls parses as a CA. The trusted roots are the Prusa CA, the Let's Encrypt ECDSA roots (HAS_TLS_PUBLIC_CA), or one connect.der that the printer owner puts on USB. A public CA writes the basicConstraints extension itself, so a subscriber cannot get a certificate with the crafted encoding."
         ),
         not_affected(
             ["CVE-2026-54435"], NCA,
@@ -156,7 +156,7 @@ TRIAGE: dict[str, list[Decision]] = {
         ),
         # November 2026 advisories (3.6.8, 4.1.2, 4.3.0). No 2.28 release has the fixes.
         not_affected(
-            ["CVE-2026-115488", "CVE-2026-93844"], NP,
+            ["CVE-2026-115488", "CVE-2026-93844"], NIEP,
             f"Buffer resize at renegotiation; MBEDTLS_SSL_RENEGOTIATION is off ({MBEDTLS_CFG}). MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH is on only with HAS_TLS_PUBLIC_CA, where the buffers shrink once after the handshake."
         ),
         not_affected(

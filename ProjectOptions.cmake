@@ -666,12 +666,12 @@ else()
 endif()
 
 # TLS to a self-hosted Connect with a Let's Encrypt certificate: the ISRG ECDSA roots, P-384,
-# SHA-384 and full-size TLS records. It costs RAM, so MINI does not have it.
+# SHA-384 and full-size TLS records. It costs RAM, so MINI does not have it. iX connects to its own
+# host (connect.afs) and does not need it.
 set_feature_for_printers_master_board(
   HAS_TLS_PUBLIC_CA
   "MK4"
   "MK3.5"
-  "iX"
   "COREONE"
   "COREONE_INDX"
   "COREONEL"

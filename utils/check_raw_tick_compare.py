@@ -12,9 +12,11 @@ Compare the elapsed time instead. Unsigned subtraction is correct across the wra
 - "ticks_diff(deadline, ticks_ms()) > 0" (timing.h)
 - "ELAPSED(millis(), deadline)" or "PENDING(millis(), deadline)" (Marlin, millis_t.h)
 
-The check finds a tick call with a comparison operator directly before or after it. It does not
-find a comparison of a variable that holds a tick value. A site where the comparison is correct
-goes in ALLOWLIST as "path:code" (the line without the indent), with the reason. A listed site that
+The check finds a tick call with a comparison operator directly before or after it, also through a
+cast or a "+ N" sum on its left side. It does not find a comparison of a variable that holds a tick
+value, for example "last + period > now" where now is a tick value. A site where the comparison is correct
+goes in ALLOWLIST as "path:code" (the line without the indent and the trailing comment), with the
+reason. A listed site that
 the check no longer finds must leave the list, so the list stays current.
 
 Usage: python3 utils/check_raw_tick_compare.py [REPO_ROOT]
@@ -24,7 +26,7 @@ import pathlib
 import re
 import sys
 
-SOURCE_DIRS = ("src", "lib/Marlin/Marlin/src", "lib/WUI")
+SOURCE_DIRS = ("src", "include", "lib/Marlin/Marlin/src", "lib/WUI")
 # Vendored code (lib/sbom.yml).
 SKIP_DIRS = ("lib/WUI/mdns", "lib/WUI/sntp")
 SOURCE_SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
@@ -35,10 +37,16 @@ ALLOWLIST: dict[str, str] = {
     "wrong, a separate change fixes the xBuddy extension timeouts. Then this entry is stale and must go",
 }
 
-TICK = r"(?:\b\w+::)?\b(?:ticks_(?:ms|us|s)|_?millis|micros|HAL_GetTick|xTaskGetTickCount)\(\)"
+TICK = (
+    r"(?:\b\w+::)?\b(?:(?:last_)?ticks_(?:ms|us)|_?millis|micros|HAL_GetTick|xTaskGetTickCount"
+    r"|osKernelSysTick|osKernelGetTickCount)\(\)")
 # clang-format puts spaces around a binary operator, and none before the '>' of a template.
 OPERATOR = r"(?:<|>)=?"
-TICK_LEFT = re.compile(TICK + r"\s+" + OPERATOR + r"\s")
+# ticks_s() is not in the list: it wraps after 136 years.
+CAST = r"static_cast<[\w:]+>\(\s*" + TICK + r"\s*\)"
+# A "+ N" sum can come between the call and the operator.
+TICK_LEFT = re.compile(r"(?:" + CAST + r"|" + TICK +
+                       r")(?:\s*\+\s*[\w:]+)?\s+" + OPERATOR + r"\s")
 # "x > ticks_ms() - start" is a correct form.
 TICK_RIGHT = re.compile(r"\s" + OPERATOR + r"\s+\(?\s*" + TICK + r"(?!\s*-)")
 COMMENT = re.compile(r"//.*$")
@@ -50,7 +58,7 @@ def raw_compares(text: str) -> list[tuple[int, str]]:
     for number, line in enumerate(text.splitlines(), start=1):
         code = COMMENT.sub("", line)
         if TICK_LEFT.search(code) or TICK_RIGHT.search(code):
-            found.append((number, line.strip()))
+            found.append((number, code.strip()))
     return found
 
 

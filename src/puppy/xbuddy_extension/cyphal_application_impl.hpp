@@ -351,6 +351,11 @@ private:
                     case NodeName::none:
                         break;
                     case NodeName::cz_prusa3d_honeybee_ac_controller:
+                        // Activation is also executed when the board was reset, and then it has its default
+                        // configuration. Its status reports the configuration, but not the LED configuration.
+                        application->ac_controller.active = ac_controller::Config {};
+                        application->ac_controller.led_active = ac_controller::LedConfig {};
+
                         return AcControllerAlive {
                             .ac_controller = &application->ac_controller,
                         };
@@ -612,6 +617,9 @@ private:
         }
 
         bool step(Presentation &presentation, const TimePoint, ApplicationImpl *, NodeId node_id, AcControllerAlive &alive) {
+            if (heartbeat_data.mode == Mode::software_update) {
+                return restart_after_reset(presentation, "AC controller reset, restarting app");
+            }
             if (alive.ac_controller->active != alive.ac_controller->desired) {
                 alive.ac_controller->active = alive.ac_controller->desired;
                 presentation.transmit_ac_controller_config_request(node_id, alive.ac_controller->active);
@@ -627,13 +635,7 @@ private:
 
         bool step(Presentation &presentation, const TimePoint, ApplicationImpl *, NodeId node_id, ToolOffsetSensorAlive &alive) {
             if (heartbeat_data.mode == Mode::software_update) {
-                // The node has been reset back into its bootloader - go to Verify state
-                heartbeat_valid = false;
-                state = Verify {};
-                last_command_valid = false;
-                start_app_sent = false;
-                presentation.transmit_diagnostic_record(Severity::warning, "TOS reset, restarting app");
-                return true;
+                return restart_after_reset(presentation, "TOS reset, restarting app");
             }
             if (alive.tool_offset_sensor->active != alive.tool_offset_sensor->desired) {
                 alive.tool_offset_sensor->active = alive.tool_offset_sensor->desired;
@@ -645,6 +647,19 @@ private:
 
         bool step(Presentation &presentation, const TimePoint, ApplicationImpl *application, NodeId node_id, NfcAlive &alive) {
             return application->get_nfc(alive.device).step(presentation, node_id);
+        }
+
+        /// The node has been reset back into its bootloader: verify its firmware and start the app again.
+        ///
+        /// The bootloader waits for start_app (BootCancelled), so without this the node stays in it.
+        /// This destroys the current state, so return the result at once.
+        bool restart_after_reset(Presentation &presentation, const char *message) {
+            heartbeat_valid = false;
+            state = Verify {};
+            last_command_valid = false;
+            start_app_sent = false;
+            presentation.transmit_diagnostic_record(Severity::warning, message);
+            return true;
         }
 
         bool verified() const {

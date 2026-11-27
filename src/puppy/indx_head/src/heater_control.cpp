@@ -116,7 +116,8 @@ namespace {
     // value of approximately 441'000, so a change above 48.7 °C in one step overflowed. A real
     // nozzle changes much less in one step (3.3 ms), but the TPIS filter passes a jump below 50 °C
     // at once, and any jump after 3 readings. Clamp the inputs of the products: the output
-    // saturates long before these limits, so the clamp does not change it.
+    // saturates long before these limits, so the clamp does not change it. The asserts cover the
+    // products and an integral near the output limit. The integral itself has no hard bound.
     constexpr int32_t max_err_centideg = 65'535; // target 0 to 300 °C, current temperature in int16_t
     constexpr int32_t max_derr_centideg = 4'000;
     static_assert(int64_t { max_err_centideg } * pid_p.raw_value() + int64_t { max_derr_centideg } * pid_d.raw_value()

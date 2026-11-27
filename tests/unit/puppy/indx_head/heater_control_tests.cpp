@@ -216,7 +216,7 @@ TEST_CASE("indx_head heater: PWM value of the power levels", "[indx_head][heater
 TEST_CASE("indx_head heater: the first step after off has no D term", "[indx_head][heater]") {
     SECTION("boot") {
         // The P term alone saturates the output, so the integral must not change. A D term from the
-        // initial 0 °C (a fall of 25 °C in one step) opened the integral for one step: +2.7.
+        // initial 0 °C (a rise of 25 °C in one step) opened the integral for one step: +2.7.
         PowerControl control;
         CHECK(control.step(target, 2500) == max_power);
         CHECK(static_cast<float>(control.integral()) == 0.0f);

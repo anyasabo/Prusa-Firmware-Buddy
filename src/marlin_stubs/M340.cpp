@@ -31,6 +31,11 @@ void PrusaGcodeSuite::M340() {
         return;
     }
 
+    if (!parser.string_arg) {
+        SERIAL_ERROR_MSG("Missing '<address> <port>'");
+        return;
+    }
+
     decltype(config_store().metrics_host)::value_type host;
     int port;
 

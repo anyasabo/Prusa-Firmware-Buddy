@@ -65,7 +65,7 @@ void PrusaGcodeSuite::M997() {
     static constexpr const char *const usb_str = "/usb/";
     size_t prefix_len = strlen(usb_str);
 
-    if (parser.ulongval('S', 0) == 0) {
+    if (parser.ulongval('S', 0) == 0 && parser.string_arg) {
         if ((file_path_ptr = strstr(parser.string_arg, usb_str)) != nullptr) {
             if (*(file_path_ptr + prefix_len)) {
                 strlcpy(sfn, file_path_ptr + prefix_len, sizeof(sfn));

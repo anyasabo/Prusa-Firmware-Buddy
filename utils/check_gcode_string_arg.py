@@ -8,10 +8,11 @@ null.
 The check splits each source file at the function definitions. A function that reads
 parser.string_arg must also test it: "!parser.string_arg", "parser.string_arg &&",
 "parser.string_arg ?", "... && parser.string_arg)", "if (parser.string_arg)" or a comparison with
-nullptr. The parser always sets
-string_arg for some M codes (the "case" list before "string_arg = p; return;" in parser.cpp). The
-handlers of these codes (for example M23) need no check. The script reads that list from parser.cpp.
-A function that tests string_arg in another way goes in ALLOWLIST, with the reason. A listed function
+nullptr. The rule is also for the handlers of the M codes for which the parser always sets
+string_arg (for example M23), because another handler can call them (M32 calls M23).
+
+The check finds a missing test, not a test in the wrong place: a test after the use also passes. A
+function that tests string_arg in another way goes in ALLOWLIST, with the reason. A listed function
 that no longer reads string_arg must leave the list, so the list stays current.
 
 Usage: python3 utils/check_gcode_string_arg.py [REPO_ROOT]
@@ -21,13 +22,14 @@ import pathlib
 import re
 import sys
 
-PARSER = "lib/Marlin/Marlin/src/gcode/parser.cpp"
 SOURCE_DIRS = ("src", "lib/Marlin/Marlin/src")
 SOURCE_SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
 
 # Function name: the reason why it needs no check that the script can see.
 ALLOWLIST = {
     "M0_M1": "copies string_arg to args and tests 'args && *args'",
+    "M16":
+    "compiled only with EXPECTED_PRINTER_CHECK, which no printer enables",
 }
 
 USE = re.compile(r"\bparser\.string_arg\b")
@@ -36,26 +38,20 @@ CHECK = re.compile(
     r"|\bparser\.string_arg\s*(?:&&|\?|[!=]=\s*(?:nullptr|NULL)\b)"
     r"|&&\s*parser\.string_arg\s*(?:\)|&&)"
     r"|\bif\s*\(\s*parser\.string_arg\s*\)")
-# A function definition at the start of a line: "void GcodeSuite::M23() {" or "static void f(...) {"
+# A function definition at the start of a line, for example "void GcodeSuite::M23() {",
+# "static const char *f(int a) {" or "[[nodiscard]] bool f() {"
 DEFINITION = re.compile(
-    r"^[ \t]*(?:static\s+|inline\s+)*[\w:<>]+[ \t]+(?:\w+::)*(\w+)\s*\([^;{}]*\)\s*(?:const\s*)?\{",
-    re.MULTILINE)
-
-
-def always_set_codes(root: pathlib.Path) -> set[str]:
-    """Returns the handler names (for example "M23") for which the parser always sets string_arg."""
-    text = (root / PARSER).read_text(encoding="utf-8")
-    end = text.find("string_arg = p; return;")
-    start = text.rfind("switch (codenum)", 0, end)
-    if end < 0 or start < 0:
-        raise RuntimeError(
-            f"{PARSER}: cannot find the M codes that always have a string_arg")
-    return {f"M{n}" for n in re.findall(r"case\s+(\d+)\s*:", text[start:end])}
+    r"^[ \t]*(?:\[\[\w+\]\]\s*)?(?:(?:static|inline|constexpr|const)\s+)*[\w:<>]+[ \t*&]+(?:\w+::)*(\w+)"
+    r"\s*\([^;{}]*\)\s*(?:const\s*)?\{", re.MULTILINE)
+# Statements that DEFINITION also matches, for example "} else if (x) {" on its own line
+KEYWORDS = {"if", "for", "while", "switch", "catch", "return"}
 
 
 def functions(text: str) -> list[tuple[str, int, str]]:
     """Splits text at the function definitions. Returns (name, line, body) for each part."""
-    matches = list(DEFINITION.finditer(text))
+    matches = [
+        m for m in DEFINITION.finditer(text) if m.group(1) not in KEYWORDS
+    ]
     parts = []
     if matches and matches[0].start() > 0:
         parts.append(("<file scope>", 1, text[:matches[0].start()]))
@@ -70,7 +66,6 @@ def functions(text: str) -> list[tuple[str, int, str]]:
 
 def find_problems(root: pathlib.Path) -> tuple[list[str], list[str]]:
     """Returns (functions that read string_arg with no check, allowlisted functions that do not read it)."""
-    exempt = always_set_codes(root)
     unchecked = []
     allowed_used = set()
     for top in SOURCE_DIRS:
@@ -79,7 +74,7 @@ def find_problems(root: pathlib.Path) -> tuple[list[str], list[str]]:
                 continue
             rel = path.relative_to(root).as_posix()
             if rel.startswith("lib/Marlin/Marlin/src/gcode/parser."):
-                continue
+                continue  # the parser sets string_arg
             text = path.read_text(encoding="utf-8", errors="replace")
             if not USE.search(text):
                 continue
@@ -88,7 +83,7 @@ def find_problems(root: pathlib.Path) -> tuple[list[str], list[str]]:
                     continue
                 if name in ALLOWLIST:
                     allowed_used.add(name)
-                elif name not in exempt and not CHECK.search(body):
+                elif not CHECK.search(body):
                     unchecked.append(f"{rel}:{line}: {name}")
     stale = sorted(set(ALLOWLIST) - allowed_used)
     return unchecked, stale

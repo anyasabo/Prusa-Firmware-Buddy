@@ -209,6 +209,10 @@ void GcodeSuite::M29() {
  *    M30 [filename]
  */
 void GcodeSuite::M30() {
+    if (!parser.string_arg) {
+        SERIAL_ERROR_MSG("No file name");
+        return;
+    }
     ArrayStringBuilder<filename_defs::max_filename_length> filepath;
     filepath.append_printf("/usb/%s", parser.string_arg);
     DeleteResult result = DeleteResult::GeneralError;

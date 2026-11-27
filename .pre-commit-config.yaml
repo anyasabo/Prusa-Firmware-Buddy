@@ -81,7 +81,7 @@ repos:
       name: check-gcode-string-arg
       description: This hook fails if a G-code handler reads parser.string_arg with no null check.
       entry: python utils/check_gcode_string_arg.py
-      files: \.(c|cpp|h|hpp)$
+      files: (\.(c|cpp|h|hpp)|^utils/check_gcode_string_arg\.py)$
       pass_filenames: false
       language: python
       language_version: python3

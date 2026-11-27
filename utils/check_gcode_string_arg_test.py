@@ -9,17 +9,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 import check_gcode_string_arg as check  # noqa: E402
 
-PARSER = """\
-  // Only use string_arg for these M codes
-  if (letter == 'M') switch (codenum) {
-    #if ENABLED(EXPECTED_PRINTER_CHECK)
-      case 16:
-    #endif
-    case 23: case 117: string_arg = p; return;
-    default: break;
-  }
-"""
-
 # M340 as it was before the null check: "M340" with no argument passed null to sscanf().
 UNCHECKED = """\
 void PrusaGcodeSuite::M340() {
@@ -56,10 +45,26 @@ void GcodeSuite::T(const int8_t tool_index) {
 }
 """
 
-# The parser always sets string_arg for M23.
+# The parser always sets string_arg for M23, but M32 calls M23 and has no string_arg.
 ALWAYS_SET = """\
 void GcodeSuite::M23() {
     for (char *fn = parser.string_arg; *fn; ++fn) {
+    }
+}
+"""
+
+# A statement and a function with a pointer return type that DEFINITION must handle.
+SPLIT = """\
+static const char *name() {
+    return parser.string_arg;
+}
+
+void GcodeSuite::M340() {
+    if (x)
+    {
+    }
+    else if (parser.string_arg)
+    {
     }
 }
 """
@@ -68,9 +73,6 @@ void GcodeSuite::M23() {
 class CheckGcodeStringArgTest(unittest.TestCase):
 
     def make_repo(self, root: pathlib.Path, files: dict[str, str]) -> None:
-        parser = root / check.PARSER
-        parser.parent.mkdir(parents=True)
-        parser.write_text(PARSER)
         (root / "src").mkdir()
         for name, text in files.items():
             (root / "src" / name).write_text(text)
@@ -80,13 +82,6 @@ class CheckGcodeStringArgTest(unittest.TestCase):
             root = pathlib.Path(d)
             self.make_repo(root, files)
             return check.find_problems(root)
-
-    def test_reads_the_codes_that_always_have_a_string_arg(self):
-        with tempfile.TemporaryDirectory() as d:
-            root = pathlib.Path(d)
-            self.make_repo(root, {})
-            self.assertEqual(check.always_set_codes(root),
-                             {"M16", "M23", "M117"})
 
     def test_unchecked_use_fails(self):
         unchecked, _ = self.problems({"M340.cpp": UNCHECKED})
@@ -101,26 +96,25 @@ class CheckGcodeStringArgTest(unittest.TestCase):
         line = CHECKED_FORMS.count("\n") + 1
         self.assertEqual(unchecked, [f"src/both.cpp:{line}: M340"])
 
-    def test_a_code_that_always_has_a_string_arg_passes(self):
+    def test_a_code_that_the_parser_always_gives_a_string_arg_needs_a_check(
+            self):
         unchecked, _ = self.problems({"M23.cpp": ALWAYS_SET})
-        self.assertEqual(unchecked, [])
+        self.assertEqual(unchecked, ["src/M23.cpp:1: M23"])
+
+    def test_a_check_in_the_next_function_does_not_count(self):
+        # The pointer return type of name() and the "else if" line do not hide or split a function.
+        unchecked, _ = self.problems({"split.cpp": SPLIT})
+        self.assertEqual(unchecked, ["src/split.cpp:1: name"])
 
     def test_allowlisted_function_passes(self):
-        text = UNCHECKED.replace("M340", "M0_M1")
-        self.assertEqual(self.problems({"M0_M1.cpp": text}), ([], []))
+        text = "".join(
+            UNCHECKED.replace("M340", name) for name in check.ALLOWLIST)
+        self.assertEqual(self.problems({"allowed.cpp": text}), ([], []))
 
     def test_allowlisted_function_that_does_not_read_it_must_leave_the_list(
             self):
-        self.assertEqual(self.problems({"M23.cpp": ALWAYS_SET}),
-                         ([], ["M0_M1"]))
-
-    def test_missing_case_list_is_an_error(self):
-        with tempfile.TemporaryDirectory() as d:
-            root = pathlib.Path(d)
-            self.make_repo(root, {})
-            (root / check.PARSER).write_text("void parse() {}\n")
-            with self.assertRaises(RuntimeError):
-                check.always_set_codes(root)
+        self.assertEqual(self.problems({"M340.cpp": CHECKED_FORMS}),
+                         ([], ["M0_M1", "M16"]))
 
 
 if __name__ == "__main__":

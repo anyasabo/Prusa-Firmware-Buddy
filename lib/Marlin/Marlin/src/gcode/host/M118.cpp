@@ -49,6 +49,7 @@ void GcodeSuite::M118() {
     // #error dead code found by automatic analyses (see BFW-5461)
     int8_t port = -1; // Assume no redirect
   #endif
+  if (!parser.string_arg) return; // The parser sets it for M118. The test keeps the lint simple.
   char *p = parser.string_arg;
   for (uint8_t i = 3; i--;) {
     // A1, E1, and Pn are always parsed out

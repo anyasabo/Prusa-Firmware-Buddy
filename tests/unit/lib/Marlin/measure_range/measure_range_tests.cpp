@@ -38,7 +38,7 @@ TEST_CASE("M959 rejects a frequency step that is too small for the end frequency
 }
 
 namespace {
-// 0.1 mm belt pitch over a 200 step motor at 16 microsteps: 2.5 um per microstep
+// An example step length (m)
 constexpr float step_len = 0.0000025f;
 } // namespace
 
@@ -62,4 +62,7 @@ TEST_CASE("M958 rejects an excitation with no steps or too many steps") {
     CHECK_FALSE(is_excitation_amplitude_valid(excitation_amplitude(0, 0), step_len));
     // M958 X F0.0001: the steps of one period do not fit in an int
     CHECK_FALSE(is_excitation_amplitude_valid(excitation_amplitude(0.0001f, 2.5f), step_len));
+    // 4 * 2^29 steps in a period overflow an int
+    CHECK_FALSE(vibrate_measure::is_excitation_amplitude_valid(536870912.0f, 1));
+    CHECK(vibrate_measure::is_excitation_amplitude_valid(536870880.0f, 1));
 }

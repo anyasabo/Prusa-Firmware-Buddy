@@ -39,10 +39,11 @@ constexpr float excitation_amplitude(float frequency, float acceleration) {
 /// that many steps in a period, as an int. With 0 steps (acceleration 0) the
 /// step loop takes the step number modulo 0. An infinite amplitude
 /// (frequency 0) or one with too many steps overflows the int. NaN fails each
-/// comparison.
+/// comparison. The check does not limit the amplitude to the travel of the axis.
 constexpr bool is_excitation_amplitude_valid(float amplitude, float step_len) {
     const float steps = amplitude / step_len;
-    return steps > 0 && steps <= static_cast<float>(INT_MAX / 4 - 1);
+    // INT_MAX / 4 + 1 is 2^29, exact in float. ceil() of a smaller float is at most 2^29 - 32.
+    return steps > 0 && steps < static_cast<float>(INT_MAX / 4 + 1);
 }
 
 } // namespace vibrate_measure

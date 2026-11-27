@@ -353,3 +353,34 @@ TEST_CASE("modularbed: heater resistance and temperature") {
     }
     CHECK(CalcHBReferenceResistance(0, 25) == INF_RESISTANCE);
 }
+
+TEST_CASE("modularbed: the preheat check uses the exact minimum rise (MB-1)") {
+    test::boot();
+
+    SECTION("no fan: a constant temperature is an error for each fraction of a degree") {
+        // A rise of 0.5 °C per minute is necessary. Thermistor 6 has no contact with its heater
+        // and stays at the same temperature.
+        const float stuck = GENERATE(25.0f, 25.2f, 25.45f, 25.5f, 25.8f);
+        CAPTURE(stuck);
+        world.frozen[6] = true;
+        world.temperature[6] = stuck;
+        test::run_ms(2000);
+        test::write_all_targets(60);
+        test::run_ms(65'000, true);
+        CHECK(bedlet_faults(6) == flag(HeatbedletError::PreheatError));
+    }
+
+    SECTION("print fan on: a drop below 20 °C is allowed") {
+        // With the fan, the temperature can fall by 20 °C per minute. The firmware converted
+        // 15 - 20 = -5 °C to uint32_t. On the Cortex-M0+ (soft float), __aeabi_f2uiz() gives
+        // 0xFFFFFFFB for -5.0f, thus the next check needed 4.29e9 °C.
+        test::write_coil(std::to_underlying(SystemCoil::print_fan_active), true);
+        world.frozen[6] = true;
+        world.temperature[6] = 15.0f;
+        test::run_ms(2000);
+        test::write_all_targets(60);
+        test::run_ms(65'000, true);
+        CHECK(bedlet_faults(6) == 0);
+        CHECK(test::system_fault_status() == 0);
+    }
+}

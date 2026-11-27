@@ -363,7 +363,7 @@ void StartPreheatWatching(uint32_t heatbedletIndex) {
     HeatbedletInfo *pHBInfo = HeatbedletInfo::Get(heatbedletIndex);
 
     pHBInfo->m_NextPreheatCheckTime = osKernelSysTick() + TEMPERATURE_PREHEAT_CHECK_SECONDS * TICKS_PER_SECOND;
-    pHBInfo->m_NextPreheatCheckTemperature = static_cast<uint32_t>(pHBInfo->m_MeasuredTemperature + GetPreheatMinTemperatureIncrease());
+    pHBInfo->m_NextPreheatCheckTemperature = pHBInfo->m_MeasuredTemperature + GetPreheatMinTemperatureIncrease();
 }
 
 void CheckPreheatError(uint32_t heatbedletIndex) {

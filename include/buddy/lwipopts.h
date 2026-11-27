@@ -21,6 +21,13 @@ extern "C" {
 #define DNS_TABLE_SIZE       2
 #define LWIP_RAW             1
 
+// Before DHCP binds an offered address, check that no other host uses it: RFC 5227 address conflict
+// detection (ACD), the lwIP default. It replaces the 1 s ARP check of lwIP 2.1. The bind comes 6 to
+// 9 s after the offer (3 probes and 2 announcements), and after the bind ACD defends the address:
+// two conflicts within 10 s decline the lease. 0 binds at once, with no check, and saves ~0.6 KB of
+// flash. The ESP guard in etharp.c filters the ARP packets that ACD sees.
+#define LWIP_DHCP_DOES_ACD_CHECK 1
+
 #if MDNS()
     #define MDNS_MAX_STORED_PKTS 1
     // Each interface takes up to 6 timeouts (in addition to the packets).

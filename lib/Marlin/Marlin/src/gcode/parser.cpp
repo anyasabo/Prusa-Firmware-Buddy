@@ -104,6 +104,9 @@ void GCodeParser::parse(char *p) {
   // Get the command letter, which must be G, M, or T
   const char letter = *p++;
 
+  // An empty line has no command. Do not scan past its end.
+  if (!letter) return;
+
   // Nullify asterisk and trailing whitespace
   char *starpos = strchr(p, '*');
   if (starpos) {

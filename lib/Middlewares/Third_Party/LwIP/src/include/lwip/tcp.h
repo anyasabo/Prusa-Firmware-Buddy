@@ -1,6 +1,6 @@
 /**
  * @file
- * TCP API (to be used from TCPIP thread)\n
+ * TCP API (to be used from TCPIP thread)<br>
  * See also @ref tcp_raw
  */
 
@@ -142,15 +142,7 @@ typedef err_t (*tcp_connected_fn)(void *arg, struct tcp_pcb *tpcb, err_t err);
 #define RCV_WND_SCALE(pcb, wnd) (wnd)
 #define SND_WND_SCALE(pcb, wnd) (wnd)
 #define TCPWND16(x)             (x)
-#ifdef BUDDY_TCP_WND_RUNTIME /* EXPERIMENT: runtime window (buddy/lwipopts.h) */
-/* Per connection: the runtime window can change, but a connection keeps the
-   maximum it started with (tcp_close compares rcv_wnd against it to decide on
-   RST vs FIN; tcp_recved caps at it). Set where rcv_wnd is first set (tcp.c). */
-#define TCP_WND_MAX(pcb)        ((pcb)->rcv_wnd_max)
-#define BUDDY_TCP_WND_NEW       ((tcpwnd_size_t)LWIP_MIN((u32_t)(BUDDY_TCP_WND_RUNTIME), (u32_t)TCP_WND))
-#else
 #define TCP_WND_MAX(pcb)        TCP_WND
-#endif
 #endif
 /* Increments a tcpwnd_size_t and holds at max value rather than rollover */
 #define TCP_WND_INC(wnd, inc)   do { \
@@ -290,9 +282,6 @@ struct tcp_pcb {
   /* receiver variables */
   u32_t rcv_nxt;   /* next seqno expected */
   tcpwnd_size_t rcv_wnd;   /* receiver window available */
-#ifdef BUDDY_TCP_WND_RUNTIME
-  tcpwnd_size_t rcv_wnd_max; /* EXPERIMENT: this connection's maximum window, fixed at creation */
-#endif
   tcpwnd_size_t rcv_ann_wnd; /* receiver window to announce */
   u32_t rcv_ann_right_edge; /* announced right edge of window */
 
@@ -497,9 +486,9 @@ err_t            tcp_tcp_get_tcp_addrinfo(struct tcp_pcb *pcb, int local, ip_add
 
 #if LWIP_TCP_PCB_NUM_EXT_ARGS
 u8_t tcp_ext_arg_alloc_id(void);
-void tcp_ext_arg_set_callbacks(struct tcp_pcb *pcb, uint8_t id, const struct tcp_ext_arg_callbacks * const callbacks);
-void tcp_ext_arg_set(struct tcp_pcb *pcb, uint8_t id, void *arg);
-void *tcp_ext_arg_get(const struct tcp_pcb *pcb, uint8_t id);
+void tcp_ext_arg_set_callbacks(struct tcp_pcb *pcb, u8_t id, const struct tcp_ext_arg_callbacks * const callbacks);
+void tcp_ext_arg_set(struct tcp_pcb *pcb, u8_t id, void *arg);
+void *tcp_ext_arg_get(const struct tcp_pcb *pcb, u8_t id);
 #endif
 
 #ifdef __cplusplus

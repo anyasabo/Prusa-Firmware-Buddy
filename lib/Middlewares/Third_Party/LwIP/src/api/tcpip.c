@@ -48,7 +48,6 @@
 #include "lwip/ip.h"
 #include "lwip/pbuf.h"
 #include "lwip/etharp.h"
-#include <buddy/rx_stats.h>
 #include "netif/ethernet.h"
 
 #define TCPIP_MSG_VAR_REF(name)     API_VAR_REF(name)
@@ -69,11 +68,20 @@ sys_mutex_t lock_tcpip_core;
 static void tcpip_thread_handle_msg(struct tcpip_msg *msg);
 
 #if !LWIP_TIMERS
-/* wait for a message with timers disabled (e.g. pass a timer-check trigger into tcpip_thread) */
-#define TCPIP_MBOX_FETCH(mbox, msg) sys_mbox_fetch(mbox, msg)
+
+/** Wait for a message with timers disabled (e.g. pass a timer-check trigger into tcpip_thread) */
+static void
+tcpip_mbox_fetch(sys_mbox_t* mbox, void** msg)
+{
+  LWIP_ASSERT_CORE_LOCKED();
+
+  UNLOCK_TCPIP_CORE();
+  sys_mbox_fetch(mbox, msg);
+  LOCK_TCPIP_CORE();
+}
+
 #else /* !LWIP_TIMERS */
-/* wait for a message, timeouts are processed while waiting */
-#define TCPIP_MBOX_FETCH(mbox, msg) tcpip_timeouts_mbox_fetch(mbox, msg)
+
 /**
  * Wait (forever) for a message to arrive in an mbox.
  * While waiting, timeouts are processed.
@@ -82,7 +90,7 @@ static void tcpip_thread_handle_msg(struct tcpip_msg *msg);
  * @param msg the place to store the message
  */
 static void
-tcpip_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
+tcpip_mbox_fetch(sys_mbox_t *mbox, void **msg)
 {
   u32_t sleeptime, res;
 
@@ -93,33 +101,21 @@ again:
   if (sleeptime == SYS_TIMEOUTS_SLEEPTIME_INFINITE) {
     UNLOCK_TCPIP_CORE();
     sys_arch_mbox_fetch(mbox, msg, 0);
-    {
-      u32_t start = sys_now(); /* EXPERIMENT: time others held the core lock */
-      LOCK_TCPIP_CORE();
-      buddy_tcpip_busy_record(sys_now() - start, 101, 0);
-    }
+    LOCK_TCPIP_CORE();
     return;
   } else if (sleeptime == 0) {
-    u32_t start = sys_now(); /* EXPERIMENT: buddy_tcpip_busy_record */
     sys_check_timeouts();
-    buddy_tcpip_busy_record(sys_now() - start, 100, 0);
     /* We try again to fetch a message from the mbox. */
     goto again;
   }
 
   UNLOCK_TCPIP_CORE();
   res = sys_arch_mbox_fetch(mbox, msg, sleeptime);
-  {
-    u32_t start = sys_now(); /* EXPERIMENT: time others held the core lock */
-    LOCK_TCPIP_CORE();
-    buddy_tcpip_busy_record(sys_now() - start, 101, 0);
-  }
+  LOCK_TCPIP_CORE();
   if (res == SYS_ARCH_TIMEOUT) {
     /* If a SYS_ARCH_TIMEOUT value is returned, a timeout occurred
        before a message could be fetched. */
-    u32_t start = sys_now(); /* EXPERIMENT */
     sys_check_timeouts();
-    buddy_tcpip_busy_record(sys_now() - start, 100, 0);
     /* We try again to fetch a message from the mbox. */
     goto again;
   }
@@ -152,21 +148,13 @@ tcpip_thread(void *arg)
   while (1) {                          /* MAIN Loop */
     LWIP_TCPIP_THREAD_ALIVE();
     /* wait for a message, timeouts are processed while waiting */
-    TCPIP_MBOX_FETCH(&tcpip_mbox, (void **)&msg);
+    tcpip_mbox_fetch(&tcpip_mbox, (void **)&msg);
     if (msg == NULL) {
       LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: invalid message: NULL\n"));
       LWIP_ASSERT("tcpip_thread: invalid message", 0);
       continue;
     }
-    {
-      /* EXPERIMENT: buddy_tcpip_busy_record. Read before handling, the
-         message may be freed by it. */
-      const u8_t kind = (u8_t)msg->type;
-      const u32_t fn = (msg->type == TCPIP_MSG_CALLBACK || msg->type == TCPIP_MSG_CALLBACK_STATIC) ? (u32_t)(uintptr_t)msg->msg.cb.function : 0;
-      const u32_t start = sys_now();
-      tcpip_thread_handle_msg(msg);
-      buddy_tcpip_busy_record(sys_now() - start, kind, fn);
-    }
+    tcpip_thread_handle_msg(msg);
   }
 }
 
@@ -187,12 +175,16 @@ tcpip_thread_handle_msg(struct tcpip_msg *msg)
       msg->msg.api_call.arg->err = msg->msg.api_call.function(msg->msg.api_call.arg);
       sys_sem_signal(msg->msg.api_call.sem);
       break;
+    case TCPIP_MSG_CALLBACK_STATIC_WAIT:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: CALLBACK WAIT message %p\n", (void *)msg));
+      msg->msg.cb_wait.function(msg->msg.cb_wait.ctx);
+      sys_sem_signal(msg->msg.cb_wait.sem);
+      break;
 #endif /* !LWIP_TCPIP_CORE_LOCKING */
 
 #if !LWIP_TCPIP_CORE_LOCKING_INPUT
     case TCPIP_MSG_INPKT:
       LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: PACKET %p\n", (void *)msg));
-      buddy_net_lat_record(1, sys_now() - msg->msg.inp.post_ms); /* EXPERIMENT */
       if (msg->msg.inp.input_fn(msg->msg.inp.p, msg->msg.inp.netif) != ERR_OK) {
         pbuf_free(msg->msg.inp.p);
       }
@@ -239,7 +231,7 @@ tcpip_thread_poll_one(void)
   int ret = 0;
   struct tcpip_msg *msg;
 
-  if (sys_arch_mbox_tryfetch(&tcpip_mbox, (void **)&msg) != SYS_ARCH_TIMEOUT) {
+  if (sys_arch_mbox_tryfetch(&tcpip_mbox, (void **)&msg) != SYS_MBOX_EMPTY) {
     LOCK_TCPIP_CORE();
     if (msg != NULL) {
       tcpip_thread_handle_msg(msg);
@@ -282,7 +274,6 @@ tcpip_inpkt(struct pbuf *p, struct netif *inp, netif_input_fn input_fn)
   msg->msg.inp.p = p;
   msg->msg.inp.netif = inp;
   msg->msg.inp.input_fn = input_fn;
-  msg->msg.inp.post_ms = sys_now(); /* EXPERIMENT */
   if (sys_mbox_trypost(&tcpip_mbox, msg) != ERR_OK) {
     memp_free(MEMP_TCPIP_MSG_INPKT, msg);
     return ERR_MEM;
@@ -446,7 +437,7 @@ tcpip_untimeout(sys_timeout_handler h, void *arg)
 
 /**
  * Sends a message to TCPIP thread to call a function. Caller thread blocks on
- * on a provided semaphore, which ist NOT automatically signalled by TCPIP thread,
+ * on a provided semaphore, which is NOT automatically signalled by TCPIP thread,
  * this has to be done by the user.
  * It is recommended to use LWIP_TCPIP_CORE_LOCKING since this is the way
  * with least runtime overhead.
@@ -542,7 +533,7 @@ tcpip_api_call(tcpip_api_call_fn fn, struct tcpip_api_call_data *call)
  * e.g. the message is allocated once and posted several times from an IRQ
  * using tcpip_callbackmsg_trycallback().
  * Example usage: Trigger execution of an ethernet IRQ DPC routine in lwIP thread context.
- * 
+ *
  * @param function the function to call
  * @param ctx parameter passed to function
  * @return a struct pointer to pass to tcpip_callbackmsg_trycallback().
@@ -610,6 +601,49 @@ tcpip_callbackmsg_trycallback_fromisr(struct tcpip_callback_msg *msg)
 {
   LWIP_ASSERT("Invalid mbox", sys_mbox_valid_val(tcpip_mbox));
   return sys_mbox_trypost_fromisr(&tcpip_mbox, msg);
+}
+
+/**
+ * Sends a message to TCPIP thread to call a function. Caller thread blocks
+ * until the function returns.
+ * It is recommended to use LWIP_TCPIP_CORE_LOCKING (preferred) or
+ * LWIP_NETCONN_SEM_PER_THREAD.
+ * If not, a semaphore is created and destroyed on every call which is usually
+ * an expensive/slow operation.
+ *
+ * @param function the function to call
+ * @param ctx parameter passed to f
+ * @return ERR_OK if the function was called, another err_t if not
+ */
+err_t
+tcpip_callback_wait(tcpip_callback_fn function, void *ctx)
+{
+#if LWIP_TCPIP_CORE_LOCKING
+  LOCK_TCPIP_CORE();
+  function(ctx);
+  UNLOCK_TCPIP_CORE();
+  return ERR_OK;
+#else /* LWIP_TCPIP_CORE_LOCKING */
+  err_t err;
+  sys_sem_t sem;
+  struct tcpip_msg msg;
+
+  LWIP_ASSERT("Invalid mbox", sys_mbox_valid_val(tcpip_mbox));
+
+  err = sys_sem_new(&sem, 0);
+  if (err != ERR_OK) {
+    return err;
+  }
+
+  msg.type = TCPIP_MSG_CALLBACK_STATIC_WAIT;
+  msg.msg.cb_wait.function = function;
+  msg.msg.cb_wait.ctx = ctx;
+  msg.msg.cb_wait.sem = &sem;
+  sys_mbox_post(&tcpip_mbox, &msg);
+  sys_arch_sem_wait(&sem, 0);
+  sys_sem_free(&sem);
+  return ERR_OK;
+#endif /* LWIP_TCPIP_CORE_LOCKING */
 }
 
 /**

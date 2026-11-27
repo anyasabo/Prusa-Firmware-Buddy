@@ -51,7 +51,7 @@
 #include "lwip/ip4_frag.h"
 #include "lwip/etharp.h"
 #include "lwip/dhcp.h"
-#include "lwip/autoip.h"
+#include "lwip/acd.h"
 #include "lwip/igmp.h"
 #include "lwip/dns.h"
 #include "lwip/nd6.h"
@@ -91,9 +91,9 @@ const struct lwip_cyclic_timer lwip_cyclic_timers[] = {
   {DHCP_COARSE_TIMER_MSECS, HANDLER(dhcp_coarse_tmr)},
   {DHCP_FINE_TIMER_MSECS, HANDLER(dhcp_fine_tmr)},
 #endif /* LWIP_DHCP */
-#if LWIP_AUTOIP
-  {AUTOIP_TMR_INTERVAL, HANDLER(autoip_tmr)},
-#endif /* LWIP_AUTOIP */
+#if LWIP_ACD
+  {ACD_TMR_INTERVAL, HANDLER(acd_tmr)},
+#endif /* LWIP_ACD */
 #if LWIP_IGMP
   {IGMP_TMR_INTERVAL, HANDLER(igmp_tmr)},
 #endif /* LWIP_IGMP */
@@ -241,7 +241,7 @@ lwip_cyclic_timer(void *arg)
   cyclic->handler();
 
   now = sys_now();
-  next_timeout_time = (u32_t)(current_timeout_due_time + cyclic->interval_ms);  /* overflow handled by TIME_LESS_THAN macro */ 
+  next_timeout_time = (u32_t)(current_timeout_due_time + cyclic->interval_ms);  /* overflow handled by TIME_LESS_THAN macro */
   if (TIME_LESS_THAN(next_timeout_time, now)) {
     /* timer would immediately expire again -> "overload" -> restart without any correction */
 #if LWIP_DEBUG_TIMERNAMES
@@ -264,15 +264,11 @@ lwip_cyclic_timer(void *arg)
 void sys_timeouts_init(void)
 {
   size_t i;
-  u32_t now = sys_now();
   /* tcp_tmr() at index 0 is started on demand */
   for (i = (LWIP_TCP ? 1 : 0); i < LWIP_ARRAYSIZE(lwip_cyclic_timers); i++) {
     /* we have to cast via size_t to get rid of const warning
       (this is OK as cyclic_timer() casts back to const* */
-    // We can't call sys_timeout() here, because it calls LWIP_ASSERT_CORE_LOCKED()
-    // which fails because tcpip thread is not started yet. This is a bug in LWIP.
-    u32_t next_timeout_time = (u32_t)(now + lwip_cyclic_timers[i].interval_ms); /* overflow handled by TIME_LESS_THAN macro */
-    sys_timeout_abs(next_timeout_time, lwip_cyclic_timer, LWIP_CONST_CAST(void *, &lwip_cyclic_timers[i]));
+    sys_timeout(lwip_cyclic_timers[i].interval_ms, lwip_cyclic_timer, LWIP_CONST_CAST(void *, &lwip_cyclic_timers[i]));
   }
 }
 
@@ -300,7 +296,7 @@ sys_timeout(u32_t msecs, sys_timeout_handler handler, void *arg)
 
   LWIP_ASSERT("Timeout time too long, max is LWIP_UINT32_MAX/4 msecs", msecs <= (LWIP_UINT32_MAX / 4));
 
-  next_timeout_time = (u32_t)(sys_now() + msecs); /* overflow handled by TIME_LESS_THAN macro */ 
+  next_timeout_time = (u32_t)(sys_now() + msecs); /* overflow handled by TIME_LESS_THAN macro */
 
 #if LWIP_DEBUG_TIMERNAMES
   sys_timeout_abs(next_timeout_time, handler, arg, handler_name);

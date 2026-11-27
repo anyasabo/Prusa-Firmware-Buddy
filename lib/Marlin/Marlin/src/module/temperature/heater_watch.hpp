@@ -50,7 +50,7 @@ public:
     /// @returns true when the watch fired; the caller is expected to raise its error
     [[nodiscard]] bool update(float current_temp);
 
-    /// @returns true when armed (pending or watching).
+    /// @returns true when armed (pending, watching or retargeted).
     bool is_running() const {
         return state_ != State::disarmed;
     }

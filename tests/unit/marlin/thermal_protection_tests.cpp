@@ -351,9 +351,11 @@ TEST_CASE("heater watch: a restart starts a new period (INDX park and head reset
         now_ms += 1000;
         w.restart(250);
         now_ms += 2500;
-        CHECK_FALSE(w.update(110));
+        CHECK_FALSE(w.update(110)); // the new period starts: 130 C after 5 s
         now_ms += 4000;
-        CHECK_FALSE(w.update(131));
+        CHECK_FALSE(w.update(125));
+        now_ms += 1000;
+        CHECK(w.update(125));
     }
 
     SECTION("a restart still finds a heater that does not heat") {

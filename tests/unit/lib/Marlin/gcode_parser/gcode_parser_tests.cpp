@@ -146,3 +146,16 @@ TEST_CASE("An empty line is not a command") {
         CHECK(parser.string_arg == nullptr);
     }
 }
+
+TEST_CASE("A letter with no value is seen, but has no value and reads as 0") {
+    // A handler that reads a value after seen() gets 0 for "M593 X F". The handlers use seenval(),
+    // and utils/check_gcode_seen_value.py finds a value read after seen() with no value check.
+    Line line("M593 X F");
+    CHECK(parser.seen('F'));
+    CHECK_FALSE(parser.has_value());
+    CHECK_FALSE(parser.seenval('F'));
+    CHECK(parser.value_float() == 0.0f);
+    CHECK(parser.value_long() == 0);
+    CHECK(parser.value_bool());
+    CHECK(parser.seenval('X') == false);
+}

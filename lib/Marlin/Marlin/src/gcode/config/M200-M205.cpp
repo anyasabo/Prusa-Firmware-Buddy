@@ -257,7 +257,7 @@ void GcodeSuite::M205() {
     planner.apply_settings(s);
   }
   #if DISABLED(CLASSIC_JERK)
-    if (parser.seen('J')) {
+    if (parser.seenval('J')) {
       const float junc_dev = parser.value_linear_units();
       if (WITHIN(junc_dev, 0.01f, 0.3f)) {
         planner.junction_deviation_mm = junc_dev;

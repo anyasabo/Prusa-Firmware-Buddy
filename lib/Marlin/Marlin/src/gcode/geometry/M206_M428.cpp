@@ -47,7 +47,7 @@
  */
 void GcodeSuite::M206() {
   LOOP_XYZ(i)
-    if (parser.seen(axis_codes[i]))
+    if (parser.seenval(axis_codes[i]))
       set_home_offset((AxisEnum)i, parser.value_linear_units());
 
   report_current_position();

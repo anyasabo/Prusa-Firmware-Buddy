@@ -11,3 +11,10 @@ CompileFlags:
   Remove:
     - "-Wno-deprecated-declarations"
     - "-fno-extended-identifiers"
+---
+# The clang-tidy checks of .clang-tidy are for our code, not for the vendored libraries.
+If:
+  PathExclude: [src/.*, lib/Marlin/.*, tests/.*]
+Diagnostics:
+  ClangTidy:
+    Remove: '*'

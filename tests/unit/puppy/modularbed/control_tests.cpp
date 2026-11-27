@@ -463,3 +463,25 @@ TEST_CASE("modularbed: a bedlet a little above its target gets no preheat error 
     CHECK(bedlet_faults(4) == 0);
     CHECK(test::system_fault_status() == 0);
 }
+
+TEST_CASE("modularbed: a bedlet a little above its target becomes stable and gets the peak check (MB-2)") {
+    fake::reset_world();
+    world.temperature.fill(60.0f);
+    world.frozen[4] = true;
+    world.temperature[4] = 60.5f;
+    test::boot_with_world();
+    test::write_all_targets(60);
+
+    test::run_ms(10'000, true);
+    REQUIRE(test::bedlet(4).m_State == HeatbedletState::Stable);
+
+    // The bedlet stays 6 °C above its target, more than the peak threshold.
+    world.temperature[4] = 66.0f;
+    test::run_ms(70'000, true);
+    CHECK(bedlet_faults(4) == flag(HeatbedletError::TemperaturePeakDetected));
+}
+
+TEST_CASE("modularbed: a NaN PID action gives the register value 0") {
+    CHECK(ControlLogic::PIDActionRegister(std::numeric_limits<float>::quiet_NaN()) == 0);
+    CHECK(ControlLogic::PIDActionRegister(-std::numeric_limits<float>::quiet_NaN()) == 0);
+}

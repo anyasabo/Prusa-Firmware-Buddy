@@ -6,6 +6,7 @@
 #include <option/has_local_accelerometer.h>
 #include <option/has_remote_accelerometer.h>
 #include "Marlin/src/core/types.h"
+#include "measure_range.hpp"
 #include "Marlin/src/module/prusa/accelerometer.h"
 #include "Marlin/src/feature/precise_stepping/common.hpp"
 #include "Marlin/src/feature/input_shaper/input_shaper_config.hpp"
@@ -92,12 +93,6 @@ struct MeasureParams {
 
     /// \returns false on failure
     bool setup(const MicrostepRestorer &microstep_restorer);
-};
-
-struct MeasureRange {
-    float start_frequency;
-    float end_frequency;
-    float frequency_increment;
 };
 
 /// Single point in amplitude frequency response

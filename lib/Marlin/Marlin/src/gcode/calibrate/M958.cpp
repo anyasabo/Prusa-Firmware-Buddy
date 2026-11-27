@@ -1394,7 +1394,7 @@ MicrostepRestorer::~MicrostepRestorer() {
  * - `KM` - select Klipper Marek modified tune algorithm
  * - `F` - Start frequency
  * - `G` - End frequency
- * - `H` - Frequency step
+ * - `H` - Frequency step, minimum 0.01 Hz, and it must change the end frequency in float
  * - `A` - Acceleration
  * - `D` - Don't home and move to bed center before calibrating
  * - `N` - Number of excitation signal periods of active measurement.
@@ -1446,6 +1446,10 @@ void GcodeSuite::M959() {
     }
     if (parser.seenval('H')) {
         range.frequency_increment = abs(parser.value_float());
+    }
+    if (!is_frequency_increment_valid(range)) {
+        SERIAL_ERROR_MSG("Frequency step H is too small for the end frequency G");
+        return;
     }
     if (parser.seenval('A')) {
         args.excitation_acceleration = abs(parser.value_float()) * 0.001f;

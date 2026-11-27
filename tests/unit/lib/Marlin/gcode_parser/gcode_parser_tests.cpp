@@ -27,7 +27,8 @@ private:
 
 TEST_CASE("A command with no text argument has a null string_arg") {
     // M340, M997, M862.3 P1, M331, M332 and M334 read string_arg. They must check it for null.
-    for (const char *text : { "M340", "M997", "M862.3 P1", "M331", "M334", "M0" }) {
+    // M32 calls M23, but only M23 always has a string_arg.
+    for (const char *text : { "M340", "M997", "M862.3 P1", "M331", "M334", "M0", "M32", "M32 S5" }) {
         CAPTURE(text);
         Line line(text);
         CHECK(parser.string_arg == nullptr);

@@ -463,3 +463,35 @@ SCENARIO("gap detection in sample stream", "[probe_analysis]") {
         }
     }
 }
+
+TEST_CASE("segmented R2 features keep the values that the classifier was trained on", "[probe_analysis]") {
+    // Characterization test of a recorded probe. The thresholds of Classify() were trained on these
+    // feature values, so a change of the R2 calculation must not change them (see CalculateSegmentedR2s).
+    ProbeAnalysis<1000> analysis;
+#include "probes/probe_110_1600937955.ipp"
+    REQUIRE(analysis.CompensateForSystemDelay());
+    ProbeAnalysisBase::Features features;
+    analysis.CalculateHaltSpan(features);
+    REQUIRE(analysis.CalculateAnalysisRange(features));
+    REQUIRE(analysis.CalculateLoadLineApproximationFeatures(features));
+    REQUIRE(analysis.CalculateZLineApproximationFeatures(features));
+    REQUIRE(analysis.CheckLineSanity(features));
+    analysis.CalculateLoadMeans(features);
+    analysis.CalculateLoadAngles(features);
+    features.r2_20ms = analysis.CalculateSegmentedR2s(features, 0.02f);
+    features.r2_30ms = analysis.CalculateSegmentedR2s(features, 0.03f);
+    features.r2_50ms = analysis.CalculateSegmentedR2s(features, 0.05f);
+    features.r2_60ms = analysis.CalculateSegmentedR2s(features, 0.06f);
+
+    const auto check = [](const ProbeAnalysisBase::SegmentedR2s &r2, float cs, float ce, float ds, float de) {
+        CHECK_THAT(r2.compressionStart, Catch::Matchers::WithinRel(cs, 1e-5f));
+        CHECK_THAT(r2.compressionEnd, Catch::Matchers::WithinRel(ce, 1e-5f));
+        CHECK_THAT(r2.decompressionStart, Catch::Matchers::WithinRel(ds, 1e-5f));
+        CHECK_THAT(r2.decompressionEnd, Catch::Matchers::WithinRel(de, 1e-5f));
+    };
+    check(features.r2_20ms, 0.642742276f, 0.999182045f, 0.99888283f, 0.950100064f);
+    check(features.r2_30ms, 0.751018167f, 0.99952203f, 0.999213159f, 0.978701472f);
+    check(features.r2_50ms, 0.961393833f, 0.999236286f, 0.999478042f, 0.985874534f);
+    check(features.r2_60ms, 0.970951796f, 0.999263942f, 0.99951607f, 0.990228772f);
+    CHECK(analysis.Classify(features) == 1);
+}

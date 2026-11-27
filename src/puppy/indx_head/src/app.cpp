@@ -154,8 +154,9 @@ void step_hotend() {
 
     // Note: If !nozzle_temp_reading.valid, nozzle_temp_reading contains last valid value
 
-    const int16_t nozzle_temp_uncompensated_c100 = indx_head::saturate_c100(static_cast<int32_t>(nozzle_temp_reading.temps.object_temperature_celsius * tpis::fixed(100)));
-    const int16_t nozzle_temp_compensated_c100 = indx_head::saturate_c100(int32_t { nozzle_temp_uncompensated_c100 } - hotend_temp_compensation::get_current_compensation_c100());
+    const int32_t nozzle_temp_uncompensated_c100_wide = static_cast<int32_t>(nozzle_temp_reading.temps.object_temperature_celsius * tpis::fixed(100));
+    const int16_t nozzle_temp_uncompensated_c100 = indx_head::saturate_c100(nozzle_temp_uncompensated_c100_wide);
+    const int16_t nozzle_temp_compensated_c100 = indx_head::saturate_c100(nozzle_temp_uncompensated_c100_wide - hotend_temp_compensation::get_current_compensation_c100());
 
     // Calculate slope
     if (temps_valid) {

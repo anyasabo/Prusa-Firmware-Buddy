@@ -236,6 +236,31 @@ float retarget_interval_s(const Config &c) {
 
 } // namespace
 
+TEST_CASE("thermal protection: a thermistor out of the heater, and targets that change often (TH-1)", "[thermal]") {
+    const Config c = GENERATE(core_one_l_hotend, mini_hotend, mk4_hotend, mk4_bed, core_one_bed);
+    // The reading stays at room temperature while the heater is on.
+    const float delta = GENERATE(0.0f, 1.0f, 40.0f);
+    CAPTURE(c.name, delta);
+
+    Protection p(c);
+    const auto fired = p.run_with_targets(1800, retarget_interval_s(c), { c.target, c.target - delta }, [](float) { return 30.0f; });
+    REQUIRE(fired.has_value());
+    // The watch period, plus one interval until the first period starts.
+    CHECK(*fired <= c.watch_period_s + retarget_interval_s(c) + 1);
+}
+
+TEST_CASE("thermal protection: the thermistor falls out at the target, and targets that change often (TH-1)", "[thermal]") {
+    const Config c = GENERATE(core_one_l_hotend, mini_hotend, mk4_hotend, mk4_bed, core_one_bed);
+    const float delta = GENERATE(0.0f, 1.0f, 10.0f);
+    CAPTURE(c.name, delta);
+
+    Protection p(c);
+    REQUIRE_FALSE(p.heat_to(c.target).has_value());
+    const auto fired = p.run_with_targets(1800, retarget_interval_s(c), { c.target - delta, c.target }, [](float) { return 30.0f; });
+    REQUIRE(fired.has_value());
+    CHECK(*fired <= std::max<float>(c.protection_period_s, c.watch_period_s + retarget_interval_s(c)) + 1);
+}
+
 TEST_CASE("thermal protection: a heat-up with targets that change often gives no error", "[thermal]") {
     const Config c = GENERATE(core_one_l_hotend, mini_hotend, mk4_hotend, mk4_bed, core_one_bed);
     const float delta = GENERATE(1.0f, 10.0f, 40.0f);

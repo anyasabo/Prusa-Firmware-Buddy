@@ -246,3 +246,28 @@ TEST_CASE("xbe mmu: a reply in parts", "[xbe][mmu]") {
     CHECK(mmu.read_registers(0x1a, out) == Status::Ok);
     CHECK(out[0] == 0x1234);
 }
+
+TEST_CASE("xbe mmu: the timeout is correct across the millisecond wrap", "[xbe][mmu]") {
+    WorldGuard g;
+    g.w.mmu = [](const RequestMsg &rq) { return encode_read_reply(rq, 42); };
+    MMU mmu;
+    uint16_t out[1] = {};
+
+    SECTION("A reply 3 ms after a request just before the wrap") {
+        g.w.reply_delay_calls = 3;
+        const uint32_t offset = GENERATE(1u, 5u, 9u, 10u, 11u);
+        CAPTURE(offset);
+        g.w.now = uint32_t(0) - offset;
+        CHECK(mmu.read_registers(0x1a, out) == Status::Ok);
+        CHECK(out[0] == 42);
+    }
+
+    SECTION("No reply, and the task does not run during the last ms before the wrap") {
+        g.w.mmu = [](const RequestMsg &) { return std::vector<uint8_t> {}; };
+        g.w.now = 0xFFFF'FFF0;
+        // A higher priority task or an interrupt holds the CPU from
+        // 0xFFFFFFF8 to 0x00000004.
+        g.w.step = [](uint32_t now) { return now == 0xFFFF'FFF7 ? 13u : 1u; };
+        CHECK(mmu.read_registers(0x1a, out) == Status::GatewayPathUnavailable);
+    }
+}

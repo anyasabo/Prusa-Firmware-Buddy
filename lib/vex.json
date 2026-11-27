@@ -1,8 +1,8 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:be860b6b-d9bd-5026-990f-c37ce3bbb4c6",
+ "@id": "urn:uuid:d842e21b-cf27-5040-9ba7-9baac1156c3d",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
- "timestamp": "2026-11-26T00:00:00Z",
+ "timestamp": "2026-11-27T00:00:00Z",
  "version": 1,
  "statements": [
   {
@@ -11,12 +11,25 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "DTLS only; DTLS and the SSL server are disabled (include/mbedtls/cipher_config_ece.h)."
+   "impact_statement": "Fixed in 2.28.1."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2022-46392"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fixed in 2.28.2."
   },
   {
    "vulnerability": {
@@ -24,12 +37,12 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "DTLS only; DTLS and the SSL server are disabled (include/mbedtls/cipher_config_ece.h)."
+   "impact_statement": "Fixed in 2.28.2."
   },
   {
    "vulnerability": {
@@ -37,12 +50,25 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "Only NULL/RC4 suites are affected; the only suite enabled is ECDHE-ECDSA-AES128-GCM-SHA256."
+   "impact_statement": "Fixed in 2.28.5."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-23170"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fixed in 2.28.7."
   },
   {
    "vulnerability": {
@@ -50,12 +76,64 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "X.509 writing/string-to-names code; MBEDTLS_X509_CRT_WRITE_C and MBEDTLS_X509_CREATE_C are off."
+   "impact_statement": "Fixed in 2.28.7."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-28960"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fixed in 2.28.8."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2024-45157"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fixed in 2.28.9."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-27809"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fixed in 2.28.10."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2025-27810"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Fixed in 2.28.10."
   },
   {
    "vulnerability": {
@@ -63,7 +141,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -76,7 +154,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -85,37 +163,11 @@
   },
   {
    "vulnerability": {
-    "name": "CVE-2024-28960"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
-   "impact_statement": "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2024-45157"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
-   "impact_statement": "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."
-  },
-  {
-   "vulnerability": {
     "name": "CVE-2026-25835"
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -128,7 +180,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -141,7 +193,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -154,7 +206,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -167,7 +219,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -180,7 +232,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -193,7 +245,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -206,7 +258,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -219,7 +271,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -228,24 +280,11 @@
   },
   {
    "vulnerability": {
-    "name": "CVE-2025-27809"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "inline_mitigations_already_exist",
-   "impact_statement": "src/connect/tls/tls.cpp calls mbedtls_ssl_set_hostname()."
-  },
-  {
-   "vulnerability": {
     "name": "CVE-2021-36647"
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -258,7 +297,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -271,7 +310,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -284,7 +323,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -293,50 +332,11 @@
   },
   {
    "vulnerability": {
-    "name": "CVE-2025-27810"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
-    }
-   ],
-   "status": "affected",
-   "action_statement": "Upgrade mbedTLS (2.28 is end of life; fixed in 2.28.10) or move to 3.6 LTS.",
-   "status_notes": "Finished-message check can be skipped after an allocation or hardware failure; Buddy allocates with calloc_fallible on a small heap."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2022-46392"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
-   "impact_statement": "RSA private-key side channels. MBEDTLS_RSA_C is defined only when HAS_E2EE_SUPPORT() (include/mbedtls/cipher_config_ece.h), which ProjectOptions.cmake enables only with DEVELOPMENT_ITEMS_ENABLED; release builds turn that off (utils/holly/build-pr.jenkins builds RELEASE-* branches with -DDEVELOPMENT_ITEMS_ENABLED=no). Development builds (the CMake default) do include RSA-OAEP decrypt for E2EE (src/common/e2ee/e2ee.cpp) and are affected; there it needs precise timing or memory-access observation."
-  },
-  {
-   "vulnerability": {
-    "name": "CVE-2024-23170"
-   },
-   "products": [
-    {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
-    }
-   ],
-   "status": "not_affected",
-   "justification": "vulnerable_code_not_present",
-   "impact_statement": "RSA private-key side channels. MBEDTLS_RSA_C is defined only when HAS_E2EE_SUPPORT() (include/mbedtls/cipher_config_ece.h), which ProjectOptions.cmake enables only with DEVELOPMENT_ITEMS_ENABLED; release builds turn that off (utils/holly/build-pr.jenkins builds RELEASE-* branches with -DDEVELOPMENT_ITEMS_ENABLED=no). Development builds (the CMake default) do include RSA-OAEP decrypt for E2EE (src/common/e2ee/e2ee.cpp) and are affected; there it needs precise timing or memory-access observation."
-  },
-  {
-   "vulnerability": {
     "name": "CVE-2026-50584"
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -349,7 +349,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -362,7 +362,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -375,7 +375,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -388,7 +388,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -401,7 +401,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -414,7 +414,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -427,7 +427,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -440,7 +440,7 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
@@ -453,12 +453,181 @@
    },
    "products": [
     {
-     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.0"
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_in_execute_path",
    "impact_statement": "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-115488"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off (include/mbedtls/cipher_config_ece.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-93844"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off (include/mbedtls/cipher_config_ece.h)."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-115489"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "mbedtls_x509_dn_gets() is called only by mbedtls_x509_crt_info() and the CSR/CRL info functions; Buddy calls none of them and MBEDTLS_DEBUG_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-115492"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "affected",
+   "action_statement": "Undefine MBEDTLS_AES_ROM_TABLES (the tables then use about 2.5 KB of RAM with MBEDTLS_AES_FEWER_TABLES), or move to hardware AES.",
+   "status_notes": "MBEDTLS_AES_ROM_TABLES is on (include/mbedtls/cipher_config_ece.h), so the AES tables are read through the flash accelerator cache. The advisory says that short-lived TLS session keys are not at risk; the attacker needs the timing of many AES calls with one key."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-115493"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-93833"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-93835"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-93842"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+   "impact_statement": "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-116462"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "CRL name matching; MBEDTLS_X509_CRL_PARSE_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-50582"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "PBKDF2 iteration count of an encrypted PKCS#8 key; MBEDTLS_PKCS5_C is off, so the firmware cannot parse encrypted keys."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-90470"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_in_execute_path",
+   "impact_statement": "URI matched against a DNS wildcard; src/connect/tls/tls.cpp passes the Connect host name (a DNS name) to mbedtls_ssl_set_hostname(), never a URI."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-93776"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS server code (SNI resumption, CertificateVerify algorithms); MBEDTLS_SSL_SRV_C is off."
+  },
+  {
+   "vulnerability": {
+    "name": "CVE-2026-93777"
+   },
+   "products": [
+    {
+     "@id": "pkg:github/mbed-tls/mbedtls@v2.28.10"
+    }
+   ],
+   "status": "not_affected",
+   "justification": "vulnerable_code_not_present",
+   "impact_statement": "TLS server code (SNI resumption, CertificateVerify algorithms); MBEDTLS_SSL_SRV_C is off."
   },
   {
    "vulnerability": {

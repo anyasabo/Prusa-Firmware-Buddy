@@ -31,20 +31,21 @@
 components:
   lib/Middlewares/Third_Party/mbedtls:
     name: mbedtls
-    version: 2.28.0
+    version: 2.28.10
     repository: https://github.com/Mbed-TLS/mbedtls
-    upstream_commit: 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0  # tag v2.28.0
-    subrepo_commit: 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0
+    upstream_commit: 2fc8413bfcb51354c8e679141b17b3f1a5942561  # tag v2.28.10
+    subrepo_commit: 2fc8413bfcb51354c8e679141b17b3f1a5942561
     cpe:
-      - cpe:2.3:a:arm:mbed_tls:2.28.0:*:*:*:*:*:*:*
-      - cpe:2.3:a:trustedfirmware:mbed_tls:2.28.0:*:*:*:*:*:*:*
-    purl: pkg:github/mbed-tls/mbedtls@v2.28.0
+      - cpe:2.3:a:arm:mbed_tls:2.28.10:*:*:*:*:*:*:*
+      - cpe:2.3:a:trustedfirmware:mbed_tls:2.28.10:*:*:*:*:*:*:*
+    purl: pkg:github/mbed-tls/mbedtls@v2.28.10
     supplier: "Organization: Trusted Firmware (formerly Arm)"
     license: Apache-2.0 OR GPL-2.0-or-later
     note: >-
       NVD files mbed TLS under two CPE vendors, arm:mbed_tls and
       trustedfirmware:mbed_tls, with disjoint CVE sets; both are listed. The 2.28 LTS branch
-      reached end of life with 2.28.10.
+      reached end of life with 2.28.10, so later advisories have no 2.28 fix; lib/vex.json
+      decides each one.
     patches:
       - library/platform_util.c: use gmtime_r() instead of gmtime()+memcpy
       - include/mbedtls/net_sockets.h: make mbedtls_net_context an opaque struct

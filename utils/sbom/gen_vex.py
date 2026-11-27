@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-26"
+REVIEWED = "2026-11-27"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -63,20 +63,24 @@ LWIP_CVES = [
 # Manifest key -> decisions.
 TRIAGE: dict[str, list[Decision]] = {
     "lib/Middlewares/Third_Party/mbedtls": [
+        # Fixed in 2.28.x up to the vendored 2.28.10 (its ChangeLog). The
+        # advisory feed cannot tell for the advisories that say "all versions".
+        not_affected(["CVE-2022-35409"], NP, "Fixed in 2.28.1."),
+        not_affected(["CVE-2022-46392", "CVE-2022-46393"], NP,
+                     "Fixed in 2.28.2."),
+        not_affected(["CVE-2023-43615"], NP, "Fixed in 2.28.5."),
+        not_affected(["CVE-2024-23170", "CVE-2024-23775"], NP,
+                     "Fixed in 2.28.7."),
+        not_affected(["CVE-2024-28960"], NP, "Fixed in 2.28.8."),
+        not_affected(["CVE-2024-45157"], NP, "Fixed in 2.28.9."),
+        not_affected(["CVE-2025-27809", "CVE-2025-27810"], NP,
+                     "Fixed in 2.28.10."),
         not_affected(
-            ["CVE-2022-35409", "CVE-2022-46393"], NP,
-            f"DTLS only; DTLS and the SSL server are disabled ({MBEDTLS_CFG})."
-        ),
-        not_affected(
-            ["CVE-2023-43615"], NP,
-            "Only NULL/RC4 suites are affected; the only suite enabled is ECDHE-ECDSA-AES128-GCM-SHA256."
-        ),
-        not_affected(
-            ["CVE-2024-23775", "CVE-2025-47917", "CVE-2025-48965"], NP,
+            ["CVE-2025-47917", "CVE-2025-48965"], NP,
             "X.509 writing/string-to-names code; MBEDTLS_X509_CRT_WRITE_C and MBEDTLS_X509_CREATE_C are off."
         ),
-        not_affected(["CVE-2024-28960", "CVE-2024-45157", "CVE-2026-25835"],
-                     NP, "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."),
+        not_affected(["CVE-2026-25835"], NP,
+                     "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."),
         not_affected(
             ["CVE-2025-52496"], NP,
             "AESNI (x86) support; MBEDTLS_AESNI_C is off and the target is Cortex-M."
@@ -103,9 +107,6 @@ TRIAGE: dict[str, list[Decision]] = {
             ["CVE-2025-54764"], NCA,
             "Microarchitectural (SSBleed/M-Step) attack on RSA keygen needs a co-located privileged attacker; not applicable to a Cortex-M MCU."
         ),
-        not_affected(
-            ["CVE-2025-27809"], MIT,
-            "src/connect/tls/tls.cpp calls mbedtls_ssl_set_hostname()."),
         not_affected(["CVE-2021-36647"], NP,
                      f"{NVD_RANGE}: fixed in 2.27.0/2.16.11, before 2.28.0."),
         not_affected(
@@ -119,17 +120,9 @@ TRIAGE: dict[str, list[Decision]] = {
             ["CVE-2023-52353"], NP,
             "3.x TLS version negotiation; not present in the 2.28 branch (no advisory, not in its ChangeLog)."
         ),
-        affected(
-            ["CVE-2025-27810"],
-            "Upgrade mbedTLS (2.28 is end of life; fixed in 2.28.10) or move to 3.6 LTS.",
-            "Finished-message check can be skipped after an allocation or hardware failure; Buddy allocates with calloc_fallible on a small heap."
-        ),
-        not_affected(
-            ["CVE-2022-46392", "CVE-2024-23170"], NP,
-            f"RSA private-key side channels. MBEDTLS_RSA_C is defined only when HAS_E2EE_SUPPORT() ({MBEDTLS_CFG}), which ProjectOptions.cmake enables only with DEVELOPMENT_ITEMS_ENABLED; release builds turn that off (utils/holly/build-pr.jenkins builds RELEASE-* branches with -DDEVELOPMENT_ITEMS_ENABLED=no). Development builds (the CMake default) do include RSA-OAEP decrypt for E2EE (src/common/e2ee/e2ee.cpp) and are affected; there it needs precise timing or memory-access observation."
-        ),
         # July 2026 advisories. Their CVE IDs are still RESERVED at CVE.org, so no CPE
         # feed has them; utils/sbom/sbom_feeds.py mbedtls-advisories finds them.
+        # 2.28 is end of life, so 2.28.10 has none of these fixes.
         not_affected(["CVE-2026-50584"], NP,
                      "ChaCha20; MBEDTLS_CHACHA20_C is off."),
         not_affected(
@@ -160,6 +153,41 @@ TRIAGE: dict[str, list[Decision]] = {
         not_affected(
             ["CVE-2026-54441"], NIEP,
             "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
+        ),
+        # November 2026 advisories (3.6.8, 4.1.2, 4.3.0). No 2.28 release has the fixes.
+        not_affected(
+            ["CVE-2026-115488", "CVE-2026-93844"], NP,
+            f"Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off ({MBEDTLS_CFG})."
+        ),
+        not_affected(
+            ["CVE-2026-115489"], NIEP,
+            "mbedtls_x509_dn_gets() is called only by mbedtls_x509_crt_info() and the CSR/CRL info functions; Buddy calls none of them and MBEDTLS_DEBUG_C is off."
+        ),
+        affected(
+            ["CVE-2026-115492"],
+            "Undefine MBEDTLS_AES_ROM_TABLES (the tables then use about 2.5 KB of RAM with MBEDTLS_AES_FEWER_TABLES), or move to hardware AES.",
+            f"MBEDTLS_AES_ROM_TABLES is on ({MBEDTLS_CFG}), so the AES tables are read through the flash accelerator cache. The advisory says that short-lived TLS session keys are not at risk; the attacker needs the timing of many AES calls with one key."
+        ),
+        not_affected(
+            [
+                "CVE-2026-115493", "CVE-2026-93833", "CVE-2026-93835",
+                "CVE-2026-93842"
+            ], NCA,
+            "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. The Cortex-M4 (STM32F4) does not execute loads speculatively (Arm does not list Cortex-M cores as affected by Spectre), and the firmware runs no untrusted code."
+        ),
+        not_affected(["CVE-2026-116462"], NP,
+                     "CRL name matching; MBEDTLS_X509_CRL_PARSE_C is off."),
+        not_affected(
+            ["CVE-2026-50582"], NP,
+            "PBKDF2 iteration count of an encrypted PKCS#8 key; MBEDTLS_PKCS5_C is off, so the firmware cannot parse encrypted keys."
+        ),
+        not_affected(
+            ["CVE-2026-90470"], NIEP,
+            "URI matched against a DNS wildcard; src/connect/tls/tls.cpp passes the Connect host name (a DNS name) to mbedtls_ssl_set_hostname(), never a URI."
+        ),
+        not_affected(
+            ["CVE-2026-93776", "CVE-2026-93777"], NP,
+            "TLS server code (SNI resumption, CertificateVerify algorithms); MBEDTLS_SSL_SRV_C is off."
         ),
     ],
     "lib/Middlewares/Third_Party/FatFs": [

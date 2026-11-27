@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
 ;
 [subrepo]
-	remote = git@github.com:ARMmbed/mbedtls.git
-	branch = v2.28.0
-	commit = 8b3f26a5ac38d4fdccbc5c5366229f3e01dafcc0
-	parent = 0a093bd97680f23cdff0d604a9aeb32c1ce2dbc4
+	remote = https://github.com/Mbed-TLS/mbedtls.git
+	branch = v2.28.10
+	commit = 2fc8413bfcb51354c8e679141b17b3f1a5942561
+	parent = a506ff197029a4ffce4dcc34200c2d50c7c6b206
 	method = merge
 	cmdver = 0.4.3

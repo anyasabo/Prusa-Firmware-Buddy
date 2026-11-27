@@ -50,6 +50,8 @@ target_include_directories(
   )
 add_catch_test(xbuddy_extension_hal_logic_tests)
 
+# mmu_include has option/has_mmu2.h. The test does not use the include directory of the other
+# targets, because its freertos/timing.hpp has an inline millis() and the test defines its own.
 add_executable(
   xbuddy_extension_mmu_bridge_tests
   ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension/mmu.cpp

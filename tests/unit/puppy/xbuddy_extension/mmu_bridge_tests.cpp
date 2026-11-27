@@ -3,6 +3,7 @@
 #include "mmu.hpp"
 #include "hal_mmu.hpp"
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
@@ -38,8 +39,13 @@ struct FakeWorld {
     /// Makes the reply of the MMU to a request. Empty: no reply.
     std::function<std::vector<uint8_t>(const RequestMsg &)> mmu = [](const RequestMsg &) { return std::vector<uint8_t> {}; };
 
-    /// Milliseconds from the request to the reply.
-    uint32_t reply_delay_ms = 1;
+    /// millis() calls from the request to the reply. With the default step,
+    /// one call is one millisecond.
+    uint32_t reply_delay_calls = 1;
+
+    /// Send the reply in parts of this many bytes, one part for each
+    /// millis() call. 0: all at once.
+    size_t reply_chunk = 0;
 
     std::deque<uint8_t> rx;
     std::vector<uint8_t> pending_reply;
@@ -95,13 +101,15 @@ void transmit(Bytes bytes) {
     }
     world->requests.push_back(v);
     world->pending_reply = world->mmu(decode_request(v));
-    world->reply_at_call = world->millis_calls + world->reply_delay_ms;
+    world->reply_at_call = world->millis_calls + world->reply_delay_calls;
 }
 
 WritableBytes receive(WritableBytes buffer) {
     if (!world->pending_reply.empty() && world->millis_calls >= world->reply_at_call) {
-        world->rx.insert(world->rx.end(), world->pending_reply.begin(), world->pending_reply.end());
-        world->pending_reply.clear();
+        const size_t n = world->reply_chunk ? std::min(world->reply_chunk, world->pending_reply.size()) : world->pending_reply.size();
+        world->rx.insert(world->rx.end(), world->pending_reply.begin(), world->pending_reply.begin() + n);
+        world->pending_reply.erase(world->pending_reply.begin(), world->pending_reply.begin() + n);
+        world->reply_at_call = world->millis_calls + 1;
     }
     size_t n = 0;
     while (n < buffer.size() && !world->rx.empty()) {
@@ -206,10 +214,37 @@ TEST_CASE("xbe mmu: no reply gives a gateway error after 10 ms", "[xbe][mmu]") {
 
 TEST_CASE("xbe mmu: a corrupt reply gives no Modbus reply", "[xbe][mmu]") {
     WorldGuard g;
-    g.w.mmu = [](const RequestMsg &) { return std::vector<uint8_t> { 'Z', 'Z', 'Z', '\n' }; };
     MMU mmu;
     uint16_t out[1] = {};
-    CHECK(mmu.read_registers(0x1a, out) == Status::Ignore);
+
+    SECTION("An invalid first byte") {
+        g.w.mmu = [](const RequestMsg &) { return std::vector<uint8_t> { 'Z', 'Z', 'Z', '\n' }; };
+        CHECK(mmu.read_registers(0x1a, out) == Status::Ignore);
+    }
+
+    SECTION("A wrong CRC") {
+        g.w.mmu = [](const RequestMsg &rq) {
+            auto reply = encode_read_reply(rq, 0x1234);
+            // The reply ends with "*<crc>\n". Change one hex digit of the CRC.
+            auto &digit = reply.at(reply.size() - 2);
+            digit = digit == '0' ? '1' : '0';
+            return reply;
+        };
+        CHECK(mmu.read_registers(0x1a, out) == Status::Ignore);
+    }
+}
+
+TEST_CASE("xbe mmu: a reply in parts", "[xbe][mmu]") {
+    // Each part of the reply restarts the 10 ms timeout. Thus a slow reply
+    // of 1 byte each 5 ms is still accepted.
+    WorldGuard g;
+    g.w.mmu = [](const RequestMsg &rq) { return encode_read_reply(rq, 0x1234); };
+    g.w.reply_chunk = 1;
+    g.w.step = [](uint32_t) { return 5u; };
+    MMU mmu;
+    uint16_t out[1] = {};
+    CHECK(mmu.read_registers(0x1a, out) == Status::Ok);
+    CHECK(out[0] == 0x1234);
 }
 
 TEST_CASE("xbe mmu: the timeout is correct across the millisecond wrap", "[xbe][mmu]") {
@@ -219,7 +254,7 @@ TEST_CASE("xbe mmu: the timeout is correct across the millisecond wrap", "[xbe][
     uint16_t out[1] = {};
 
     SECTION("A reply 3 ms after a request just before the wrap") {
-        g.w.reply_delay_ms = 3;
+        g.w.reply_delay_calls = 3;
         const uint32_t offset = GENERATE(1u, 5u, 9u, 10u, 11u);
         CAPTURE(offset);
         g.w.now = uint32_t(0) - offset;

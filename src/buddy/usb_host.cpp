@@ -14,7 +14,7 @@ USBH_HandleTypeDef hUsbHostHS;
 
 static std::atomic<bool> media_inserted = false;
 static std::atomic<bool> media_inserted_since_startup = false;
-static uint32_t media_on_startup_detection_timeout = 0;
+static uint32_t media_startup_detection_end_s = 0;
 
 namespace usb_host {
 
@@ -141,8 +141,10 @@ void MX_USB_HOST_Init(void) {
     osDelay(200);
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET);
 #endif
-    // A delay of 3000ms for detecting USB device (flash drive) was present at start
-    media_on_startup_detection_timeout = ticks_ms() + 3000;
+    // A USB device (flash drive) that is detected in the first 3 s was present at start. Seconds
+    // do not wrap in the life of the printer, so this deadline needs no wrap handling. The
+    // resolution of 1 s makes the window 3 to 4 s.
+    media_startup_detection_end_s = ticks_s() + 4;
 
     usbh_power_cycle::init();
     if (USBH_Init(&hUsbHostHS, USBH_UserProcess, HOST_HS) != USBH_OK) {
@@ -157,9 +159,8 @@ void MX_USB_HOST_Init(void) {
 }
 
 void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {
-    // don't detect device at startup when ticks_ms() overflows (every ~50 days)
-    if (media_on_startup_detection_timeout != 0 && ticks_diff(ticks_ms(), media_on_startup_detection_timeout) >= 0) {
-        media_on_startup_detection_timeout = 0;
+    if (media_startup_detection_end_s != 0 && ticks_s() >= media_startup_detection_end_s) {
+        media_startup_detection_end_s = 0;
     }
 
     switch (id) {
@@ -183,7 +184,7 @@ void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {
             break;
         }
 
-        media_inserted_since_startup = (media_on_startup_detection_timeout != 0);
+        media_inserted_since_startup = (media_startup_detection_end_s != 0);
         media_inserted = true;
 
         // Do not initialize marlin_client here - it blocks and media error

@@ -40,7 +40,9 @@ extern "C" {
     // No extra timeouts if no MDNS
     #define MDNS_EXTRA_TIMEOUTS 0
 #endif
-#define MEMP_NUM_SYS_TIMEOUT 9 + MDNS_EXTRA_TIMEOUTS
+// The timeouts of the lwIP core (LWIP_NUM_SYS_TIMEOUT_INTERNAL, from lwip/opt.h), plus 2: one for
+// SNTP (lib/WUI/sntp) and one spare.
+#define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 2 + MDNS_EXTRA_TIMEOUTS)
 
 #define TCP_MSS 1024
 // EXPERIMENT (upload-experiments): the compile-time maximum; the window actually

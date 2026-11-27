@@ -46,6 +46,7 @@ FinishKind finish_kind(const FinishInput &in);
 /// Input of the Resume step of the resume loop.
 struct ResumeInput {
     bool crash_in_toolchange_area; ///< XL with tool crash recovery: crash position in the dock area
+    bool toolchanger_enabled; ///< false on a single-tool XL
     bool indx_toolchange_in_progress;
     bool recover_axis_state; ///< Crash_s::RECOVER_AXIS_STATE of the interrupted G-code
     bool x_or_y_homed; ///< X or Y were homed at the power loss

@@ -455,8 +455,10 @@ void resume_loop() {
         const plan::ResumeSteps steps = plan::resume_steps({
 #if HAS_TOOLCHANGER() && HAS_TOOL_CRASH_RECOVERY()
             .crash_in_toolchange_area = prusa_toolchanger.is_pos_in_toolchange_area(state_buf.crash.crash_machine_position.xy()),
+            .toolchanger_enabled = prusa_toolchanger.is_toolchanger_enabled(),
 #else
             .crash_in_toolchange_area = false,
+            .toolchanger_enabled = false,
 #endif
 #if HAS_INDX()
             .indx_toolchange_in_progress = state_buf.toolchanger.phase != PrusaToolChanger::ToolchangePhase::none,

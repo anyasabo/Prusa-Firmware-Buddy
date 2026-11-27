@@ -55,6 +55,7 @@ namespace {
 ResumeInput printing_input() {
     return {
         .crash_in_toolchange_area = false,
+        .toolchanger_enabled = true,
         .indx_toolchange_in_progress = false,
         .recover_axis_state = true,
         .x_or_y_homed = true,
@@ -90,6 +91,19 @@ TEST_CASE("power_panic_plan: resume_steps") {
         const ResumeSteps steps = resume_steps(in);
         CHECK_FALSE(steps.rehome_z_lift.has_value());
         CHECK(steps.next == ResumeNext::wait_for_heaters);
+    }
+    SECTION("tool crash in the toolchange area: no rehome, no heat") {
+        in.crash_in_toolchange_area = true;
+        const ResumeSteps steps = resume_steps(in);
+        CHECK(steps.next == ResumeNext::toolcrash_finish);
+        CHECK_FALSE(steps.rehome_z_lift.has_value());
+    }
+    SECTION("single-tool XL in the toolchange area: the normal resume") {
+        in.crash_in_toolchange_area = true;
+        in.toolchanger_enabled = false;
+        const ResumeSteps steps = resume_steps(in);
+        CHECK(steps.next == ResumeNext::wait_for_heaters);
+        CHECK(steps.rehome_z_lift.has_value());
     }
     SECTION("INDX toolchange: no rehome, no heat") {
         in.indx_toolchange_in_progress = true;
@@ -214,4 +228,22 @@ TEST_CASE("power_panic_plan: input shaper weight adjust round trip") {
         REQUIRE(restored.has_value());
         CHECK(*restored == config);
     }
+}
+
+TEST_CASE("power_panic_plan: the Resume step and atomic_finish agree on the tool crash recovery") {
+    ResumeInput in = printing_input();
+    in.crash_in_toolchange_area = GENERATE(false, true);
+    in.toolchanger_enabled = GENERATE(false, true);
+    in.was_paused = GENERATE(false, true);
+
+    const bool resume_starts_it = resume_steps(in).next == ResumeNext::toolcrash_finish;
+    const bool finish_continues_it = finish_kind({
+                                         .indx_toolchange_in_progress = false,
+                                         .crash_in_toolchange_area = in.crash_in_toolchange_area,
+                                         .toolchanger_enabled = in.toolchanger_enabled,
+                                         .was_paused = in.was_paused,
+                                     })
+        == FinishKind::toolcrash;
+    CAPTURE(in.crash_in_toolchange_area, in.toolchanger_enabled, in.was_paused);
+    CHECK(resume_starts_it == finish_continues_it);
 }

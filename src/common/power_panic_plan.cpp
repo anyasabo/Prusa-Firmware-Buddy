@@ -31,7 +31,9 @@ FinishKind finish_kind(const FinishInput &in) {
 }
 
 ResumeSteps resume_steps(const ResumeInput &in) {
-    if (in.crash_in_toolchange_area) {
+    // The same condition as in finish_kind(): else the resume skips the reheat and the rehome, and
+    // atomic_finish() hands it to the G-code replay.
+    if (in.crash_in_toolchange_area && in.toolchanger_enabled) {
         // Do not reheat, do not unpark, do not rehome: the tool crash recovery does it
         return { .next = ResumeNext::toolcrash_finish, .rehome_z_lift = std::nullopt };
     }

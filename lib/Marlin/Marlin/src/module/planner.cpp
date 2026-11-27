@@ -2105,6 +2105,7 @@ bool Planner::buffer_raw_block(const xyze_msteps_t &target, const MachinePosXYZE
         // Simply accept that as movement queued and done
         return true;
     }
+    dropped_move.reset(); // the planner position is now the target of this block
 
     // If this is the first added movement, reload the delay, otherwise, cancel it.
     if (block_buffer_head == block_buffer_tail) {
@@ -2404,6 +2405,14 @@ void Planner::flush_dropped_move() {
   if (draining() || PreciseStepping::stopping()) {
     // A stop throws away the queued moves too, and the position comes from the steppers
     return;
+  }
+  if (move.target.x != position.x || move.target.y != position.y || move.target.z != position.z) {
+    #if HAS_EMERGENCY_STOP()
+      // As buffer_segment(): the state can have changed since the move was sent
+      buddy::emergency_stop().maybe_block();
+      buddy::emergency_stop().assert_can_plan_movement();
+      if (draining() || PreciseStepping::stopping()) return;
+    #endif
   }
   move.hints.raw_block = true; // keep it although it is short
   _buffer_msteps(move.target, move.target_float, move.fr_mm_s, move.tools, move.hints);

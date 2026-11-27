@@ -265,3 +265,39 @@ TEST_CASE("planner: speed on an arc of short segments is the centripetal limit",
     CHECK(v.back() <= 1.05 * centripetal);
     CHECK(v.front() >= 0.9 * std::min(centripetal, lookahead));
 }
+
+// The planner itself must queue the dropped short move before a position set. These cases call the
+// planner directly: the harness jump() flushes the move first (to record the jump after it), so the
+// case above does not show a missing flush in set_e_position_mm() or set_machine_position_mm().
+TEST_CASE("planner: a position set queues the dropped short move itself") {
+    reset();
+    const auto sum_msteps = [](int axis) {
+        int32_t sum = 0;
+        for (const Taken &t : taken()) {
+            if (!t.block.sync) {
+                sum += t.block.msteps[axis];
+            }
+        }
+        return sum;
+    };
+
+    SECTION("G92 E") {
+        move_to({ 10, 0, 0.2f, 0.5f }, 100);
+        const uint8_t head = planner.block_buffer_head;
+        move_to({ 10, 0, 0.2f, 0.51f }, 35); // 0.01 mm of E: below 6 steps, dropped
+        REQUIRE(planner.block_buffer_head == head);
+        planner.set_e_position_mm(0);
+        take_all();
+        CHECK(sum_msteps(E_AXIS) == int32_t(std::lround(0.51f * planner.settings.axis_msteps_per_mm[E_AXIS])));
+    }
+    SECTION("G92 X") {
+        move_to({ 10, 0, 0.2f, 0 }, 100);
+        const uint8_t head = planner.block_buffer_head;
+        move_to({ 10.03f, 0, 0.2f, 0 }, 100); // 0.03 mm of X: below 6 steps, dropped
+        REQUIRE(planner.block_buffer_head == head);
+        planner.set_position_mm({ 0, 0, 0.2f, 0 });
+        take_all();
+        // CoreXY: X moves both motors
+        CHECK(sum_msteps(A_AXIS) == int32_t(std::lround(10.03f * planner.settings.axis_msteps_per_mm[X_AXIS])));
+    }
+}

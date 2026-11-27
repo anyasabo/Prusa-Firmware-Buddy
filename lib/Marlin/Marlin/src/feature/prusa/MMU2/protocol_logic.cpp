@@ -835,7 +835,7 @@ void ProtocolLogic::SwitchFromStartToIdle() {
 }
 
 bool ProtocolLogic::Elapsed(uint32_t timeout) const {
-    return _millis() >= (lastUARTActivityMs + timeout);
+    return _millis() - lastUARTActivityMs >= timeout;
 }
 
 void ProtocolLogic::RecordUARTActivity() {

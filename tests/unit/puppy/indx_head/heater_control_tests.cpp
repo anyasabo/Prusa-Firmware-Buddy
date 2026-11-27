@@ -231,3 +231,30 @@ TEST_CASE("indx_head heater: the first step after off has no D term", "[indx_hea
         CHECK(control.mode() == HEATER_CONTROL_PID);
     }
 }
+
+TEST_CASE("indx_head heater: a large temperature jump does not overflow the PID", "[indx_head][heater]") {
+    // The fixed_16_16 products are int32_t. The raw value of the D gain is approximately 441'000,
+    // so a change of more than 48.7 °C in one step overflowed. The TPIS filter passes a jump below
+    // 50 °C at once, and any jump after 3 readings.
+    SECTION("up, in PID mode") {
+        PowerControl control = settled_at_target();
+        const int32_t jump = GENERATE(4900, 4999, 7767);
+        CHECK(control.step(target, target + jump) == 0);
+        CHECK(control.mode() == HEATER_CONTROL_PID);
+    }
+    SECTION("down, from far above the target") {
+        PowerControl control = settled_at_target();
+        for (int32_t t = target; t <= 32700; t += 100) {
+            control.step(target, t);
+        }
+        // A fall from 327 °C to 278 °C: the D term of a fall is positive and saturates the output.
+        // The overflow gave it the wrong sign, and the output 0.
+        CHECK(control.step(target, 27800) == limited_max_power);
+    }
+    SECTION("the int16_t limits after boot") {
+        PowerControl control;
+        CHECK(control.step(30000, std::numeric_limits<int16_t>::max()) == 0);
+        CHECK(control.step(30000, std::numeric_limits<int16_t>::min()) == max_power);
+        CHECK(control.step(30000, std::numeric_limits<int16_t>::max()) == 0);
+    }
+}

@@ -16,8 +16,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         const size_t nl = input.find('\n');
         std::string_view text = input.substr(0, nl);
         input = nl == std::string_view::npos ? std::string_view {} : input.substr(nl + 1);
-        // The printer gives the parser at most MAX_CMD_SIZE (96) characters with no NUL in them.
-        text = text.substr(0, std::min(text.find('\0'), size_t { 96 }));
+        // The printer gives the parser at most MAX_CMD_SIZE - 1 (95) characters with no NUL in them.
+        text = text.substr(0, std::min(text.find('\0'), size_t { 95 }));
         std::unique_ptr<char[]> line(new char[text.size() + 1]);
         memcpy(line.get(), text.data(), text.size());
         line[text.size()] = '\0';

@@ -125,7 +125,7 @@ void GcodeSuite::M701() {
  *  Default values are used for omitted arguments.
  */
 void GcodeSuite::M702() {
-    const std::optional<float> unload_len = parser.seen('U') ? std::optional<float>(parser.value_axis_units(E_AXIS)) : std::nullopt;
+    const std::optional<float> unload_len = parser.seenval('U') ? std::optional<float>(parser.value_axis_units(E_AXIS)) : std::nullopt;
     const float min_Z_pos = parser.linearval('Z', Z_AXIS_LOAD_POS);
     const uint8_t preheat = parser.byteval('W', 255);
     const bool ask_unloaded = parser.seen('I');

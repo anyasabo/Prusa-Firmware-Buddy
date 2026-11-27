@@ -56,12 +56,12 @@ void PrusaGcodeSuite::G163() {
     }
 
     Measure_axis ma(do_x, do_y, { true, true });
-    if (parser.seen('S')) {
+    if (parser.seenval('S')) {
         int value = parser.value_int();
         xy_long_t sens = { value, value };
         ma.set_sensitivity(sens);
     }
-    if (parser.seen('P')) {
+    if (parser.seenval('P')) {
         int value = parser.value_int();
         xy_long_t per = { value, value };
         ma.set_period(per);

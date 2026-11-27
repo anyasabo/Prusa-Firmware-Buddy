@@ -54,7 +54,7 @@ void GcodeSuite::M572() {
         SERIAL_ECHO_MSG("?Extruder number is not yet supported");
     }
 
-    const bool seen_s = parser.seen('S');
+    const bool seen_s = parser.seenval('S');
     if (seen_s) {
         const float s = parser.value_float();
         if (WITHIN(s, 0.f, 10.f)) {
@@ -64,7 +64,7 @@ void GcodeSuite::M572() {
         }
     }
 
-    const bool seen_w = parser.seen('W');
+    const bool seen_w = parser.seenval('W');
     if (seen_w) {
         const float w = parser.value_float();
         if (WITHIN(w, 0.f, 0.2f)) {

@@ -40,7 +40,7 @@
  *
  */
 void GcodeSuite::M86() {
-  if (parser.seen('S'))
+  if (parser.seenval('S'))
     buddy::safety_timer().set_interval(parser.value_millis_from_seconds());
 }
 

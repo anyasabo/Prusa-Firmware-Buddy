@@ -98,26 +98,26 @@ void ClProgressData::mInit(void) {
 
 void GcodeSuite::M73_PE() {
     M73_Params p;
-    if (parser.seen('P')) {
+    if (parser.seenval('P')) {
         p.standard_mode.percentage = parser.value_byte();
     }
-    if (parser.seen('R')) {
+    if (parser.seenval('R')) {
         p.standard_mode.time_to_end = parser.value_ulong() * 60;
     }
-    if (parser.seen('C')) {
+    if (parser.seenval('C')) {
         p.standard_mode.time_to_pause = parser.value_ulong() * 60;
     }
-    if (parser.seen('T')) {
+    if (parser.seenval('T')) {
         p.standard_mode.time_to_pause = parser.value_ulong() * 60;
     }
 
-    if (parser.seen('Q')) {
+    if (parser.seenval('Q')) {
         p.stealth_mode.percentage = parser.value_byte();
     }
-    if (parser.seen('S')) {
+    if (parser.seenval('S')) {
         p.stealth_mode.time_to_end = parser.value_ulong() * 60;
     }
-    if (parser.seen('D')) {
+    if (parser.seenval('D')) {
         p.stealth_mode.time_to_pause = parser.value_ulong() * 60;
     }
 

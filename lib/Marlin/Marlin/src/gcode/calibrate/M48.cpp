@@ -84,7 +84,7 @@ void GcodeSuite::M48() {
     return;
   }
 
-  bool seen_L = parser.seen('L');
+  bool seen_L = parser.seenval('L');
   uint8_t n_legs = seen_L ? parser.value_byte() : 0;
   if (n_legs > 15) {
     SERIAL_ECHOLNPGM("?Number of legs in movement not plausible (0-15).");

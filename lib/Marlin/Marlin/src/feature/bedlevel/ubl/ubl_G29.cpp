@@ -450,7 +450,7 @@
       }
     }
 
-    if (parser.seen('P')) {
+    if (parser.seenval('P')) {
       if (WITHIN(g29_phase_value, 0, 1) && storage_slot == -1) {
         storage_slot = 0;
         SERIAL_ECHOLNPGM("Default storage slot 0 selected.");
@@ -851,13 +851,13 @@
       }
     }
 
-    g29_verbose_level = parser.seen('V') ? parser.value_int() : 0;
+    g29_verbose_level = parser.seenval('V') ? parser.value_int() : 0;
     if (!WITHIN(g29_verbose_level, 0, 4)) {
       SERIAL_ECHOLNPGM("?(V)erbose level implausible (0-4).\n");
       err_flag = true;
     }
 
-    if (parser.seen('P')) {
+    if (parser.seenval('P')) {
       const int pv = parser.value_int();
       #if !HAS_BED_PROBE
         // #error dead code found by automatic analyses (see BFW-5461)

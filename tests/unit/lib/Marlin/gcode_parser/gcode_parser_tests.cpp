@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <string_view>
 
@@ -143,5 +144,25 @@ TEST_CASE("An empty line is not a command") {
         Line line(text);
         CHECK(parser.command_letter == '?');
         CHECK(parser.string_arg == nullptr);
+    }
+}
+
+TEST_CASE("A time in seconds out of the millis_t range saturates") {
+    // G4, M0, M1, M84 and M86 read seconds. A negative time is 0 ms, as on the ARM CPU, where the
+    // float conversion saturates. UndefinedBehaviorSanitizer finds a conversion out of range.
+    {
+        Line line("G4 S-3");
+        REQUIRE(parser.seenval('S'));
+        CHECK(parser.value_millis_from_seconds() == 0);
+    }
+    {
+        Line line("G4 S99999999");
+        REQUIRE(parser.seenval('S'));
+        CHECK(parser.value_millis_from_seconds() == std::numeric_limits<millis_t>::max());
+    }
+    {
+        Line line("G4 S1.5");
+        REQUIRE(parser.seenval('S'));
+        CHECK(parser.value_millis_from_seconds() == 1500);
     }
 }

@@ -28,6 +28,7 @@
  */
 
 #include "../inc/MarlinConfig.h"
+#include <limits>
 
 //#define DEBUG_GCODE_PARSER
 #if ENABLED(DEBUG_GCODE_PARSER)
@@ -224,7 +225,14 @@ public:
 
   // Code value for use as time
   static inline millis_t value_millis() { return value_ulong(); }
-  static inline millis_t value_millis_from_seconds() { return (millis_t)(value_float() * 1000); }
+  // A negative time or NaN is 0 and a time past the range is the maximum, as the float conversion
+  // of the ARM CPU gives. In C++, a conversion out of range is undefined behavior.
+  static inline millis_t value_millis_from_seconds() {
+    const float ms = value_float() * 1000;
+    if (!(ms > 0)) return 0;
+    if (ms >= float(std::numeric_limits<millis_t>::max())) return std::numeric_limits<millis_t>::max();
+    return (millis_t)ms;
+  }
 
   // Reduce to fewer bits
   static inline int16_t value_int() { return (int16_t)value_long(); }

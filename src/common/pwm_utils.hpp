@@ -4,12 +4,15 @@
 #include <expected>
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 
 /// Strong class for representing a PWM value
 template <typename Value_, Value_ max_>
 struct PWMValue {
     using Value = Value_;
     static constexpr Value max = max_;
+    // The integer conversions below need this (no overflow in uint32_t, no negative values)
+    static_assert(std::is_unsigned_v<Value> && max <= UINT16_MAX);
 
     Value value = 0;
 

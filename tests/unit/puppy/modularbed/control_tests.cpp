@@ -432,3 +432,19 @@ TEST_CASE("modularbed: a clear of the bedlet errors keeps the checks if the targ
     CHECK(fake::duty(4) > 0);
     CHECK(test::bedlet(4).m_State != HeatbedletState::Inactive);
 }
+
+TEST_CASE("modularbed: the PID action registers") {
+    CHECK(ControlLogic::PIDActionRegister(0) == 0);
+    CHECK(ControlLogic::PIDActionRegister(0.5f) == 5000);
+    CHECK(ControlLogic::PIDActionRegister(2.0f) == 10000);
+    // Negative actions are 16-bit two's complement values, truncated toward 0.
+    CHECK(ControlLogic::PIDActionRegister(-0.5f) == static_cast<uint16_t>(-4999));
+    CHECK(ControlLogic::PIDActionRegister(-2.0f) == static_cast<uint16_t>(-9999));
+
+    test::boot();
+    heat_to_stable(60);
+    test::write_all_targets(50);
+    test::run_ms(1000, true);
+    // 10 °C above the target: the P action is -1.8, limited to -1.
+    CHECK(test::hb_input_register(HBInputRegister::pid_p_control_action, 0) == static_cast<uint16_t>(-9999));
+}

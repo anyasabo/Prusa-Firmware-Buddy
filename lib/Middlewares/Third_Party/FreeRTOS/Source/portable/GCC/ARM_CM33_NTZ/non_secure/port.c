@@ -571,7 +571,14 @@ void vPortConfigureInterruptPriorities( void ) PRIVILEGED_FUNCTION;
  * variable.
  */
 #if ( configNUMBER_OF_CORES == 1 )
-    PRIVILEGED_DATA static volatile uint32_t ulCriticalNesting = 0UL;
+    /* Prusa patch: 0xaaaaaaaa, as in V10.6.2 and in the CM0 and CM4F ports.
+     * V11.3.1 starts at 0, so the first critical section before the
+     * scheduler start (a kernel object in a static constructor) unmasks the
+     * kernel interrupts again. Then a peripheral interrupt that the HAL
+     * setup enables runs before the scheduler, and the xBuddy extension
+     * stops before its first Modbus answer. xPortStartScheduler() sets the
+     * count to 0. */
+    PRIVILEGED_DATA static volatile uint32_t ulCriticalNesting = 0xaaaaaaaaUL;
 #else /* #if ( configNUMBER_OF_CORES == 1 ) */
     PRIVILEGED_DATA volatile uint32_t ulCriticalNestings[ configNUMBER_OF_CORES ] = { 0 };
     /* Flags to check if the secondary cores are ready. */

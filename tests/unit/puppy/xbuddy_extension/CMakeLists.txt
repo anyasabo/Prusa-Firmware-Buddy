@@ -49,3 +49,20 @@ target_include_directories(
                                            ${CMAKE_SOURCE_DIR}/src/module/utils/buddy_utils
   )
 add_catch_test(xbuddy_extension_hal_logic_tests)
+
+add_executable(
+  xbuddy_extension_mmu_bridge_tests
+  ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension/mmu.cpp
+  ${CMAKE_SOURCE_DIR}/lib/Prusa-Firmware-MMU/src/modules/protocol.cpp
+  ${CMAKE_SOURCE_DIR}/lib/Prusa-Firmware-MMU/src/modules/crc.cpp mmu_bridge_tests.cpp
+  )
+target_include_directories(
+  xbuddy_extension_mmu_bridge_tests
+  PRIVATE mmu_include
+          ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension
+          ${CMAKE_SOURCE_DIR}/src/freertos/include
+          ${CMAKE_SOURCE_DIR}/src/module/utils/byte_utils/include
+          ${CMAKE_SOURCE_DIR}/lib/Prusa-Firmware-MMU/src
+  )
+target_link_libraries(xbuddy_extension_mmu_bridge_tests modbus xbuddy_extension)
+add_catch_test(xbuddy_extension_mmu_bridge_tests)

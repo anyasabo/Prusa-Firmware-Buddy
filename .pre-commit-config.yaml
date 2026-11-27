@@ -93,6 +93,22 @@ repos:
       pass_filenames: false
       language: python
       language_version: python3
+    - id: check-gcode-seen-value
+      name: check-gcode-seen-value
+      description: This hook fails if a G-code handler reads a value after parser.seen() with no value check.
+      entry: python utils/check_gcode_seen_value.py
+      files: (\.(c|cpp|h|hpp)|^utils/check_gcode_seen_value\.py)$
+      pass_filenames: false
+      language: python
+      language_version: python3
+    - id: check-gcode-seen-value-test
+      name: check-gcode-seen-value-test
+      description: Tests of utils/check_gcode_seen_value.py.
+      entry: python -m unittest utils/check_gcode_seen_value_test.py
+      files: ^utils/check_gcode_seen_value(_test)?\.py$
+      pass_filenames: false
+      language: python
+      language_version: python3
     - id: generate-log-components-overview
       name: log-components-doc-generate
       description: This hook generate an overview of currently defined Log Components.

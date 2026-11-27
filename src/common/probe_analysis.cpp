@@ -426,29 +426,26 @@ void ProbeAnalysisBase::CalculateLoadAngles(Features &features) const {
 #endif
 }
 
-ProbeAnalysisBase::VarianceInfo ProbeAnalysisBase::CalculateVariance(SamplesRange samples, Line regression) {
-    // FIXME: !!! accumulate function is wrong, should return acc + r.load. Fixing this causes classify to fail however.
-    float mean = std::accumulate(samples.begin(), samples.end(), 0.0f, []([[maybe_unused]] float acc, Record const &r) { return r.load; }) / static_cast<float>(samples.Size());
+float ProbeAnalysisBase::CalculateTrainedR2(SamplesRange samples, Line regression) {
+    const float center = samples.last->load / static_cast<float>(samples.Size());
     float totalVariance = 0, unexplainedVariance = 0;
 
     for (auto it = samples.first; it <= samples.last; ++it) {
-        totalVariance += std::pow(it->load - mean, 2.0f);
+        totalVariance += std::pow(it->load - center, 2.0f);
         unexplainedVariance += std::pow(regression.GetY(TimeOfSample(it)) - it->load, 2.0f);
     }
 
-    return VarianceInfo(totalVariance, unexplainedVariance);
+    if (totalVariance == 0) {
+        return -std::numeric_limits<float>::infinity();
+    }
+    return 1 - (unexplainedVariance / totalVariance);
 }
 
 ProbeAnalysisBase::SegmentedR2s ProbeAnalysisBase::CalculateSegmentedR2s(Features &features, float segment) {
     size_t segmentSamples = static_cast<size_t>(segment / samplingInterval);
 
-    auto calcR2AroundTime = [&](SamplesRange leftSamples, Line leftLine,
-                                [[maybe_unused]] Time middleTime,
-                                SamplesRange rightSamples, Line rightLine) {
-        std::array<VarianceInfo, 2> variance;
-        variance[0] = CalculateVariance(leftSamples.ending(segmentSamples), leftLine);
-        variance[1] = CalculateVariance(rightSamples.beginning(segmentSamples), rightLine);
-        return CalculateR2FromSegmentedVariance(variance.begin(), variance.end());
+    auto calcR2AfterSplit = [&](SamplesRange samples, Line line) {
+        return CalculateTrainedR2(samples.beginning(segmentSamples), line);
     };
 
     Sample compressionStart = ClosestSample(features.compressionStartTime, SearchDirection::Backward);
@@ -457,25 +454,10 @@ ProbeAnalysisBase::SegmentedR2s ProbeAnalysisBase::CalculateSegmentedR2s(Feature
     Sample decompressionEnd = ClosestSample(features.decompressionEndTime, SearchDirection::Backward);
 
     SegmentedR2s r2s;
-    r2s.compressionStart = calcR2AroundTime(
-        SamplesRange(features.analysisStart, compressionStart), features.beforeCompressionLine,
-        features.compressionStartTime,
-        SamplesRange(compressionStart, compressionEnd), features.compressionLine);
-
-    r2s.compressionEnd = calcR2AroundTime(
-        SamplesRange(compressionStart, compressionEnd), features.compressionLine,
-        features.compressionEndTime,
-        SamplesRange(compressionEnd, decompressionStart), features.compressedLine);
-
-    r2s.decompressionStart = calcR2AroundTime(
-        SamplesRange(compressionEnd, decompressionStart), features.compressedLine,
-        features.decompressionStartTime,
-        SamplesRange(decompressionStart, decompressionEnd), features.decompressionLine);
-
-    r2s.decompressionEnd = calcR2AroundTime(
-        SamplesRange(decompressionStart, decompressionEnd), features.decompressionLine,
-        features.decompressionEndTime,
-        SamplesRange(decompressionEnd, features.analysisEnd), features.afterDecompressionLine);
+    r2s.compressionStart = calcR2AfterSplit(SamplesRange(compressionStart, compressionEnd), features.compressionLine);
+    r2s.compressionEnd = calcR2AfterSplit(SamplesRange(compressionEnd, decompressionStart), features.compressedLine);
+    r2s.decompressionStart = calcR2AfterSplit(SamplesRange(decompressionStart, decompressionEnd), features.decompressionLine);
+    r2s.decompressionEnd = calcR2AfterSplit(SamplesRange(decompressionEnd, features.analysisEnd), features.afterDecompressionLine);
 
     return r2s;
 }

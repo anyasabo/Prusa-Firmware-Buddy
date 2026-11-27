@@ -212,3 +212,22 @@ TEST_CASE("indx_head heater: PWM value of the power levels", "[indx_head][heater
     }
     CHECK(power_to_pwm(max_power) >= 254);
 }
+
+TEST_CASE("indx_head heater: the first step after off has no D term", "[indx_head][heater]") {
+    SECTION("boot") {
+        // The P term alone saturates the output, so the integral must not change. A D term from the
+        // initial 0 °C (a fall of 25 °C in one step) opened the integral for one step: +2.7.
+        PowerControl control;
+        CHECK(control.step(target, 2500) == max_power);
+        CHECK(static_cast<float>(control.integral()) == 0.0f);
+    }
+    SECTION("a lower target after off") {
+        // M104 S0 at 250 °C, then a target of 200 °C while the nozzle is still at 245 °C. The
+        // last temperature from before the off (250 °C) gave a D term of +5 °C per step.
+        PowerControl control = settled_at_target();
+        control.step(0, target);
+        control.step(0, 24800);
+        CHECK(control.step(20000, 24500) == 0);
+        CHECK(control.mode() == HEATER_CONTROL_PID);
+    }
+}

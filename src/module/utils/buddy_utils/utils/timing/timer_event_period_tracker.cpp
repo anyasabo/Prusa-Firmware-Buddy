@@ -2,9 +2,6 @@
 #include <cstdlib>
 
 void TimerEventPeriodTracker::handle_multi_event(uint16_t timer_value, bool was_capture, bool was_overflow) {
-    // Disregard overflows if we've exceeded the limit
-    was_overflow &= (timer_overflows_since_last_event_ != max_timer_overflows);
-
     // If overflow and capture happened at the same time, heuristically determine which one happened sooner - otherwise we get invalid data
     // Timer value was in the lower half of the maximum -> the overflow likely happened before the event
     bool was_overflow_before_capture = was_overflow && was_capture && (timer_value < 0x800);
@@ -20,8 +17,16 @@ void TimerEventPeriodTracker::handle_multi_event(uint16_t timer_value, bool was_
         was_overflow_before_capture = true;
     }
 
+    // Count up to the limit. The limit check must come after the order is
+    // known: an overflow after the capture belongs to the next period.
+    const auto count_overflow = [this] {
+        if (timer_overflows_since_last_event_ != max_timer_overflows) {
+            timer_overflows_since_last_event_++;
+        }
+    };
+
     if (was_overflow_before_capture) {
-        timer_overflows_since_last_event_++;
+        count_overflow();
     }
 
     if (was_capture) {
@@ -33,7 +38,7 @@ void TimerEventPeriodTracker::handle_multi_event(uint16_t timer_value, bool was_
     }
 
     if (was_overflow && !was_overflow_before_capture) {
-        timer_overflows_since_last_event_++;
+        count_overflow();
     }
 }
 

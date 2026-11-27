@@ -438,6 +438,16 @@ ISR_HANDLER(DebugMon_Handler)
 // HAL_IncTick() but that is OK since we should not be using HAL functions
 // which perform busy-waiting anyway.
 
+// HAL_Init() and HAL_RCC_ClockConfig() start SysTick with its interrupt. Its handler is the
+// FreeRTOS tick, which must not run before the scheduler starts: the task lists do not exist yet,
+// and PendSV still has its reset priority. The scheduler configures SysTick itself
+// (vPortSetupTimerInterrupt()). The other peripheral interrupts of this board stay masked until
+// the scheduler starts only because of the critical nesting start value of the CM33 port (a Prusa
+// patch in the vendored kernel). This override alone did not make the board boot with V11.3.1.
+extern "C" HAL_StatusTypeDef HAL_InitTick(uint32_t) {
+    return HAL_OK;
+}
+
 static uint32_t temperature_raw = 0;
 
 /// Single GPIO filament sensor (PA5 on standard, PA9 on iX)

@@ -438,6 +438,19 @@ ISR_HANDLER(DebugMon_Handler)
 // HAL_IncTick() but that is OK since we should not be using HAL functions
 // which perform busy-waiting anyway.
 
+// HAL_Init() and HAL_RCC_ClockConfig() start SysTick with its interrupt. Its handler is the
+// FreeRTOS tick, which must not run before the scheduler starts: the task lists do not exist yet
+// (xTaskIncrementTick() reads through NULL), and PendSV still has its reset priority. The kernel
+// interrupts stay masked only while a critical section is open. The CM33 port of FreeRTOS V10.6.2
+// started its nesting count at 0xaaaaaaaa, so the first critical section (a kernel object in a
+// static constructor) left them masked until the scheduler started. V11.3.1 starts the count at 0
+// (https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/3a22924e0a9ddbbc8b0758881c33b3422a5cc20d/portable/GCC/ARM_CM33_NTZ/non_secure/port.c#L574),
+// so the tick ran early and the board stopped before its first Modbus answer (CORE One L,
+// PUPPY_RUN_TIMEOUT). The scheduler configures SysTick itself (vPortSetupTimerInterrupt()).
+extern "C" HAL_StatusTypeDef HAL_InitTick(uint32_t) {
+    return HAL_OK;
+}
+
 static uint32_t temperature_raw = 0;
 
 /// Single GPIO filament sensor (PA5 on standard, PA9 on iX)

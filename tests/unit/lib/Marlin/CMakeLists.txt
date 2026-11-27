@@ -1,3 +1,4 @@
+add_subdirectory(arc_segments)
 add_subdirectory(e-stall_detector)
 add_subdirectory(input_shaper)
 add_subdirectory(input_shaper_limits)

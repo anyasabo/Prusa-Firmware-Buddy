@@ -86,6 +86,10 @@ void setup() {
     established->snd_wnd = TCP_WND;
     established->snd_wnd_max = TCP_WND;
     established->flags |= TF_SACK; // as if the peer's SYN had SACK-permitted
+    // As after a handshake (tcp_in.c sets the initial cwnd from the MSS). tcp_new() leaves cwnd at
+    // 1, which no real connection has, and which lets lwIP reach states that a peer cannot cause.
+    established->mss = TCP_MSS;
+    established->cwnd = LWIP_MIN(4U * TCP_MSS, LWIP_MAX(2U * TCP_MSS, 4380U));
     tcp_set_state(established, ESTABLISHED, &test_local_ip, &test_remote_ip, LOCAL_PORT, REMOTE_PORT);
     static const char reply[] = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
     tcp_write(established, reply, sizeof(reply) - 1, TCP_WRITE_FLAG_COPY);

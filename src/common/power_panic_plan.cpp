@@ -110,15 +110,14 @@ std::optional<input_shaper::AxisConfig> restore_axis_config(const input_shaper::
 
 input_shaper::WeightAdjustConfig save_weight_adjust(const std::optional<input_shaper::WeightAdjustConfig> &config) {
     if (!config) {
-        input_shaper::WeightAdjustConfig disabled {};
-        disabled.frequency_delta = 0.f;
-        return disabled;
+        return { .frequency_delta = 0.f, .mass_limit = 0.f };
     }
     return *config;
 }
 
 std::optional<input_shaper::WeightAdjustConfig> restore_weight_adjust(const input_shaper::WeightAdjustConfig &saved) {
-    if (saved.frequency_delta != 0.f) {
+    // Not frequency_delta: 0 is the default delta of some printers, also with the weight adjust on.
+    if (saved.mass_limit == 0.f) {
         return std::nullopt;
     }
     return saved;

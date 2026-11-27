@@ -109,6 +109,7 @@ std::optional<float> restore_chamber_target(uint16_t saved);
 input_shaper::AxisConfig save_axis_config(const std::optional<input_shaper::AxisConfig> &config);
 std::optional<input_shaper::AxisConfig> restore_axis_config(const input_shaper::AxisConfig &saved);
 
+/// A mass_limit of 0 marks a disabled weight adjust, as in "M593 M0".
 input_shaper::WeightAdjustConfig save_weight_adjust(const std::optional<input_shaper::WeightAdjustConfig> &config);
 std::optional<input_shaper::WeightAdjustConfig> restore_weight_adjust(const input_shaper::WeightAdjustConfig &saved);
 

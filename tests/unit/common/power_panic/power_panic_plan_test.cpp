@@ -197,3 +197,21 @@ TEST_CASE("power_panic_plan: escape_move") {
         CHECK(escape_move(in) == EscapeMove { EscapeAxis::x, -150 });
     }
 }
+
+TEST_CASE("power_panic_plan: input shaper weight adjust round trip") {
+    using input_shaper::WeightAdjustConfig;
+
+    SECTION("disabled") {
+        CHECK_FALSE(restore_weight_adjust(save_weight_adjust(std::nullopt)).has_value());
+    }
+    SECTION("enabled") {
+        const WeightAdjustConfig config = GENERATE(
+            // the default of MK4 and MK3.5
+            WeightAdjustConfig { .frequency_delta = -20.f, .mass_limit = 800.f },
+            // the default values of XL, iX and CORE One, enabled with M593
+            WeightAdjustConfig { .frequency_delta = 0.f, .mass_limit = 800.f });
+        const auto restored = restore_weight_adjust(save_weight_adjust(config));
+        REQUIRE(restored.has_value());
+        CHECK(*restored == config);
+    }
+}

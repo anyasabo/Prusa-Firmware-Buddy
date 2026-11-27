@@ -3,7 +3,7 @@
 
 clang-tidy has no --query-driver (clangd has), so this adds the target, -nostdinc and the system
 include paths of the GCC in the database, and drops the GCC options that clang refuses. It also copies
-the type macros of the GCC (__UINT32_TYPE__ and others): for arm-none-eabi, GCC makes uint32_t an
+the type and integer macros of the GCC (__UINT32_TYPE__, __UINT32_MAX__, __UINT32_C and others): for arm-none-eabi, GCC makes uint32_t an
 unsigned long and clang an unsigned int, and then code such as std::max(uint32_t, 1ul) does not compile.
 Usage: clang_tidy_db.py IN_DIR OUT_DIR
 """
@@ -50,10 +50,14 @@ def type_macros(compiler, flags):
                            input="",
                            capture_output=True,
                            text=True)
-        macros = re.findall(r"^#define (__\w+_TYPE__) (.+)$", r.stdout, re.M)
+        # The integer macros too: newlib defines UINT32_MAX and UINT32_C() with __UINT32_MAX__ and
+        # __UINT32_C(c), and their suffix must agree with the type.
+        macros = re.findall(
+            r"^#define ((__\w+_TYPE__|__U?INT\w*)(\(\w+\))?) (.+)$", r.stdout,
+            re.M)
         type_cache[key] = [
-            x for name, value in macros
-            for x in ("-U" + name, f"-D{name}={value}")
+            x for full, name, _, value in macros
+            for x in ("-U" + name, f"-D{full}={value}")
         ]
     return type_cache[key]
 

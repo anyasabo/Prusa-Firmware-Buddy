@@ -1,11 +1,14 @@
 # Checks with a good signal on this code base (triage of a full run on the CORE One L, 2026-11-27).
 # Each one found a real defect or gave almost no false findings. clangd shows the bugprone checks
-# in the editor. utils/clang_tidy_diff.sh runs all of them on the changed lines of a branch.
+# in the editor (.clangd turns them off outside src/, lib/Marlin/ and tests/).
+# utils/clang_tidy_diff.sh runs all of them on the changed lines of a branch.
+# Not here: bugprone-suspicious-string-compare (all findings were the intended "if (strcmp(...))"),
+# bugprone-unchecked-string-to-number-conversion (only in the directories that parse outside input,
+# see their own .clang-tidy).
 Checks: >
   -*,
   bugprone-too-small-loop-variable,
   bugprone-float-loop-counter,
-  bugprone-unchecked-string-to-number-conversion,
   bugprone-suspicious-stringview-data-usage,
   bugprone-use-after-move,
   bugprone-move-forwarding-reference,

@@ -1,0 +1,3 @@
+# This code parses outside input (G-code files, the Connect server, G-code arguments).
+InheritParentConfig: true
+Checks: bugprone-unchecked-string-to-number-conversion

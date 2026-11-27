@@ -137,12 +137,14 @@ public:
         file_responses.push_back(FileResponse { remote_node_id, transfer_id, std::vector(data.begin(), data.end()) });
     }
 
-    void transmit_ac_controller_config_request([[maybe_unused]] NodeId remote_node_id, [[maybe_unused]] const ac_controller::Config &) {
-        abort();
+    std::vector<ac_controller::Config> ac_controller_config_requests;
+    void transmit_ac_controller_config_request([[maybe_unused]] NodeId remote_node_id, const ac_controller::Config &config) {
+        ac_controller_config_requests.push_back(config);
     }
 
-    void transmit_ac_controller_leds_config_request([[maybe_unused]] NodeId, [[maybe_unused]] const ac_controller::LedConfig &) {
-        abort();
+    std::vector<ac_controller::LedConfig> ac_controller_led_config_requests;
+    void transmit_ac_controller_leds_config_request([[maybe_unused]] NodeId, const ac_controller::LedConfig &config) {
+        ac_controller_led_config_requests.push_back(config);
     }
 
     struct ToolOffsetSensorConfigRequest {
@@ -1413,4 +1415,70 @@ TEST_CASE("ac controller recovers from a board reset") {
     // Without start_app the board stays in its bootloader: no bed heating, and the last status stays.
     REQUIRE(mock.node_execute_command_request.size() == commands_before + 1);
     CHECK(mock.node_execute_command_request.back() == ExecuteCommandRequest { node_id, Command::start_app });
+
+    // The app boots, and the firmware is verified again.
+    app.receive_node_execute_command_response(node_id, 0, {});
+    app.receive_node_heartbeat(node_id, make_timepoint(time), healthy_firmware);
+    run(app, mock, make_timepoint(time++));
+    REQUIRE(app.request().hash_request == cyphal::FirmwareFile::firmware_ac_controller);
+    const auto digest_after_reset = generate_random_digest();
+    REQUIRE(app.receive_digest(cyphal::FirmwareFile::firmware_ac_controller, app.request().hash_salt, xbuddy_extension::DigestStatus::ok, digest_after_reset));
+    app.receive_node_execute_command_response(node_id, 0, digest_after_reset);
+    run(app, mock, make_timepoint(time++));
+    CHECK(app.request().hash_request == cyphal::FirmwareFile::none);
+}
+
+TEST_CASE("ac controller gets its configuration again after a board reset") {
+    const auto bootloader = Heartbeat { Health::advisory, Mode::software_update, 0 };
+    const auto healthy_firmware = Heartbeat { Health::nominal, Mode::operational, 0 };
+    const auto node_id = NodeId { 1 };
+    const auto config = ac_controller::Config { .bed_target_temp = 60.0f };
+    const auto led_config = ac_controller::LedConfig { .progress_percent = 50 };
+
+    MockPresentation mock;
+    Application app;
+    uint32_t time = 0;
+
+    const auto make_alive = [&] {
+        app.receive_node_heartbeat(node_id, make_timepoint(time), healthy_firmware);
+        run(app, mock, make_timepoint(time++));
+        REQUIRE(app.request().hash_request == cyphal::FirmwareFile::firmware_ac_controller);
+        const auto digest = generate_random_digest();
+        REQUIRE(app.receive_digest(cyphal::FirmwareFile::firmware_ac_controller, app.request().hash_salt, xbuddy_extension::DigestStatus::ok, digest));
+        app.receive_node_execute_command_response(node_id, 0, digest);
+        run(app, mock, make_timepoint(time++));
+        run(app, mock, make_timepoint(time++));
+        run(app, mock, make_timepoint(time++));
+    };
+
+    app.receive(config);
+    app.receive(led_config);
+    app.receive_pnp_allocation(make_unique_id(0xac));
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_heartbeat(node_id, make_timepoint(time), healthy_firmware);
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_get_info_response(node_id, known_node_name);
+    run(app, mock, make_timepoint(time++));
+    // The hash request is already out, so make_alive() only answers it.
+    const auto digest = generate_random_digest();
+    REQUIRE(app.receive_digest(cyphal::FirmwareFile::firmware_ac_controller, app.request().hash_salt, xbuddy_extension::DigestStatus::ok, digest));
+    app.receive_node_execute_command_response(node_id, 0, digest);
+    run(app, mock, make_timepoint(time++));
+    run(app, mock, make_timepoint(time++));
+    REQUIRE(mock.ac_controller_config_requests.size() == 1);
+    REQUIRE(mock.ac_controller_led_config_requests.size() == 1);
+
+    // The board resets: its bootloader waits, then its app boots with the default configuration.
+    app.receive_node_heartbeat(node_id, make_timepoint(time), bootloader);
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_heartbeat(node_id, make_timepoint(time), bootloader);
+    run(app, mock, make_timepoint(time++));
+    app.receive_node_execute_command_response(node_id, 0, {});
+    make_alive();
+
+    // The status of the board has no LED configuration, so only a new request restores it.
+    REQUIRE(mock.ac_controller_config_requests.size() == 2);
+    CHECK(mock.ac_controller_config_requests.back() == config);
+    REQUIRE(mock.ac_controller_led_config_requests.size() == 2);
+    CHECK(mock.ac_controller_led_config_requests.back() == led_config);
 }

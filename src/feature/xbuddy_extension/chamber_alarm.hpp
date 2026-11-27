@@ -37,6 +37,7 @@ public:
 private:
     bool overheating_warning_shown = false;
     bool critical_warning_shown = false;
+    bool was_at_critical_temp = false;
 };
 
 } // namespace buddy

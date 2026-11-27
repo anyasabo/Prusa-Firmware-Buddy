@@ -103,9 +103,20 @@ TEST_CASE("chamber alarm: the critical temperature again outside a print turns o
     // The user turns on the heaters again outside a print, for example a preheat. The chamber
     // gets to the critical temperature again before it cools under the recovery temperature.
     CHECK(no_actions(alarm.step(not_printing(after_critical))));
-    for (int i = 0; i < 3; ++i) {
+    const auto a = alarm.step(not_printing(critical));
+    CHECK(a.disable_heaters);
+    CHECK(a.show_critical_warning);
+}
+
+TEST_CASE("chamber alarm: one critical warning for each time at the critical temperature outside a print", "[chamber]") {
+    // The user can close the warning. It must not come back at each step while the chamber cools.
+    ChamberAlarm alarm;
+    REQUIRE(alarm.step(not_printing(critical)).show_critical_warning);
+    for (int i = 0; i < 10; ++i) {
         const auto a = alarm.step(not_printing(critical));
         CHECK(a.disable_heaters);
-        CHECK(a.show_critical_warning);
+        CHECK_FALSE(a.show_critical_warning);
     }
+    CHECK(no_actions(alarm.step(not_printing(after_critical))));
+    CHECK(alarm.step(not_printing(critical)).show_critical_warning);
 }

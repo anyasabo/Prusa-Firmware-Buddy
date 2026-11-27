@@ -133,6 +133,7 @@ uint16_t PowerControl::step(int32_t target_centideg, int32_t current_centideg) {
 
     constexpr int32_t proximity_threshold_centideg = 10 * 100;
 
+    const bool was_off = heater_control_mode == HEATER_CONTROL_OFF;
     const bool way_below_target = current_centideg + proximity_threshold_centideg < target_centideg;
     const bool close_to_target = !way_below_target && current_centideg < target_centideg;
 
@@ -152,6 +153,11 @@ uint16_t PowerControl::step(int32_t target_centideg, int32_t current_centideg) {
     // PID runs in all active modes for bumpless transfer
     uint16_t background_pwr_i = 0;
     if (heater_control_mode != HEATER_CONTROL_OFF) {
+        if (was_off) {
+            // The PID does not run while off, so the last temperature is from before the off (or 0
+            // after boot). A D term from it can open the integral or give power above the target.
+            last_centideg = current_centideg;
+        }
         background_pwr_i = pid_calculate_pwr_i(target_centideg, current_centideg);
     }
 

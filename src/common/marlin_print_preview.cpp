@@ -576,7 +576,7 @@ PrintPreview::Result PrintPreview::Loop() {
 
         default:
             // TODO this should be handled more generally with a possibility to set timeout for specific state, but this should work for now and is MUCH easier
-            if (ticks_ms() >= new_firmware_open_ms + new_firmware_timeout_ms) {
+            if (ticks_ms() - new_firmware_open_ms >= new_firmware_timeout_ms) {
                 ChangeState(stateFromPrinterCheck());
             }
             break;

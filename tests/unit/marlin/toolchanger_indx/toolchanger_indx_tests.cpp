@@ -368,10 +368,10 @@ TEST_CASE("toolchanger_indx: dock not calibrated is a redscreen") {
     CHECK(world.violations.empty());
 }
 
-// KNOWN BUG, minor (fails, tagged [!shouldfail]): pickup_procedure() calls ensure_head_open() before
-// get_tool_info(tool, check_calibrated=true). open_head() reads the dock position with check_calibrated=false,
-// so the head moves to dock_y + DOCK_UNLOCK_Y_OFFSET of the invalid dock before the redscreen.
-TEST_CASE("toolchanger_indx: dock not calibrated - no move into the dock area before the redscreen", "[!shouldfail][known_bug]") {
+// pickup_procedure() must check the dock calibration before ensure_head_open(): open_head() reads the dock
+// position with check_calibrated=false, so it moved to dock_y + DOCK_UNLOCK_Y_OFFSET of the invalid dock
+// before the redscreen.
+TEST_CASE("toolchanger_indx: dock not calibrated - no move into the dock area before the redscreen") {
     world.reset();
     auto pos = config_store().get_dock_position(T(4));
     pos.y += 5;

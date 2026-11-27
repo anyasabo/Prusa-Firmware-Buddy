@@ -2,6 +2,8 @@
 # Each one found a real defect or gave almost no false findings. clangd shows the bugprone checks
 # in the editor (.clangd turns them off outside src/, lib/Marlin/ and tests/).
 # utils/clang_tidy_diff.sh runs all of them on the changed lines of a branch.
+# clang-diagnostic-parentheses with -Wparentheses: GCC does not warn for "a + b ? c : d", and clang
+# found three such lines in UBL G29 (all wrong). The full tree has no other finding.
 # Not here: bugprone-suspicious-string-compare (all findings were the intended "if (strcmp(...))"),
 # bugprone-unchecked-string-to-number-conversion (only in the directories that parse outside input,
 # see their own .clang-tidy).
@@ -15,7 +17,9 @@ Checks: >
   bugprone-incorrect-roundings,
   bugprone-unused-return-value,
   clang-analyzer-core.*,
-  clang-analyzer-unix.Stream
+  clang-analyzer-unix.Stream,
+  clang-diagnostic-parentheses
+ExtraArgs: ['-Wparentheses']
 CheckOptions:
   bugprone-unused-return-value.AllowCastToVoid: true
 HeaderFilterRegex: '.*/(src|lib/Marlin)/.*'

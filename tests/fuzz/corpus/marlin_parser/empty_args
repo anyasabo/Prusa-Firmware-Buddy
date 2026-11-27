@@ -1,0 +1,7 @@
+M593 X F
+M201 X
+
+N5
+M117 Hello world
+M23 file.gco
+G28 X Y

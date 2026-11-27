@@ -165,6 +165,10 @@ buddy_add_fuzzer_from_test(
   gcode_parser.cpp
   )
 
+# The Marlin G-code parser and the value accessors that the G-code handlers use. Each line that the
+# printer executes goes through it (GC-1: a read past the end of an empty line).
+buddy_add_fuzzer(marlin_parser SOURCES marlin_parser.cpp LIBS marlin_gcode_parser)
+
 # Motion core (precise_stepping, input_shaper, pressure_advance) against Klipper's step generation.
 # Not untrusted input: the oracle finds wrong steps, not only crashes. The library has the real
 # motion sources, the stubs and Klipper (tests/unit/lib/Marlin/motion_klipper_diff).

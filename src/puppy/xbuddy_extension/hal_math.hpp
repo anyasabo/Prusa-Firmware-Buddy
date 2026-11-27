@@ -8,9 +8,15 @@
 
 namespace hal::math {
 
-/// Frequency of TIM1, which measures the fan tachometer periods.
-/// 30 MHz peripheral clock, *2 to timer, /60 prescaler.
-inline constexpr uint32_t tach_timer_hz = 1'000'000;
+/// Input clock of TIM1, TIM2 and TIM3: 30 MHz peripheral clock, *2 to timer.
+inline constexpr uint32_t timer_input_hz = 60'000'000;
+
+/// Prescaler of TIM1, which measures the fan tachometer periods.
+inline constexpr uint32_t tach_timer_prescaler = 60;
+
+/// Frequency of TIM1.
+inline constexpr uint32_t tach_timer_hz = timer_input_hz / tach_timer_prescaler;
+static_assert(tach_timer_hz == 1'000'000);
 
 /// Rising edges of the tachometer signal for each revolution of the fan.
 inline constexpr uint32_t tach_edges_per_revolution = 2;
@@ -25,9 +31,6 @@ constexpr uint32_t tach_period_to_rpm(uint32_t period) {
     return (60 * tach_timer_hz / tach_edges_per_revolution) / period;
 }
 
-/// Input clock of TIM3 (6 MHz with the default prescaler of 10).
-inline constexpr uint32_t pwm_timer_base_hz = 60'000'000;
-
 /// Default prescaler of the PWM timers.
 inline constexpr uint32_t default_pwm_prescaler = 10;
 
@@ -38,7 +41,7 @@ inline constexpr uint32_t default_pwm_prescaler = 10;
 constexpr uint32_t w_led_prescaler_register(uint16_t freq) {
     uint32_t prescaler = default_pwm_prescaler;
     if (freq != 0) {
-        const uint32_t timer_full_cycle = pwm_timer_base_hz / 255; // Counts down from this every full cycle
+        const uint32_t timer_full_cycle = timer_input_hz / 255; // Counts down from this every full cycle
         prescaler = std::min<uint32_t>(timer_full_cycle / freq, 0x1'0000);
     }
     return prescaler - 1;

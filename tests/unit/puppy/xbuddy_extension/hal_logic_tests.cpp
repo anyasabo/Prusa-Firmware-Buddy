@@ -70,6 +70,7 @@ TEST_CASE("xbe thermistor: a broken thermistor stops the main board", "[xbe][tem
     }
 
     SECTION("Short circuit: the ADC reads 0") {
+        // The HAL also reports ADC 0 until its first ADC sample.
         const float c = temperature::raw_to_celsius(0);
         CHECK(c > 120.0f);
         const uint16_t reg = tenths_register(c);
@@ -81,14 +82,6 @@ TEST_CASE("xbe thermistor: a broken thermistor stops the main board", "[xbe][tem
         CHECK_FALSE(main_board_mintemp(reg));
         CHECK_FALSE(main_board_maxtemp(reg));
     }
-}
-
-TEST_CASE("xbe thermistor: the first Status before the first ADC sample reads MAXTEMP", "[xbe][temperature]") {
-    // The HAL starts with temperature_raw = 0 and takes the first sample in
-    // the HAL task, after the 1-Wire setup. A Status read in that window gets
-    // the short-circuit value. This test documents finding XBE-3.
-    const uint16_t reg = tenths_register(temperature::raw_to_celsius(0));
-    CHECK(main_board_maxtemp(reg));
 }
 
 TEST_CASE("xbe registers: tenths", "[xbe][registers]") {
@@ -228,7 +221,7 @@ TEST_CASE("xbe tach: a fan below the measurable speed reads 0", "[xbe][tach]") {
 
 TEST_CASE("xbe w_led: PWM timer prescaler", "[xbe][pwm]") {
     CHECK(hal::math::w_led_prescaler_register(0) == hal::math::default_pwm_prescaler - 1);
-    // The belt tuning strobe uses approximately 50 to 150 Hz
+    // The belt tuning strobe uses 64 to 134 Hz
     CHECK(hal::math::w_led_prescaler_register(100) == 2352 - 1);
     CHECK(hal::math::w_led_prescaler_register(4) == 58823 - 1);
     CHECK(hal::math::w_led_prescaler_register(65535) == 3 - 1);
@@ -245,7 +238,7 @@ TEST_CASE("xbe registers: RPM", "[xbe][registers]") {
 
 TEST_CASE("xbe tach: a noise edge does not give a plausible wrong RPM", "[xbe][tach]") {
     // The input filter of TIM1 rejects pulses shorter than approximately
-    // 0.4 µs. A longer glitch on the tachometer wire is one more edge.
+    // 0.53 µs. A longer glitch on the tachometer wire is one more edge.
     TachModel tach;
     tach.run(3000, 100);
     REQUIRE(rpm_register(tach.rpm()) == 3000);
@@ -267,4 +260,64 @@ TEST_CASE("xbe w_led: the prescaler fits the 16-bit PSC register", "[xbe][pwm]")
     // The lowest frequency is approximately 3.6 Hz
     CHECK(hal::math::w_led_prescaler_register(1) == 0xFFFF);
     CHECK(hal::math::w_led_prescaler_register(3) == 0xFFFF);
+}
+
+namespace {
+
+/// Like TachModel, but the IRQ handler runs \p latency ticks after the first
+/// pending event. Thus an edge and an overflow near each other come in one
+/// IRQ, in either order. The tracker then must guess the order from the
+/// captured value.
+/// \returns the number of edges after which the RPM was not \p expected
+uint32_t wrong_rpm_with_irq_latency(uint32_t rpm, uint32_t expected, uint64_t first_edge, uint64_t latency, uint32_t edges) {
+    uint32_t wrong = 0;
+    TimerEventPeriodTracker tracker;
+    const uint64_t period = 30'000'000 / rpm;
+    uint64_t next_edge = first_edge;
+    uint64_t next_overflow = 0x1'0000;
+    uint32_t edges_done = 0;
+    while (edges_done < edges) {
+        const uint64_t irq_at = std::min(next_edge, next_overflow) + latency;
+        bool capture = false;
+        bool overflow = false;
+        uint16_t ccr = 0;
+        if (next_edge <= irq_at) {
+            capture = true;
+            ccr = static_cast<uint16_t>(next_edge & 0xFFFF);
+            next_edge += period;
+            ++edges_done;
+            REQUIRE(next_edge > irq_at); // One capture for each IRQ, no overcapture
+        }
+        if (next_overflow <= irq_at) {
+            overflow = true;
+            next_overflow += 0x1'0000;
+        }
+        tracker.handle_multi_event(ccr, capture, overflow);
+        if (capture && edges_done >= 2 && hal::math::tach_period_to_rpm(tracker.period_unsafe()) != expected) {
+            ++wrong;
+        }
+    }
+    return wrong;
+}
+
+} // namespace
+
+TEST_CASE("xbe tach: an edge and an overflow in one IRQ", "[xbe][tach]") {
+    // The tracker decides the order by the captured value (below 0x800: the
+    // overflow came first), and it corrects a negative period. For a period
+    // below one timer cycle, the result is correct for an IRQ latency below
+    // 2048 µs.
+    const uint64_t latency = GENERATE(1u, 20u, 200u, 2000u);
+    const uint32_t rpm = GENERATE(1000u, 3000u, 6700u);
+    CAPTURE(latency, rpm);
+    const uint64_t period = 30'000'000 / rpm;
+    if (latency >= period) {
+        SKIP("The IRQ must come before the next edge");
+    }
+    const uint32_t expected = 30'000'000 / period;
+    // Put the edges just before and just after many overflows
+    for (uint64_t first_edge = 0x1'0000 - 2 * latency - 3; first_edge < 0x1'0000 + 2 * latency + 3; first_edge += std::max<uint64_t>(1, latency / 8)) {
+        CAPTURE(first_edge);
+        REQUIRE(wrong_rpm_with_irq_latency(rpm, expected, first_edge, latency, 200) == 0);
+    }
 }

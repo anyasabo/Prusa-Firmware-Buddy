@@ -8,9 +8,11 @@ namespace {
 
 using Inputs = ChamberAlarm::Inputs;
 
-constexpr Inputs normal { .critical_flag = false, .overheating_flag = false, .printing = true, .overheating_warning_active = false };
-constexpr Inputs overheating { .critical_flag = false, .overheating_flag = true, .printing = true, .overheating_warning_active = false };
-constexpr Inputs critical { .critical_flag = true, .overheating_flag = true, .printing = true, .overheating_warning_active = false };
+constexpr Inputs normal { .critical_flag = false, .overheating_flag = false, .at_critical_temp = false, .printing = true, .overheating_warning_active = false };
+constexpr Inputs overheating { .critical_flag = false, .overheating_flag = true, .at_critical_temp = false, .printing = true, .overheating_warning_active = false };
+constexpr Inputs critical { .critical_flag = true, .overheating_flag = true, .at_critical_temp = true, .printing = true, .overheating_warning_active = false };
+/// After the critical temperature, the chamber cooled, but not under the recovery temperature.
+constexpr Inputs after_critical { .critical_flag = true, .overheating_flag = true, .at_critical_temp = false, .printing = true, .overheating_warning_active = false };
 
 Inputs not_printing(Inputs inputs) {
     inputs.printing = false;
@@ -77,4 +79,33 @@ TEST_CASE("chamber alarm: the critical temperature outside a print", "[chamber]"
     // The chamber cools under the recovery temperature: a new episode can start.
     CHECK(no_actions(alarm.step(not_printing(normal))));
     CHECK(alarm.step(not_printing(critical)).disable_heaters);
+}
+
+TEST_CASE("chamber alarm: the chamber cools, but not under the recovery temperature", "[chamber]") {
+    ChamberAlarm alarm;
+    REQUIRE(alarm.step(not_printing(critical)).disable_heaters);
+
+    // The user can heat again outside a print.
+    for (int i = 0; i < 10; ++i) {
+        CHECK(no_actions(alarm.step(not_printing(after_critical))));
+    }
+
+    // A print that starts is aborted.
+    const auto a = alarm.step(after_critical);
+    CHECK(a.abort_print);
+    CHECK(a.disable_heaters);
+}
+
+TEST_CASE("chamber alarm: the critical temperature again outside a print turns off the heaters (TH-2)", "[chamber]") {
+    ChamberAlarm alarm;
+    REQUIRE(alarm.step(not_printing(critical)).disable_heaters);
+
+    // The user turns on the heaters again outside a print, for example a preheat. The chamber
+    // gets to the critical temperature again before it cools under the recovery temperature.
+    CHECK(no_actions(alarm.step(not_printing(after_critical))));
+    for (int i = 0; i < 3; ++i) {
+        const auto a = alarm.step(not_printing(critical));
+        CHECK(a.disable_heaters);
+        CHECK(a.show_critical_warning);
+    }
 }

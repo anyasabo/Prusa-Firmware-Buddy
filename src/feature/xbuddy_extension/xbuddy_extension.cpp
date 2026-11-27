@@ -159,6 +159,7 @@ void XBuddyExtension::step() {
         const auto alarm = chamber_alarm_.step({
             .critical_flag = chamber_cooling.get_critical_temp_flag(),
             .overheating_flag = chamber_cooling.get_overheating_temp_flag(),
+            .at_critical_temp = *temp >= FanCooling::critical_temp,
             .printing = marlin_server::is_printing(),
             .overheating_warning_active = marlin_server::is_warning_active(WarningType::ChamberOverheatingTemperature),
         });

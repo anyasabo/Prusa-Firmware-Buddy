@@ -6,7 +6,10 @@ ChamberAlarm::Actions ChamberAlarm::step(const Inputs &inputs) {
     Actions actions;
 
     if (inputs.critical_flag) {
-        if (!critical_warning_shown || inputs.printing) {
+        // After the first time, the critical flag stays set down to the recovery temperature, and
+        // the user can heat again outside a print. Then a second time at the critical temperature
+        // must turn off the heaters again.
+        if (!critical_warning_shown || inputs.printing || inputs.at_critical_temp) {
             actions.abort_print = true;
             actions.disable_heaters = true;
             actions.show_critical_warning = true;

@@ -14,6 +14,10 @@ public:
         /// FanCooling::get_overheating_temp_flag()
         bool overheating_flag;
 
+        /// The chamber temperature is FanCooling::critical_temp or more. The critical flag
+        /// stays set down to FanCooling::recovery_temp.
+        bool at_critical_temp;
+
         /// marlin_server::is_printing()
         bool printing;
 

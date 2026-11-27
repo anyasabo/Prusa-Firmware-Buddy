@@ -44,14 +44,7 @@
 /* Ensure definitions are only used by the compiler, and not by the assembler. */
 #if defined(__ICCARM__) || defined(__ARMCC_VERSION) || defined(__GNUC__)
     #include <stdint.h>
-    // FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
-    #ifdef __cplusplus
-extern "C" {
-    #endif
 extern uint32_t SystemCoreClock;
-    #ifdef __cplusplus
-}
-    #endif
 #endif
 
 /* Clock configuration */
@@ -59,11 +52,9 @@ extern uint32_t SystemCoreClock;
 #define configCPU_CLOCK_HZ     (SystemCoreClock)
 #define configTICK_RATE_HZ     ((TickType_t)1000)
 
-#define configSUPPORT_DYNAMIC_ALLOCATION 0
-#define configSUPPORT_STATIC_ALLOCATION  1
-#define configMINIMAL_STACK_SIZE         32
-// The ARM_CM0 port of FreeRTOS 11 needs this. This board does not use the MPU.
-#define configENABLE_MPU                      0
+#define configSUPPORT_DYNAMIC_ALLOCATION      0
+#define configSUPPORT_STATIC_ALLOCATION       1
+#define configMINIMAL_STACK_SIZE              32
 #define configUSE_PREEMPTION                  1
 #define configUSE_IDLE_HOOK                   0
 #define configUSE_TICK_HOOK                   0
@@ -80,18 +71,13 @@ extern uint32_t SystemCoreClock;
  * called from any ISR. */
 #define configMAX_PRIORITIES 7
 
-// FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
-#ifdef __cplusplus
-extern "C" {
-#endif
 void hal_panic();
-#ifdef __cplusplus
-}
-#endif
 #define configASSERT(x)           \
     if ((x) == 0) {               \
         taskDISABLE_INTERRUPTS(); \
         hal_panic();              \
     }
 
-// The ARM_CM0 port of FreeRTOS 11 defines SVC_Handler, PendSV_Handler and SysTick_Handler (CMSIS names).
+#define xPortPendSVHandler  PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
+#define vPortSVCHandler     SVC_Handler

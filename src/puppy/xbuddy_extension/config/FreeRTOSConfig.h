@@ -45,14 +45,7 @@
 /* Ensure definitions are only used by the compiler, and not by the assembler. */
 #if defined(__ICCARM__) || defined(__ARMCC_VERSION) || defined(__GNUC__)
     #include <stdint.h>
-    // FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
-    #ifdef __cplusplus
-extern "C" {
-    #endif
 extern uint32_t SystemCoreClock;
-    #ifdef __cplusplus
-}
-    #endif
 #endif
 
 /* Configuration for ARM_CM33_NTZ port */
@@ -100,14 +93,7 @@ to all Cortex-M ports, and do not rely on any particular library functions. */
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS))
 
-// FreeRTOS 11 includes this file outside of its extern "C" block. The kernel is C code.
-#ifdef __cplusplus
-extern "C" {
-#endif
 void hal_panic();
-#ifdef __cplusplus
-}
-#endif
 #define configASSERT(x)           \
     if ((x) == 0) {               \
         taskDISABLE_INTERRUPTS(); \

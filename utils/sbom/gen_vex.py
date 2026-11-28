@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-27"
+REVIEWED = "2026-11-28"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -213,8 +213,8 @@ TRIAGE: dict[str, list[Decision]] = {
             ["CVE-2020-22283"], NP,
             "ICMPv6 is not part of the mDNS responder; LWIP_IPV6 is off."),
         not_affected(
-            ["CVE-2026-112062"], NIEP,
-            "The vulnerable memcpy in mdns_handle_response() (lib/WUI/mdns/mdns.c:1864, fixed upstream in ab2f69c7) runs only for answers that match a pending search request. Requests are created only by mdns_search_service(), which the firmware never calls (lib/WUI/wui.cpp uses only mdns_resp_init, mdns_resp_add_netif, mdns_resp_add_service_prusalink and mdns_resp_remove_netif)."
+            ["CVE-2026-112062"], NP,
+            "Fixed: the copy has the upstream fix ab2f69c7 (and 3a3182b0) in mdns_handle_response(). Also, the code runs only for a pending search request, and the firmware never calls mdns_search_service()."
         ),
     ],
     "lib/WUI/sntp": [

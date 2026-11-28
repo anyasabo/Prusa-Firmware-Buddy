@@ -52,19 +52,21 @@ components:
 
   lib/Middlewares/Third_Party/LwIP:
     name: lwip
-    version: 2.2.1
+    version: 2.2.1-118-ga33328d0
     repository: https://git.savannah.nongnu.org/git/lwip.git
-    upstream_commit: 77dcd25a72509eb83f72b033d219b1d40cd8eb95  # tag STABLE-2_2_1_RELEASE
+    upstream_commit: a33328d0ee94ad4d4656dcf80cc60b83cba941e2  # master, STABLE-2_2_1_RELEASE-118
     cpe: cpe:2.3:a:lwip_project:lwip:2.2.1:*:*:*:*:*:*:*
-    purl: pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%4077dcd25a72509eb83f72b033d219b1d40cd8eb95
+    purl: pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2
     supplier: "Organization: lwIP project (Savannah)"
     license: BSD-3-Clause
     note: >-
       Only src/ is vendored, without src/apps/ and src/include/lwip/apps/
       (httpd, mdns, mqtt, smtp, snmp, ...). The mDNS and SNTP apps are
       separate copies in lib/WUI. system/ is the FreeRTOS port, not upstream
-      code. Before 2.2.1 this was a git-subrepo of prusa3d/LwIP_212 with
-      lwIP 2.1.2. No check compares src/ with upstream_commit and the
+      code. Master after 2.2.1 has LAN input fixes that are in no release
+      (2026-11-28). The cpe uses 2.2.1, the last release before
+      upstream_commit. LWIP_VERSION_STRING is "2.2.2d". Before 2.2.1 this was
+      a git-subrepo of prusa3d/LwIP_212 with lwIP 2.1.2. No check compares src/ with upstream_commit and the
       patches below; diff against the tag after each change.
     patches:
       - "src/core/ipv4/etharp.c: address conflict detection (acd_arp_reply(), all ACD states) ignores ARP packets from our own MAC address (the ESP module) and packets with the same sender and target MAC"
@@ -673,31 +675,29 @@ components:
   # --- vendored without git-subrepo (drafted 2026-11-03; upstreams checked by diff) ---
   lib/WUI/mdns:
     name: lwip-mdns
-    version: 2.2.0-67-g347054b3
+    version: 2.2.1-118-ga33328d0
     repository: https://git.savannah.nongnu.org/git/lwip.git
-    upstream_commit: 347054b329d141b858cc7180bf2aa23c672dc6d7  # master, STABLE-2_2_0_RELEASE-67
-    cpe: cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*
-    purl: pkg:generic/lwip@2.2.0?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40347054b329d141b858cc7180bf2aa23c672dc6d7
+    upstream_commit: a33328d0ee94ad4d4656dcf80cc60b83cba941e2  # master, STABLE-2_2_1_RELEASE-118
+    cpe: cpe:2.3:a:lwip_project:lwip:2.2.1:*:*:*:*:*:*:*
+    purl: pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2
     supplier: "Organization: lwIP project (Savannah)"
     license: BSD-3-Clause
     note: >-
       lwIP's mDNS responder app (src/apps/mdns + include/lwip/apps/mdns*.h),
-      imported separately in 7262f1e56 (2024-02-07) because the main lwIP copy
-      (lib/Middlewares/Third_Party/LwIP, 2.1.2) has no src/apps. README names
-      347054b3. Verified: the import commit equals upstream 347054b3 after
-      clang-format with the repo style (0 differing lines in all 8 files); the
-      mdns files are identical in every upstream commit from 5e45328b
-      (2023-10-14) through STABLE-2_2_1_RELEASE, up to ab2f69c7 (2026-05-26). The
-      mirror https://github.com/lwip-tcpip/lwip has the same commits. The cpe uses
-      2.2.0, the last release before 347054b3. NVD has lwip_project:lwip but no
-      2.2.0 dictionary entry (the newest is 2.1.2; checked 2026-11-03).
+      imported separately in 7262f1e56 (2024-02-07) from upstream 347054b3,
+      because the main lwIP copy (lib/Middlewares/Third_Party/LwIP, then 2.1.2)
+      had no src/apps. The import commit equals upstream 347054b3 after
+      clang-format with the repo style (0 differing lines in all 8 files).
+      Upstream changed the mdns files three times after 347054b3: ab2f69c7,
+      3a3182b0 and 07de8c51. All three are applied, so the code equals master
+      a33328d0 plus the patches below (compared with whitespace removed,
+      2026-11-28). The mirror https://github.com/lwip-tcpip/lwip has the same
+      commits. The cpe uses 2.2.1, the last release before a33328d0.
       LWIP_MDNS_SEARCH stays at its default of 1, so the search/response code is compiled.
     patches:
       - "all files: clang-formatted; includes changed from lwip/apps/... to local and <lwip/...>"
       - "mdns.c, mdns_out.c, mdns_domain.[ch], mdns_priv.h: hostname comes from netif->hostname (per-host name buffer and txt_fn removed); service records are const and static"
       - "mdns.c, mdns.h: mdns_resp_add_netif() has no hostname argument; mdns_resp_add_service_prusalink() hard-codes _prusalink._tcp:80; dynamic add/del/rename service API #if 0'd"
-      - "mdns.c: mdns_resp_remove_netif() also cancels pending probe/announce timeouts (3cb24025f)"
-      - "mdns.c: ip_addr_eq/ip4_addr_net_eq renamed back to ip_addr_cmp/ip_addr_netcmp for lwIP 2.1.2"
       - "all files: '#error dead code' marker comments (BFW-5461)"
 
   lib/WUI/sntp:

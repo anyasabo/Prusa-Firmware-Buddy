@@ -173,3 +173,10 @@ buddy_add_fuzzer(marlin_parser SOURCES marlin_parser.cpp LIBS marlin_gcode_parse
 # Not untrusted input: the oracle finds wrong steps, not only crashes. The library has the real
 # motion sources, the stubs and Klipper (tests/unit/lib/Marlin/motion_klipper_diff).
 buddy_add_fuzzer(motion_klipper SOURCES motion_klipper.cpp LIBS motion_diff_pipeline)
+
+# littlefs with the firmware geometry (/system on the W25X NOR flash, /internal on the MT29F NAND
+# flash): random operations and a power loss at a random write, compared with a model.
+buddy_add_fuzzer(
+  littlefs_ops SOURCES littlefs_ops.c INCLUDES
+  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/littlefs
+  )

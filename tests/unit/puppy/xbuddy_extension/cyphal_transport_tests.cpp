@@ -172,6 +172,32 @@ TEST_CASE("cyphal transport: a restarted node is heard after the millisecond wra
     }
 }
 
+TEST_CASE("cyphal transport: an idle bus does not hide a wrap of the millisecond count") {
+    reset_world();
+    TransportImplementation transport;
+    REQUIRE(transport.subscribe(CanardTransferKindMessage, diagnostic_record_port, 300));
+
+    {
+        RemoteNode node;
+        node.publish(diagnostic_record_port, { 1 });
+        CHECK(drain(transport).size() == 1);
+    }
+
+    // No frames for 49.7 days. The transport steps on the idle bus.
+    now_ms += 1u << 31;
+    CHECK_FALSE(transport.step());
+    now_ms += 1u << 31;
+    CHECK_FALSE(transport.step());
+
+    // The millisecond count is now only 500 ms after the last transfer, but the real time is 49.7 days later.
+    now_ms += 500;
+    {
+        RemoteNode node;
+        node.publish(diagnostic_record_port, { 2 });
+        CHECK(drain(transport) == std::vector<std::vector<uint8_t>> { { 2 } });
+    }
+}
+
 TEST_CASE("cyphal transport: a deadline of 0 means no deadline") {
     reset_world();
     TransportImplementation transport;

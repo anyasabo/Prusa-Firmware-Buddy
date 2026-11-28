@@ -83,8 +83,10 @@ public:
     }
 
     bool step() {
+        // Read the clock in each step, also on an idle bus, so that the clock sees each wrap of the tick count.
+        const CanardMicrosecond now = get_current_microseconds();
         if (const CanardTxQueueItem *ti = canardTxPeek(&tx_queue)) {
-            if (ti->tx_deadline_usec == 0 || ti->tx_deadline_usec > get_current_microseconds()) {
+            if (ti->tx_deadline_usec == 0 || ti->tx_deadline_usec > now) {
                 if (!hal::pub::transmit(ti->frame.extended_can_id, { (std::byte *)ti->frame.payload, ti->frame.payload_size })) {
                     return true; // If the driver is busy, break and retry later.
                 }
@@ -101,7 +103,7 @@ public:
 
             CanardRxTransfer transfer;
             const int8_t result = canardRxAccept(&canard,
-                get_current_microseconds(),
+                now,
                 &canard_frame,
                 0,
                 &transfer,
@@ -135,7 +137,7 @@ public:
         return rx_queue.try_receive(transfer, 0);
     }
 
-    // Only the cyphal task calls this, so the clock has one writer.
+    // Only one task calls this, so the clock has one writer.
     // libcanard needs a real time for the transfer-ID timeout. With a constant time,
     // it drops the transfers of a restarted node as duplicates.
     CanardMicrosecond get_current_microseconds() {

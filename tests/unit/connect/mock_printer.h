@@ -8,7 +8,11 @@
 #include <vector>
 #include <string>
 
+#if defined(__GLIBC__)
+    #if !__GLIBC_PREREQ(2, 38)
 extern "C" size_t strlcpy(char *, const char *, size_t);
+    #endif
+#endif
 
 namespace connect_client {
 

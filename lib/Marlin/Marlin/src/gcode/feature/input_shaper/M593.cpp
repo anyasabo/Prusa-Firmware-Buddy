@@ -8,28 +8,12 @@
 #include "../../../feature/input_shaper/input_shaper.hpp"
 #include "../../../feature/input_shaper/input_shaper_config.hpp"
 #include "../../../module/stepper.h"
+#include "M593_params.hpp"
 #include "gcode/parser.h"
 #include <config_store/store_instance.hpp>
 #include <optional>
 
 namespace input_shaper {
-
-struct M593Params {
-    bool seen_x;
-    bool seen_y;
-    bool seen_z;
-    bool seen_w;
-    struct {
-        std::optional<Type> type;
-        std::optional<float> frequency;
-        std::optional<float> damping_ratio;
-        std::optional<float> vibration_reduction;
-    } axis;
-    struct {
-        std::optional<float> frequency_delta;
-        std::optional<float> mass_limit;
-    } weight_adjust;
-};
 
 static bool contains_axis_change(const M593Params &params) {
     return params.axis.type || params.axis.frequency || params.axis.damping_ratio || params.axis.vibration_reduction;
@@ -41,18 +25,6 @@ static bool contains_weight_adjust_change(const M593Params &params) {
 
 static bool is_empty(const M593Params &params) {
     return !contains_axis_change(params) && !contains_weight_adjust_change(params) && !params.seen_x && !params.seen_y && !params.seen_z && !params.seen_w;
-}
-
-static std::optional<AxisConfig> get_axis_config(const AxisConfig &config, const M593Params &params) {
-    if (params.axis.frequency && *params.axis.frequency == 0) {
-        return std::nullopt;
-    }
-    return AxisConfig {
-        .type = params.axis.type.value_or(config.type),
-        .frequency = params.axis.frequency.value_or(config.frequency),
-        .damping_ratio = params.axis.damping_ratio.value_or(config.damping_ratio),
-        .vibration_reduction = params.axis.vibration_reduction.value_or(config.vibration_reduction),
-    };
 }
 
 static std::optional<WeightAdjustConfig> get_weight_adjust_config(const WeightAdjustConfig &config, const M593Params &params) {
@@ -95,16 +67,13 @@ static void dump_current_config() {
     }
 }
 
-static M593Params clamp_frequency(M593Params params) {
-    if (params.axis.frequency != 0.) {
-        const float original_frequency = *params.axis.frequency;
-        const float clamped_frequency = clamp_frequency_to_safe_values(original_frequency);
-        if (clamped_frequency != original_frequency) {
-            SERIAL_ECHO_MSG("Frequency clamped to safe values");
-            params.axis.frequency = clamped_frequency;
-        }
+static M593Params clamp_frequency(const M593Params &params) {
+    bool clamped;
+    M593Params result = clamp_frequency(params, clamped);
+    if (clamped) {
+        SERIAL_ECHO_MSG("Frequency clamped to safe values");
     }
-    return params;
+    return result;
 }
 
 static void M593_set_axis_config(const AxisEnum axis, const M593Params &params) {

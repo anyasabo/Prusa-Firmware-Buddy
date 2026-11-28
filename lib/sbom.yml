@@ -122,12 +122,12 @@ components:
 
   lib/Middlewares/Third_Party/littlefs:
     name: littlefs
-    version: 2.8.0
+    version: 2.11.3
     repository: https://github.com/littlefs-project/littlefs
-    upstream_commit: f77214d1f0a8ccd7ddc7e1204fedd25ee5a41534  # tag v2.8.0
-    subrepo_commit: f77214d1f0a8ccd7ddc7e1204fedd25ee5a41534
-    cpe: cpe:2.3:a:littlefs-project:littlefs:2.8.0:*:*:*:*:*:*:*
-    purl: pkg:github/littlefs-project/littlefs@v2.8.0
+    upstream_commit: 6cb4e86540eca0d9ba62500a298385c9d863c8be  # tag v2.11.3
+    subrepo_commit: 6cb4e86540eca0d9ba62500a298385c9d863c8be
+    cpe: cpe:2.3:a:littlefs-project:littlefs:2.11.3:*:*:*:*:*:*:*
+    purl: pkg:github/littlefs-project/littlefs@v2.11.3
     supplier: "Organization: littlefs project"
     license: BSD-3-Clause
     note: >-

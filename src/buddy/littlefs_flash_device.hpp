@@ -52,6 +52,8 @@ public:
             .block_cycles = 500,
             .cache_size = cache_buf_size,
             .lookahead_size = lookahead_size,
+            // littlefs default: compact metadata above about 88% in lfs_fs_gc(), which we do not call
+            .compact_thresh = 0,
             .read_buffer = read_buffer,
             .prog_buffer = prog_buffer,
             .lookahead_buffer = lookahead_buffer,
@@ -60,6 +62,8 @@ public:
             .attr_max = 0,
             // Bound metadata compaction time on large erase blocks
             .metadata_max = std::min(storage.erase_block_size(), 32768lu),
+            // littlefs default: inline files up to the smallest of cache_size, attr_max and metadata_max / 8
+            .inline_max = 0,
         };
 
         int err = lfs_mount(&lfs, &config);

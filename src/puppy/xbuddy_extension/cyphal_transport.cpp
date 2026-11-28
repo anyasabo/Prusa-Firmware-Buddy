@@ -1,6 +1,7 @@
 /// @file
 #include "cyphal_transport.hpp"
 
+#include "cyphal_clock.hpp"
 #include "hal_pub.hpp"
 #include <cstddef>
 #include <freertos/mutex.hpp>
@@ -27,6 +28,7 @@ private:
     CanardTxQueue tx_queue;
     freertos::Mutex mutex;
     freertos::Queue<CanardRxTransfer, 16> rx_queue;
+    cyphal::MonotonicClock clock;
 
 public:
     TransportImplementation() {
@@ -133,9 +135,11 @@ public:
         return rx_queue.try_receive(transfer, 0);
     }
 
+    // Only the cyphal task calls this, so the clock has one writer.
+    // libcanard needs a real time for the transfer-ID timeout. With a constant time,
+    // it drops the transfers of a restarted node as duplicates.
     CanardMicrosecond get_current_microseconds() {
-        // For now, we don't really need to implement this.
-        return 0;
+        return clock.update(static_cast<uint32_t>(freertos::millis()));
     }
 };
 

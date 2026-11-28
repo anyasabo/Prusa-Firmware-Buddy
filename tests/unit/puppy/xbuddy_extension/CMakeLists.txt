@@ -68,3 +68,13 @@ target_include_directories(
   )
 target_link_libraries(xbuddy_extension_mmu_bridge_tests modbus xbuddy_extension)
 add_catch_test(xbuddy_extension_mmu_bridge_tests)
+
+# The test defines its own millis(), so it does not use the include directory of the other targets.
+add_executable(xbuddy_extension_cyphal_transport_tests cyphal_transport_tests.cpp)
+target_include_directories(
+  xbuddy_extension_cyphal_transport_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/puppy/xbuddy_extension
+  )
+target_link_libraries(
+  xbuddy_extension_cyphal_transport_tests canard o1heap raii byte_utils freertos_tests
+  )
+add_catch_test(xbuddy_extension_cyphal_transport_tests)

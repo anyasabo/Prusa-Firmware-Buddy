@@ -5,24 +5,12 @@
  *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
-/* Enable definition of getaddrinfo() even when compiling with -std=c99. Must
- * be set before config.h, which pulls in glibc's features.h indirectly.
- * Harmless on other platforms. */
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200112L
-#endif
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 600 /* sockaddr_storage */
-#endif
-
-#include "common.h"
+#include "ssl_misc.h"
 
 #if defined(MBEDTLS_NET_C)
 
-#if !defined(unix) && !defined(__unix__) && !defined(__unix) && \
-    !defined(__APPLE__) && !defined(_WIN32) && !defined(__QNXNTO__) && \
-    !defined(__HAIKU__) && !defined(__midipix__)
-#error "This module only works on Unix and Windows, see MBEDTLS_NET_C in config.h"
+#if !defined(MBEDTLS_PLATFORM_IS_UNIXLIKE) && !defined(_WIN32)
+#error "This module only works on Unix and Windows, see MBEDTLS_NET_C in mbedtls_config.h"
 #endif
 
 #include "mbedtls/platform.h"
@@ -36,11 +24,6 @@
     !defined(EFI32)
 
 #define IS_EINTR(ret) ((ret) == WSAEINTR)
-
-#if !defined(_WIN32_WINNT)
-/* Enables getaddrinfo() & Co */
-#define _WIN32_WINNT 0x0501
-#endif
 
 #include <ws2tcpip.h>
 
@@ -688,7 +671,7 @@ void mbedtls_net_close(mbedtls_net_context *ctx)
  */
 void mbedtls_net_free(mbedtls_net_context *ctx)
 {
-    if (ctx->fd == -1) {
+    if (ctx == NULL || ctx->fd == -1) {
         return;
     }
 

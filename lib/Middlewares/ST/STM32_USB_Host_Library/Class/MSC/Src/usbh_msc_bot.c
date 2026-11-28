@@ -81,7 +81,6 @@ EndBSPDependencies */
   */
 static USBH_StatusTypeDef USBH_MSC_BOT_Abort(USBH_HandleTypeDef *phost, uint8_t lun, uint8_t dir);
 static BOT_CSWStatusTypeDef USBH_MSC_DecodeCSW(USBH_HandleTypeDef *phost);
-static uint16_t USBH_MSC_BOT_GetInXferLen(MSC_HandleTypeDef *MSC_Handle);
 static uint16_t USBH_MSC_BOT_GetOutXferLen(MSC_HandleTypeDef *MSC_Handle);
 /**
   * @}
@@ -101,24 +100,6 @@ static uint16_t USBH_MSC_BOT_GetOutXferLen(MSC_HandleTypeDef *MSC_Handle);
   */
 
 /**
-  * @brief  USBH_MSC_BOT_GetInXferLen
-  *         Computes the length of the Bulk IN data stage transfer.
-  * @param  MSC_Handle: MSC handle
-  * @retval Length to request for the Bulk IN transfer
-  */
-static uint16_t USBH_MSC_BOT_GetInXferLen(MSC_HandleTypeDef *MSC_Handle)
-{
-  uint32_t len = MSC_Handle->InEpSize;
-
-  if (len > MSC_Handle->hbot.cbw.field.DataTransferLength)
-  {
-    len = MSC_Handle->hbot.cbw.field.DataTransferLength;
-  }
-
-  return (uint16_t)len;
-}
-
-/**
   * @brief  USBH_MSC_BOT_GetOutXferLen
   *         Computes the length of the Bulk OUT data stage transfer.
   * @param  MSC_Handle: MSC handle
@@ -126,7 +107,8 @@ static uint16_t USBH_MSC_BOT_GetInXferLen(MSC_HandleTypeDef *MSC_Handle)
   */
 static uint16_t USBH_MSC_BOT_GetOutXferLen(MSC_HandleTypeDef *MSC_Handle)
 {
-  uint32_t len = MSC_Handle->OutEpSize;
+  /* Prusa: OUT transfers of up to USBH_MSC_TRANSFER_SIZE bytes, not one packet */
+  uint32_t len = USBH_MSC_TRANSFER_SIZE;
 
   if (len > MSC_Handle->hbot.cbw.field.DataTransferLength)
   {
@@ -197,7 +179,12 @@ USBH_StatusTypeDef USBH_MSC_BOT_Init(USBH_HandleTypeDef *phost)
   return USBH_OK;
 }
 
-
+uint32_t calc_transfer_length(uint32_t length) {
+    uint32_t packets = (length + 63) / 64;
+    packets = MAX(packets, 1);
+    packets = MIN(packets, 16);
+    return packets * 64;
+}
 
 /**
   * @brief  USBH_MSC_BOT_Process
@@ -251,18 +238,22 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
           MSC_Handle->hbot.state = BOT_RECEIVE_CSW;
         }
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
       else if (URB_Status == USBH_URB_NOTREADY)
       {
         /* Re-send CBW */
         MSC_Handle->hbot.state = BOT_SEND_CBW;
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
       else
       {
@@ -270,9 +261,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
         {
           MSC_Handle->hbot.state = BOT_ERROR_OUT;
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
           USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
         }
       }
       break;
@@ -281,7 +274,7 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
 
       /* Send first packet */
       (void)USBH_BulkReceiveData(phost, MSC_Handle->hbot.pbuf,
-                                 USBH_MSC_BOT_GetInXferLen(MSC_Handle), MSC_Handle->InPipe);
+                                  calc_transfer_length(MSC_Handle->hbot.cbw.field.DataTransferLength), MSC_Handle->InPipe);
 
 #if defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U)
       phost->NakTimer = phost->Timer;
@@ -298,10 +291,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
       if (URB_Status == USBH_URB_DONE)
       {
         /* Adjust Data pointer and data length */
-        if (MSC_Handle->hbot.cbw.field.DataTransferLength > MSC_Handle->InEpSize)
+        uint32_t transfer_length = calc_transfer_length(MSC_Handle->hbot.cbw.field.DataTransferLength);
+        if (MSC_Handle->hbot.cbw.field.DataTransferLength > transfer_length)
         {
-          MSC_Handle->hbot.pbuf += MSC_Handle->InEpSize;
-          MSC_Handle->hbot.cbw.field.DataTransferLength -= MSC_Handle->InEpSize;
+          MSC_Handle->hbot.pbuf += transfer_length;
+          MSC_Handle->hbot.cbw.field.DataTransferLength -= transfer_length;
         }
         else
         {
@@ -313,7 +307,7 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
         {
           /* Send next packet */
           (void)USBH_BulkReceiveData(phost, MSC_Handle->hbot.pbuf,
-                                     USBH_MSC_BOT_GetInXferLen(MSC_Handle), MSC_Handle->InPipe);
+                                     calc_transfer_length(MSC_Handle->hbot.cbw.field.DataTransferLength), MSC_Handle->InPipe);
 
 #if defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U)
            phost->NakTimer = phost->Timer;
@@ -324,9 +318,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
           /* If value was 0, and successful transfer, then change the state */
           MSC_Handle->hbot.state = BOT_RECEIVE_CSW;
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
           USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
         }
       }
 #if defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U)
@@ -340,9 +336,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
           USBH_ActivatePipe(phost, MSC_Handle->InPipe);
         }
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
 #endif /* defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U) */
       else if (URB_Status == USBH_URB_STALL)
@@ -357,9 +355,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
         The host shall clear the Bulk-In pipe.
         4. The host shall attempt to receive a CSW.*/
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
       else
       {
@@ -380,10 +380,10 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
       if (URB_Status == USBH_URB_DONE)
       {
         /* Adjust Data pointer and data length */
-        if (MSC_Handle->hbot.cbw.field.DataTransferLength > MSC_Handle->OutEpSize)
+        if (MSC_Handle->hbot.cbw.field.DataTransferLength > USBH_MSC_TRANSFER_SIZE)
         {
-          MSC_Handle->hbot.pbuf += MSC_Handle->OutEpSize;
-          MSC_Handle->hbot.cbw.field.DataTransferLength -= MSC_Handle->OutEpSize;
+          MSC_Handle->hbot.pbuf += USBH_MSC_TRANSFER_SIZE;
+          MSC_Handle->hbot.cbw.field.DataTransferLength -= USBH_MSC_TRANSFER_SIZE;
         }
         else
         {
@@ -402,9 +402,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
           MSC_Handle->hbot.state = BOT_RECEIVE_CSW;
         }
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
 
       else if (URB_Status == USBH_URB_NOTREADY)
@@ -412,9 +414,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
         /* Resend same data */
         MSC_Handle->hbot.state = BOT_DATA_OUT;
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
 
       else if (URB_Status == USBH_URB_STALL)
@@ -428,9 +432,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
         4. The host shall attempt to receive a CSW.
         */
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
       else
       {
@@ -469,9 +475,11 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
           status = USBH_FAIL;
         }
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
 #if defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U)
       else if (URB_Status == USBH_URB_NAK_WAIT)
@@ -484,18 +492,22 @@ USBH_StatusTypeDef USBH_MSC_BOT_Process(USBH_HandleTypeDef *phost, uint8_t lun)
           USBH_ActivatePipe(phost, MSC_Handle->InPipe);
         }
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
 #endif /* defined (USBH_IN_NAK_PROCESS) && (USBH_IN_NAK_PROCESS == 1U) */
       else if (URB_Status == USBH_URB_STALL)
       {
         MSC_Handle->hbot.state = BOT_ERROR_IN;
 
+#if (USBH_USE_URB_EVENTS == 1U)
 #if (USBH_USE_OS == 1U)
         USBH_OS_PutMessage(phost, USBH_URB_EVENT, 0U, 0U);
 #endif /* (USBH_USE_OS == 1U) */
+#endif /* (USBH_USE_URB_EVENTS == 1U) */
       }
       else
       {

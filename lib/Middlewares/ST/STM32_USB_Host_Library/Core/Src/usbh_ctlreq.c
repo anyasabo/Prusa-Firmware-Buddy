@@ -1146,7 +1146,7 @@ static USBH_StatusTypeDef USBH_HandleControl(USBH_HandleTypeDef *phost)
       }
       else
       {
-        if (URB_Status == USBH_URB_ERROR)
+        if (URB_Status == USBH_URB_ERROR || URB_Status == USBH_URB_STALL)
         {
           phost->Control.state = CTRL_ERROR;
 

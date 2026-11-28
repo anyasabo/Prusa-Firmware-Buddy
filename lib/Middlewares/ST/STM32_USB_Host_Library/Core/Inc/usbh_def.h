@@ -26,6 +26,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbh_conf.h"
+#include "rw_mutex.h"
 
 /** @addtogroup USBH_LIB
   * @{
@@ -192,10 +193,10 @@ extern "C" {
 #define USBH_DEVICE_ADDRESS_DEFAULT                        0x00U
 #define USBH_DEVICE_ADDRESS                                0x01U
 
-#define USBH_MAX_ERROR_COUNT                               0x02U
+#define USBH_MAX_ERROR_COUNT                               0x50U
 
 #if (USBH_USE_OS == 1U)
-#define MSGQUEUE_OBJECTS                                   0x10U
+#define MSGQUEUE_OBJECTS                                   0x30U
 #endif /* (USBH_USE_OS == 1U) */
 
 
@@ -498,7 +499,7 @@ typedef struct _USBH_HandleTypeDef
 #endif
   uint32_t              os_msg;
 #endif /* (USBH_USE_OS == 1U) */
-
+  RWMutex_t             class_mutex;
 } USBH_HandleTypeDef;
 
 

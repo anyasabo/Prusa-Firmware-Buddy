@@ -47,7 +47,7 @@ typedef struct {
 
 typedef struct {
     model_file_t file[NFILES];
-    int dir_exists;
+    int dir_exists; // -1: unknown after a failed operation
     int dir_file[NDIRFILES];
 } model_t;
 
@@ -392,7 +392,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 const int k = op[2] % NDIRFILES;
                 after.dir_exists = 1;
                 after.dir_file[k] = 1;
-                if (!before.dir_exists) {
+                if (before.dir_exists != 1) {
                     err = lfs_mkdir(&lfs, "d");
                     if (err && err != LFS_ERR_EXIST) {
                         break;
@@ -411,11 +411,15 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 break;
             }
             case 6: // remove all files of the directory while it reads it
-                if (before.dir_exists) {
+                if (before.dir_exists != 0) {
                     for (int k = 0; k < NDIRFILES; k++) {
                         after.dir_file[k] = 0;
                     }
                     err = remove_dir_files();
+                    if (err == LFS_ERR_NOENT && before.dir_exists == -1) {
+                        after.dir_exists = 0;
+                        err = 0;
+                    }
                 }
                 break;
             case 7: // unmount and mount again
@@ -433,6 +437,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                     if (after.dir_file[k] != before.dir_file[k]) {
                         after.dir_file[k] = -1;
                     }
+                }
+                if (after.dir_exists != before.dir_exists) {
+                    after.dir_exists = -1;
                 }
             } else if (err) {
                 abort(); // an operation failed without a reason

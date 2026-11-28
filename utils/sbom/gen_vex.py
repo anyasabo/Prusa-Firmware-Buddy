@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-26"
+REVIEWED = "2026-11-28"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -227,7 +227,7 @@ TRIAGE: dict[str, list[Decision]] = {
     "lib/Middlewares/ST/STM32_USB_Host_Library": [
         not_affected(
             ["CVE-2021-42553"], NP,
-            "Fork: ST v3.5.5. USBH_ParseCfgDesc stops at USBH_MAX_NUM_ENDPOINTS endpoints for each interface (fixed in v3.5.1)."
+            "Fork: ST v3.5.6. USBH_ParseCfgDesc stops at USBH_MAX_NUM_ENDPOINTS endpoints for each interface (fixed in v3.5.1)."
         ),
     ],
     "bootstrap:gcc-arm-none-eabi/gcc-runtime": [

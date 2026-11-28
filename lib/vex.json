@@ -1,8 +1,8 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:be860b6b-d9bd-5026-990f-c37ce3bbb4c6",
+ "@id": "urn:uuid:c6588853-0733-5420-a469-eb2b7bb4bb97",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
- "timestamp": "2026-11-26T00:00:00Z",
+ "timestamp": "2026-11-28T00:00:00Z",
  "version": 1,
  "statements": [
   {
@@ -726,12 +726,12 @@
    },
    "products": [
     {
-     "@id": "pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.5.5"
+     "@id": "pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.5.6"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "Fork: ST v3.5.5. USBH_ParseCfgDesc stops at USBH_MAX_NUM_ENDPOINTS endpoints for each interface (fixed in v3.5.1)."
+   "impact_statement": "Fork: ST v3.5.6. USBH_ParseCfgDesc stops at USBH_MAX_NUM_ENDPOINTS endpoints for each interface (fixed in v3.5.1)."
   },
   {
    "vulnerability": {

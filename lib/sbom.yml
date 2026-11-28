@@ -727,26 +727,27 @@ components:
 
   lib/Middlewares/ST/STM32_USB_Host_Library:
     name: stm32_mw_usb_host
-    version: 3.5.5
+    version: 3.5.6
     repository: https://github.com/STMicroelectronics/stm32_mw_usb_host
-    upstream_commit: d013fac0f8b97e8316a79ef946a7dbab4ef4431d  # tag v3.5.5
-    cpe: cpe:2.3:a:st:stm32_mw_usb_host:3.5.5:*:*:*:*:*:*:*
-    purl: pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.5.5
+    upstream_commit: 0848d6e9edaace58c548a6955e03b1a280216cd6  # tag v3.5.6
+    cpe: cpe:2.3:a:st:stm32_mw_usb_host:3.5.6:*:*:*:*:*:*:*
+    purl: pkg:github/stmicroelectronics/stm32_mw_usb_host@v3.5.6
     supplier: "Organization: STMicroelectronics"
     license: LicenseRef-ST-SLA0044
     note: >-
-      Fork (anya/main): v3.5.5 instead of the upstream v3.4.0 (branch
-      usbh-v355-master, through metrics-defaults). Only Core/ and Class/MSC/
-      are vendored. The files are the tag v3.5.5 without trailing whitespace,
-      then the Prusa changes. LICENSE.md (SLA0044) is the one of the tag.
-      v3.5.1 fixed CVE-2021-42553 (USBH_ParseCfgDesc stops at
-      USBH_MAX_NUM_ENDPOINTS).
+      Fork (anya/main): v3.5.6 instead of the upstream v3.4.0 (branches
+      usbh-v355-master and anya/usbh-3.5.6). Only Core/ and Class/MSC/
+      are vendored. The files are the tag v3.5.6 without trailing
+      whitespace, then the Prusa changes. LICENSE.md (SLA0044) is the one
+      of the tag. v3.5.1 fixed CVE-2021-42553 (USBH_ParseCfgDesc stops at
+      USBH_MAX_NUM_ENDPOINTS). v3.5.6 parses only the received bytes of
+      the configuration descriptor and clamps max_lun.
     patches:
-      - "Class/MSC/Src/usbh_msc.c: asynchronous r/w worker for the Buddy tasks, rw-mutex class locking, firmware ms clock timeouts, review fixes; refuse a block size other than USBH_MSC_BLOCK_SIZE (512); EXPERIMENT wait and timeout counters (fork only)"
+      - "Class/MSC/Src/usbh_msc.c: asynchronous r/w worker for the Buddy tasks, rw-mutex class locking, firmware ms clock timeouts in place of USBH_MSC_FinishRdWr(), review fixes; refuse a block size other than USBH_MSC_BLOCK_SIZE (512); EXPERIMENT wait and timeout counters (fork only)"
       - "Class/MSC/Src/usbh_msc_bot.c: DMA + 512 B burst IN/OUT transfers"
       - "Core/Src/usbh_core.c: USBH thread in CCMRAM, class_mutex rw-lock around class init/deinit, VBUS delay moved out of timer task"
       - "Core/Inc/usbh_def.h: rw_mutex.h include + class_mutex; USBH_MAX_ERROR_COUNT 0x50; MSGQUEUE_OBJECTS 0x30"
-      - "Core/Src/usbh_ctlreq.c: treat URB STALL like ERROR during control transfers; do not read past the configuration descriptor buffer; parse up to 4 endpoints for each interface"
+      - "Core/Src/usbh_ctlreq.c: treat URB STALL like ERROR in the status OUT stage"
       - "CMakeLists.txt: added"
 
   lib/Drivers/stm32c0xx_hal_driver:

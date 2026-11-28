@@ -1,10 +1,13 @@
 // inih (lib/inih/ini.c) with the firmware configuration: the printer reads
 // /usb/prusa_printer_settings.ini from the USB drive with ini_parse(), for the network settings
-// (lib/WUI/wui_api.cpp) and for the Prusa Connect settings (src/connect/marlin_printer.cpp).
-// Input: the file content. The harness reads it through a FILE and fgets(), as ini_parse() does.
-// Properties: section, name and value are NUL-terminated inside the inih limits, and each is a
-// substring of the input (inih only trims and cuts the text of a line). The handler then changes
-// the value in place, as the network settings handler does with strtok_r() (inih allows that).
+// (lib/WUI/wui_api.cpp), the Wi-Fi check of the home screen and the Prusa Connect settings
+// (src/connect/marlin_printer.cpp). Input: the file content. The harness reads it through a FILE
+// and fgets(), as ini_parse() does.
+// Properties: section, name and value are NUL-terminated inside the inih limits (the section is
+// a copy of INI_MAX_SECTION bytes, name and value point into the line buffer of INI_MAX_LINE
+// bytes), and each is a substring of the input (inih only trims and cuts the text of a line).
+// The handler then changes the value in place, as the network settings handler does with
+// strtok_r() (inih allows that).
 
 #include <ini.h>
 
@@ -30,9 +33,9 @@ int handler(void *user, const char *section, const char *name, const char *value
         std::abort(); // INI_ALLOW_NO_VALUE and INI_CALL_HANDLER_ON_NEW_SECTION are off
     }
     const size_t section_len = strnlen(section, INI_MAX_SECTION);
-    const size_t name_len = strnlen(name, INI_MAX_NAME);
+    const size_t name_len = strnlen(name, INI_MAX_LINE);
     const size_t value_len = strnlen(value, INI_MAX_LINE);
-    if (section_len >= INI_MAX_SECTION || name_len >= INI_MAX_NAME || value_len >= INI_MAX_LINE) {
+    if (section_len >= INI_MAX_SECTION || name_len >= INI_MAX_LINE || value_len >= INI_MAX_LINE) {
         std::abort(); // not terminated inside the limits
     }
     if (!is_substring(in, section, section_len) || !is_substring(in, name, name_len) || !is_substring(in, value, value_len)) {

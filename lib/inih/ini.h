@@ -117,7 +117,7 @@ INI_API int ini_parse_string_length(const char* string, size_t length, ini_handl
 /* Chars that begin a start-of-line comment. Per Python configparser, allow
    both ; and # comments at the start of a line by default. */
 #ifndef INI_START_COMMENT_PREFIXES
-#define INI_START_COMMENT_PREFIXES ";#"
+#define INI_START_COMMENT_PREFIXES "#"
 #endif
 
 /* Nonzero to allow inline comments (with valid inline comment characters
@@ -127,7 +127,7 @@ INI_API int ini_parse_string_length(const char* string, size_t length, ini_handl
 #define INI_ALLOW_INLINE_COMMENTS 1
 #endif
 #ifndef INI_INLINE_COMMENT_PREFIXES
-#define INI_INLINE_COMMENT_PREFIXES ";"
+#define INI_INLINE_COMMENT_PREFIXES "#"
 #endif
 
 /* Nonzero to use stack for line buffer, zero to use heap (malloc/free). */

@@ -94,41 +94,63 @@ static struct lfs_file_config file_cfg(void) {
     return fc;
 }
 
-// Compares the filesystem with the model. If a is not NULL, a file can also match a.
-static void verify(const model_t *m, const model_t *a) {
+// 1 if file i of the filesystem matches f. If allow_empty, an empty file also matches: an open
+// with LFS_O_CREAT commits the new file at once, before the data.
+static int file_matches(int i, const model_file_t *f, int allow_empty) {
+    char name[16];
+    name_of(name, i);
+    struct lfs_info info;
+    int err = lfs_stat(&lfs, name, &info);
+    LFS_ASSERT(err == 0 || err == LFS_ERR_NOENT);
+    if (f->unknown) {
+        return 1;
+    }
+    if (!f->exists) {
+        return err == LFS_ERR_NOENT;
+    }
+    if (err != 0 || info.type != LFS_TYPE_REG) {
+        return 0;
+    }
+    if (allow_empty && info.size == 0) {
+        return 1;
+    }
+    if (info.size != f->size) {
+        return 0;
+    }
+    lfs_file_t file;
+    struct lfs_file_config fc = file_cfg();
+    LFS_ASSERT(lfs_file_opencfg(&lfs, &file, name, LFS_O_RDONLY, &fc) == 0);
+    lfs_ssize_t n = lfs_file_read(&lfs, &file, io_buf, f->size);
+    LFS_ASSERT(lfs_file_close(&lfs, &file) == 0);
+    return n == (lfs_ssize_t)f->size && memcmp(io_buf, f->data, f->size) == 0;
+}
+
+static model_t resolved;
+
+// Compares the filesystem with the model m. If a is not NULL (a power loss during an operation),
+// the files must all match m or all match a: an operation is atomic (for example, a rename must
+// not lose the file). The files of the directory are removed one at a time, thus each can match
+// m or a. Returns the model that matched, with an empty new file as unknown.
+static const model_t *verify(const model_t *m, const model_t *a) {
+    int all_m = 1;
     for (int i = 0; i < NFILES; i++) {
-        char name[16];
-        name_of(name, i);
-        struct lfs_info info;
-        int err = lfs_stat(&lfs, name, &info);
-        LFS_ASSERT(err == 0 || err == LFS_ERR_NOENT);
-        const model_file_t *candidates[2] = { &m->file[i], a ? &a->file[i] : NULL };
-        int ok = 0;
-        for (int c = 0; c < 2 && !ok; c++) {
-            const model_file_t *f = candidates[c];
-            if (f == NULL) {
-                continue;
-            }
-            if (f->unknown) {
-                ok = 1;
-                continue;
-            }
-            if (!f->exists) {
-                ok = err == LFS_ERR_NOENT;
-                continue;
-            }
-            if (err != 0 || info.type != LFS_TYPE_REG || info.size != f->size) {
-                continue;
-            }
-            lfs_file_t file;
-            struct lfs_file_config fc = file_cfg();
-            LFS_ASSERT(lfs_file_opencfg(&lfs, &file, name, LFS_O_RDONLY, &fc) == 0);
-            lfs_ssize_t n = lfs_file_read(&lfs, &file, io_buf, f->size);
-            LFS_ASSERT(lfs_file_close(&lfs, &file) == 0);
-            ok = n == (lfs_ssize_t)f->size && memcmp(io_buf, f->data, f->size) == 0;
+        all_m = all_m && file_matches(i, &m->file[i], 0);
+    }
+    if (all_m) {
+        memcpy(&resolved, m, sizeof(resolved));
+    } else {
+        if (a == NULL) {
+            abort(); // a file is not in the state of the model
         }
-        if (!ok) {
-            abort(); // a file is in neither the old nor the new state
+        memcpy(&resolved, a, sizeof(resolved));
+        for (int i = 0; i < NFILES; i++) {
+            const int created = a->file[i].exists && !m->file[i].exists;
+            if (!file_matches(i, &a->file[i], created)) {
+                abort(); // the files are in neither the old nor the new state
+            }
+            if (created && !file_matches(i, &a->file[i], 0)) {
+                resolved.file[i].unknown = 1;
+            }
         }
     }
     for (int k = 0; k < NDIRFILES; k++) {
@@ -136,13 +158,17 @@ static void verify(const model_t *m, const model_t *a) {
         dir_name_of(name, k);
         struct lfs_info info;
         int err = lfs_stat(&lfs, name, &info);
+        LFS_ASSERT(err == 0 || err == LFS_ERR_NOENT);
         const int exists = err == 0;
         // -1: unknown after a failed operation
-        const int ok = m->dir_file[k] == -1 || exists == m->dir_file[k] || (a != NULL && (a->dir_file[k] == -1 || exists == a->dir_file[k]));
-        if (!ok) {
+        const int in_m = m->dir_file[k] == -1 || exists == m->dir_file[k];
+        const int in_a = a != NULL && (a->dir_file[k] == -1 || exists == a->dir_file[k]);
+        if (!in_m && !in_a) {
             abort();
         }
+        resolved.dir_file[k] = exists;
     }
+    return &resolved;
 }
 
 static int mount(void) {
@@ -271,7 +297,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         cfg.read_size = 1;
         cfg.prog_size = 4096;
         cfg.block_size = 256 * 1024;
-        cfg.block_count = 6 + ((geometry >> 2) & 3);
+        cfg.block_count = 8u << ((geometry >> 2) & 3);
         cfg.cache_size = 4096;
         cfg.metadata_max = 32768;
     } else {
@@ -326,14 +352,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 break;
             }
             case 2: { // remove
+                // The model changes before the call: a power loss at the last write of an
+                // operation returns here with the operation done.
+                after.file[i].exists = 0;
+                after.file[i].unknown = 0;
                 char name[16];
                 name_of(name, i);
                 err = lfs_remove(&lfs, name);
-                if (err == LFS_ERR_NOENT && !before.file[i].exists) {
+                if (err == LFS_ERR_NOENT && (!before.file[i].exists || before.file[i].unknown)) {
                     err = 0;
                 }
-                after.file[i].exists = 0;
-                after.file[i].unknown = 0;
                 break;
             }
             case 3: { // rename, replaces the target
@@ -341,13 +369,20 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 if (i == j || !before.file[i].exists) {
                     break;
                 }
+                after.file[j] = before.file[i];
+                after.file[i].exists = 0;
+                after.file[i].unknown = 0;
                 char from[16], to[16];
                 name_of(from, i);
                 name_of(to, j);
                 err = lfs_rename(&lfs, from, to);
-                after.file[j] = before.file[i];
-                after.file[i].exists = 0;
-                after.file[i].unknown = 0;
+                if (err == LFS_ERR_NOENT && before.file[i].unknown) {
+                    // An earlier failed operation did not create the file.
+                    memcpy(&after, &before, sizeof(after));
+                    after.file[i].exists = 0;
+                    after.file[i].unknown = 0;
+                    err = 0;
+                }
                 break;
             }
             case 4: // read with seeks
@@ -355,12 +390,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 break;
             case 5: { // create a file in the directory
                 const int k = op[2] % NDIRFILES;
+                after.dir_exists = 1;
+                after.dir_file[k] = 1;
                 if (!before.dir_exists) {
                     err = lfs_mkdir(&lfs, "d");
                     if (err && err != LFS_ERR_EXIST) {
                         break;
                     }
-                    after.dir_exists = 1;
                 }
                 char name[16];
                 dir_name_of(name, k);
@@ -368,19 +404,18 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 struct lfs_file_config fc = file_cfg();
                 err = lfs_file_opencfg(&lfs, &file, name, LFS_O_WRONLY | LFS_O_CREAT, &fc);
                 if (err == 0) {
-                    err = lfs_file_write(&lfs, &file, "id", 2) < 0 ? LFS_ERR_NOSPC : 0;
+                    const lfs_ssize_t n = lfs_file_write(&lfs, &file, "id", 2);
                     const int cerr = lfs_file_close(&lfs, &file);
-                    err = err ? err : cerr;
+                    err = n < 0 ? (int)n : cerr;
                 }
-                after.dir_file[k] = 1;
                 break;
             }
             case 6: // remove all files of the directory while it reads it
                 if (before.dir_exists) {
-                    err = remove_dir_files();
                     for (int k = 0; k < NDIRFILES; k++) {
                         after.dir_file[k] = 0;
                     }
+                    err = remove_dir_files();
                 }
                 break;
             case 7: // unmount and mount again
@@ -389,7 +424,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 verify(&before, NULL);
                 break;
             }
-            if (err == LFS_ERR_NOSPC) {
+            // A create with no space gives LFS_ERR_NAMETOOLONG (lfs_file_opencfg maps it). The
+            // names of this harness are short, so that error can only mean no space.
+            if (err == LFS_ERR_NOSPC || err == LFS_ERR_NAMETOOLONG) {
                 // littlefs does not define the content of a file after a failed write.
                 mark_unknown();
                 for (int k = 0; k < NDIRFILES; k++) {
@@ -409,7 +446,24 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // After a power loss, the files of the operation that ran can be in the old or the new state.
     lfs_emubd_setpowercycles(&cfg, 0);
     LFS_ASSERT(mount() == 0);
-    verify(&before, in_op ? &after : NULL);
+    memcpy(&before, verify(&before, in_op ? &after : NULL), sizeof(before));
+    // The first write after a mount repairs the state of an interrupted operation (orphans,
+    // moves). Write once more and compare again.
+    memcpy(&after, &before, sizeof(after));
+    model_file_t *f = &after.file[NFILES - 1];
+    f->exists = 1;
+    f->unknown = 0;
+    f->size = 300;
+    fill(f->data, f->size, 7);
+    const int err = write_file(NFILES - 1, 0);
+    if (err == LFS_ERR_NOSPC || err == LFS_ERR_NAMETOOLONG) {
+        mark_unknown();
+    } else {
+        LFS_ASSERT(err == 0);
+    }
+    LFS_ASSERT(lfs_unmount(&lfs) == 0);
+    LFS_ASSERT(mount() == 0);
+    verify(&after, NULL);
     LFS_ASSERT(lfs_unmount(&lfs) == 0);
     LFS_ASSERT(lfs_emubd_destroy(&cfg) == 0);
     return 0;

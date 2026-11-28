@@ -135,3 +135,13 @@ TEST_CASE("The special MMU tool commands have a string_arg") {
     REQUIRE(parser.string_arg != nullptr);
     CHECK(std::string_view(parser.string_arg) == "?");
 }
+
+TEST_CASE("An empty line is not a command") {
+    // GcodeSuite::process_subcommands_now() parses an empty line after a trailing newline.
+    for (const char *text : { "", " ", "N5" }) {
+        CAPTURE(text);
+        Line line(text);
+        CHECK(parser.command_letter == '?');
+        CHECK(parser.string_arg == nullptr);
+    }
+}

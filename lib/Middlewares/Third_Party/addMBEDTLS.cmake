@@ -1,86 +1,55 @@
 set(MBEDTLS_ROOT ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls)
+set(TF_PSA_CRYPTO_ROOT ${MBEDTLS_ROOT}/tf-psa-crypto)
+
+# The same source lists as the upstream CMake files (library/CMakeLists.txt and the CMakeLists.txt
+# of each tf-psa-crypto directory). The configuration turns off what the firmware does not use, and
+# --gc-sections removes the rest.
+file(
+  GLOB
+  TF_PSA_CRYPTO_SOURCES
+  ${TF_PSA_CRYPTO_ROOT}/core/*.c
+  ${TF_PSA_CRYPTO_ROOT}/drivers/builtin/src/*.c
+  ${TF_PSA_CRYPTO_ROOT}/extras/*.c
+  ${TF_PSA_CRYPTO_ROOT}/platform/*.c
+  ${TF_PSA_CRYPTO_ROOT}/utilities/*.c
+  )
 
 add_library(
   mbedTLS
-  ${MBEDTLS_ROOT}/library/ssl_msg.c
-  ${MBEDTLS_ROOT}/library/aes.c
-  ${MBEDTLS_ROOT}/library/aesni.c
-  ${MBEDTLS_ROOT}/library/aria.c
-  ${MBEDTLS_ROOT}/library/asn1parse.c
-  ${MBEDTLS_ROOT}/library/asn1write.c
-  ${MBEDTLS_ROOT}/library/base64.c
-  ${MBEDTLS_ROOT}/library/constant_time.c
-  ${MBEDTLS_ROOT}/library/bignum.c
-  ${MBEDTLS_ROOT}/library/camellia.c
-  ${MBEDTLS_ROOT}/library/ccm.c
-  ${MBEDTLS_ROOT}/library/chacha20.c
-  ${MBEDTLS_ROOT}/library/chachapoly.c
-  ${MBEDTLS_ROOT}/library/cipher.c
-  ${MBEDTLS_ROOT}/library/cipher_wrap.c
-  ${MBEDTLS_ROOT}/library/cmac.c
-  ${MBEDTLS_ROOT}/library/ctr_drbg.c
-  ${MBEDTLS_ROOT}/library/debug.c
-  ${MBEDTLS_ROOT}/library/des.c
-  ${MBEDTLS_ROOT}/library/dhm.c
-  ${MBEDTLS_ROOT}/library/ecdh.c
-  ${MBEDTLS_ROOT}/library/ecdsa.c
-  ${MBEDTLS_ROOT}/library/ecjpake.c
-  ${MBEDTLS_ROOT}/library/ecp.c
-  ${MBEDTLS_ROOT}/library/ecp_curves.c
-  ${MBEDTLS_ROOT}/library/entropy.c
-  ${MBEDTLS_ROOT}/library/entropy_poll.c
-  ${MBEDTLS_ROOT}/library/error.c
-  ${MBEDTLS_ROOT}/library/gcm.c
-  ${MBEDTLS_ROOT}/library/hkdf.c
-  ${MBEDTLS_ROOT}/library/hmac_drbg.c
-  ${MBEDTLS_ROOT}/library/md.c
-  ${MBEDTLS_ROOT}/library/md5.c
-  ${MBEDTLS_ROOT}/library/memory_buffer_alloc.c
-  ${MBEDTLS_ROOT}/library/nist_kw.c
-  ${MBEDTLS_ROOT}/library/oid.c
-  ${MBEDTLS_ROOT}/library/padlock.c
-  ${MBEDTLS_ROOT}/library/pem.c
-  ${MBEDTLS_ROOT}/library/pk.c
-  ${MBEDTLS_ROOT}/library/pkcs11.c
-  ${MBEDTLS_ROOT}/library/pkcs12.c
-  ${MBEDTLS_ROOT}/library/pkcs5.c
-  ${MBEDTLS_ROOT}/library/pkparse.c
-  ${MBEDTLS_ROOT}/library/pkwrite.c
-  ${MBEDTLS_ROOT}/library/pk_wrap.c
-  ${MBEDTLS_ROOT}/library/platform.c
-  ${MBEDTLS_ROOT}/library/platform_util.c
-  ${MBEDTLS_ROOT}/library/poly1305.c
-  ${MBEDTLS_ROOT}/library/ripemd160.c
-  ${MBEDTLS_ROOT}/library/rsa.c
-  ${MBEDTLS_ROOT}/library/rsa_internal.c
-  ${MBEDTLS_ROOT}/library/sha1.c
-  ${MBEDTLS_ROOT}/library/sha256.c
-  ${MBEDTLS_ROOT}/library/sha512.c
-  ${MBEDTLS_ROOT}/library/ssl_cache.c
+  ${TF_PSA_CRYPTO_SOURCES}
+  ${TF_PSA_CRYPTO_ROOT}/drivers/p256-m/p256-m_driver_entrypoints.c
+  ${TF_PSA_CRYPTO_ROOT}/drivers/p256-m/p256-m/p256-m.c
   ${MBEDTLS_ROOT}/library/ssl_ciphersuites.c
-  ${MBEDTLS_ROOT}/library/ssl_cli.c
-  ${MBEDTLS_ROOT}/library/ssl_cookie.c
-  ${MBEDTLS_ROOT}/library/ssl_srv.c
-  ${MBEDTLS_ROOT}/library/ssl_ticket.c
+  ${MBEDTLS_ROOT}/library/ssl_client.c
+  ${MBEDTLS_ROOT}/library/ssl_msg.c
   ${MBEDTLS_ROOT}/library/ssl_tls.c
-  ${MBEDTLS_ROOT}/library/threading.c
-  ${MBEDTLS_ROOT}/library/timing.c
-  ${MBEDTLS_ROOT}/library/version.c
-  ${MBEDTLS_ROOT}/library/version_features.c
+  ${MBEDTLS_ROOT}/library/ssl_tls12_client.c
+  ${MBEDTLS_ROOT}/library/ssl_tls13_client.c
+  ${MBEDTLS_ROOT}/library/ssl_tls13_generic.c
+  ${MBEDTLS_ROOT}/library/ssl_tls13_keys.c
   ${MBEDTLS_ROOT}/library/x509.c
-  ${MBEDTLS_ROOT}/library/x509write_crt.c
-  ${MBEDTLS_ROOT}/library/x509write_csr.c
-  ${MBEDTLS_ROOT}/library/x509_create.c
-  ${MBEDTLS_ROOT}/library/x509_crl.c
   ${MBEDTLS_ROOT}/library/x509_crt.c
-  ${MBEDTLS_ROOT}/library/x509_csr.c
+  ${MBEDTLS_ROOT}/library/x509_oid.c
   )
 
 target_include_directories(
-  mbedTLS PUBLIC ${MBEDTLS_ROOT}/include ${MBEDTLS_ROOT}/include/mbedtls
-                 ${CMAKE_BINARY_DIR}/include
+  mbedTLS
+  PUBLIC ${MBEDTLS_ROOT}/include ${TF_PSA_CRYPTO_ROOT}/include
+         ${TF_PSA_CRYPTO_ROOT}/drivers/builtin/include ${TF_PSA_CRYPTO_ROOT}/drivers/p256-m
+  PRIVATE ${MBEDTLS_ROOT}/library
+          ${TF_PSA_CRYPTO_ROOT}/core
+          ${TF_PSA_CRYPTO_ROOT}/dispatch
+          ${TF_PSA_CRYPTO_ROOT}/extras
+          ${TF_PSA_CRYPTO_ROOT}/platform
+          ${TF_PSA_CRYPTO_ROOT}/utilities
+          ${TF_PSA_CRYPTO_ROOT}/drivers/builtin/src
   )
 
 target_compile_definitions(
-  mbedTLS PUBLIC MBEDTLS_CONFIG_FILE=\"${CMAKE_SOURCE_DIR}/include/mbedtls/cipher_config_ece.h\"
+  mbedTLS
+  PUBLIC MBEDTLS_CONFIG_FILE=\"${CMAKE_SOURCE_DIR}/include/mbedtls/cipher_config_ece.h\"
+         TF_PSA_CRYPTO_CONFIG_FILE=\"${CMAKE_SOURCE_DIR}/include/mbedtls/crypto_config_ece.h\"
   )
+
+# The configuration includes <option/has_e2ee_support.h>.
+target_include_directories(mbedTLS PUBLIC ${CMAKE_BINARY_DIR}/include)

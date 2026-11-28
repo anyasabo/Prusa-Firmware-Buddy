@@ -18,6 +18,12 @@ VALGRIND ?= valgrind
 GDB		 ?= gdb
 PERF	 ?= perf
 
+# guess clang or gcc (clang sometimes masquerades as gcc because of
+# course it does)
+ifneq ($(shell $(CC) --version | grep clang),)
+NO_GCC = 1
+endif
+
 SRC  ?= $(filter-out $(wildcard *.t.* *.b.*),$(wildcard *.c))
 OBJ  := $(SRC:%.c=$(BUILDDIR)/%.o)
 DEP  := $(SRC:%.c=$(BUILDDIR)/%.d)
@@ -59,11 +65,15 @@ BENCH_PERF  := $(BENCH_RUNNER:%=%.perf)
 BENCH_TRACE := $(BENCH_RUNNER:%=%.trace)
 BENCH_CSV   := $(BENCH_RUNNER:%=%.csv)
 
-CFLAGS += -fcallgraph-info=su
 CFLAGS += -g3
 CFLAGS += -I.
 CFLAGS += -std=c99 -Wall -Wextra -pedantic
+CFLAGS += -Wmissing-prototypes
+ifndef NO_GCC
+CFLAGS += -fcallgraph-info=su
 CFLAGS += -ftrack-macro-expansion=0
+endif
+
 ifdef DEBUG
 CFLAGS += -O0
 else
@@ -354,6 +364,7 @@ summary-diff sizes-diff: $(OBJ) $(CI)
 
 ## Build the test-runner
 .PHONY: test-runner build-test
+test-runner build-test: CFLAGS+=-Wno-missing-prototypes
 ifndef NO_COV
 test-runner build-test: CFLAGS+=--coverage
 endif
@@ -405,6 +416,7 @@ testmarks-diff: $(TEST_CSV)
 
 ## Build the bench-runner
 .PHONY: bench-runner build-bench
+bench-runner build-bench: CFLAGS+=-Wno-missing-prototypes
 ifdef YES_COV
 bench-runner build-bench: CFLAGS+=--coverage
 endif
@@ -463,6 +475,7 @@ benchmarks-diff: $(BENCH_CSV)
 # rules
 -include $(DEP)
 -include $(TEST_DEP)
+-include $(BENCH_DEP)
 .SUFFIXES:
 .SECONDARY:
 

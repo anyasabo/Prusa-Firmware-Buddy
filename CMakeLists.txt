@@ -81,7 +81,9 @@ add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 add_compile_options(-frandom-seed=BuddyFW)
 
 # Do not allow non-ascii identifiers and bidi shenanigans
-add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-fno-extended-identifiers -Wbidi-chars=any)
+endif()
 
 add_compile_options(
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-register> $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>

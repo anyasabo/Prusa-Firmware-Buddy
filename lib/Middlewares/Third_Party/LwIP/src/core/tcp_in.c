@@ -1318,6 +1318,11 @@ tcp_receive(struct tcp_pcb *pcb)
          ->unsent list after a retransmission, so these segments may
          in fact have been sent once. */
       pcb->unsent = tcp_free_acked_segments(pcb, pcb->unsent, "unsent", pcb->unacked);
+      if (pcb->unsent == NULL) {
+        /* The persist timer must be off when the send buffer is empty
+           (tcp_slowtmr() asserts it). Nothing is left to probe with. */
+        pcb->persist_backoff = 0;
+      }
 
       /* If there's nothing left to acknowledge, stop the retransmit
          timer, otherwise reset it to start again */

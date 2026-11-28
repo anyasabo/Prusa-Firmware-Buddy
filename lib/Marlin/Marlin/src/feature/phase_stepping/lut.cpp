@@ -13,7 +13,14 @@ using namespace phase_stepping::opts;
 
 // Module definitions
 
-static const auto sin_lut_values = []() consteval {
+// The firmware (GCC) builds the table at compile time. std::sin is constexpr only in GCC, so the host
+// build with clang builds it at startup.
+#ifdef __clang__
+    #define SIN_LUT_CONSTEVAL
+#else
+    #define SIN_LUT_CONSTEVAL consteval
+#endif
+static const auto sin_lut_values = []() SIN_LUT_CONSTEVAL {
     // Build 1/4 of sin period mapping sin values to 0-FIXED_ONE range. This
     // range is selected such that:
     // - we have 2 bytes per value

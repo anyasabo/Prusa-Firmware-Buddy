@@ -59,6 +59,36 @@ def test_affects(text: str, date: str, on_2_28: bool | None,
     assert affects(text, "3.4.0", date, RELEASED["3.4.0"]) is on_3_4
 
 
+# Lines of November 2026, for the mbedtls 4.1 and TF-PSA-Crypto 1.1 releases before and with the
+# fixes: (text, product, fixed version, version before the fix).
+ADVISORIES_4 = [
+    ("Mbed TLS through 3.6.7; Mbed TLS 4.0.0 through 4.1.1; Mbed TLS 4.2.0",
+     "mbedtls", "4.1.2", "4.1.1"),
+    ("All versions of Mbed TLS up to 3.6.7; all versions of TF-PSA-Crypto "
+     "1.1.x up to 1.1.1; TF-PSA-Crypto 1.2.0", "tf-psa-crypto", "1.1.2",
+     "1.1.1"),
+    ("Mbed TLS through 3.6.7; Mbed TLS 4.0.0 through 4.1.1; Mbed TLS 4.2.0; "
+     "TF-PSA-Crypto through 1.1.1; TF-PSA-Crypto 1.2.0", "tf-psa-crypto",
+     "1.1.2", "1.1.1"),
+]
+
+
+@pytest.mark.parametrize("text,product,fixed,before", ADVISORIES_4)
+def test_affects_mbedtls_4(text: str, product: str, fixed: str,
+                           before: str) -> None:
+    assert affects(text, fixed, product=product) is False
+    assert affects(text, before, product=product) is True
+
+
+def test_tf_psa_crypto_clauses_do_not_count_for_mbedtls() -> None:
+    text = "All versions of TF-PSA-Crypto up to 1.1.1"
+    assert affects(text, "4.1.1") is None
+    assert affects(text, "1.1.1", product="tf-psa-crypto") is True
+    assert affects("Mbed TLS 4.0.0 through 4.1.1",
+                   "1.1.1",
+                   product="tf-psa-crypto") is False
+
+
 def test_version_key_orders_naturally() -> None:
     assert version_key("2.28.10") > version_key("2.28.9")
     assert version_key("r0.14b") > version_key("r0.14a") > version_key("r0.14")

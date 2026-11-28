@@ -117,8 +117,13 @@ CLAUSE_SPLIT = re.compile(
 VERSION = r"\d+\.\d+(?:\.\d+)?"
 
 
-def other_product(clause: str) -> bool:
-    """TF-PSA-Crypto, PolarSSL-only or Mbed Crypto-only clauses."""
+def other_product(clause: str, product: str = "mbedtls") -> bool:
+    """A clause about another product than `product` (mbedtls or tf-psa-crypto).
+
+    For mbedtls: TF-PSA-Crypto, PolarSSL-only or Mbed Crypto-only clauses.
+    """
+    if product == "tf-psa-crypto":
+        return "tf-psa" not in clause
     return ("tf-psa" in clause
             or ("polarssl" in clause and "mbed" not in clause)
             or ("crypto" in clause and "mbed tls" not in clause))
@@ -127,7 +132,8 @@ def other_product(clause: str) -> bool:
 def affects(text: str,
             version: str,
             adv_date: str | None = None,
-            released: str | None = None) -> bool | None:
+            released: str | None = None,
+            product: str = "mbedtls") -> bool | None:
     """Evaluate an advisory "Affects" line for one version. None = can't tell.
 
     A line with no upper bound ("all versions", "1.3.0 and up") covers the
@@ -135,6 +141,9 @@ def affects(text: str,
     """
     v = version_key(version)
     plain = re.sub(r"<[^>]+>", " ", text).replace("`", "")
+    if product == "tf-psa-crypto" and "tf-psa" not in plain.lower():
+        # The line does not name TF-PSA-Crypto: the advisory is for TLS or X.509 code.
+        return False
     upper = re.search(r"through|\bto\b|up to|before|prior|until|<", plain,
                       re.IGNORECASE)
     if adv_date and released and adv_date < released and not upper:
@@ -143,7 +152,7 @@ def affects(text: str,
     understood = False
     for clause in CLAUSE_SPLIT.split(plain):
         c = clause.strip().lower()
-        if not c or other_product(c):
+        if not c or other_product(c, product):
             continue
         nums = re.findall(VERSION, c)
         major = re.search(
@@ -161,7 +170,8 @@ def affects(text: str,
             understood = True
             hit |= version_key(m.group(1)) <= v <= version_key(m.group(2))
             continue
-        if m := re.search(rf"up to(?: and including)?\s+({VERSION})", c):
+        if m := re.search(
+                rf"(?:up to(?: and including)?|through)\s+({VERSION})", c):
             understood = True
             hit |= v <= version_key(m.group(1))
             continue
@@ -223,10 +233,12 @@ def adv_date(text: str) -> str | None:
 
 
 def cmd_mbedtls(args: argparse.Namespace) -> int:
-    versions = sorted({(e["name"], str(e["version"]))
-                       for e in load_components().values()
-                       if e["name"].startswith("mbedtls") and e.get("version")
-                       })
+    versions = sorted({
+        (e["name"], str(e["version"]))
+        for e in load_components().values()
+        if (e["name"].startswith("mbedtls") or e["name"] == "tf-psa-crypto")
+        and e.get("version")
+    })
     known = vex_known()
     adv_dir = Path(args.docs) / "security-advisories"
     for f in sorted(adv_dir.glob("mbedtls-security-advisory-*.md")):
@@ -237,7 +249,10 @@ def cmd_mbedtls(args: argparse.Namespace) -> int:
             continue
         cves = re.findall(r"CVE-\d+-\d+", cve.group(1)) if cve else []
         for name, ver in versions:
-            r = affects(aff.group(1), ver, adv_date(text), release_date(ver))
+            product = "tf-psa-crypto" if name == "tf-psa-crypto" else "mbedtls"
+            r = affects(aff.group(1), ver, adv_date(text),
+                        release_date(ver) if product == "mbedtls" else None,
+                        product)
             if r is False:
                 continue
             ids = ",".join(cves) or "(no CVE)"

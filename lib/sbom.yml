@@ -31,25 +31,38 @@
 components:
   lib/Middlewares/Third_Party/mbedtls:
     name: mbedtls
-    version: 2.28.10
+    version: 4.1.2
     repository: https://github.com/Mbed-TLS/mbedtls
-    upstream_commit: 2fc8413bfcb51354c8e679141b17b3f1a5942561  # tag v2.28.10
-    subrepo_commit: 2fc8413bfcb51354c8e679141b17b3f1a5942561
+    upstream_commit: 8808d31cdffb1a2c82645a531a96a0f26dd3e8c3  # tag v4.1.2
+    subrepo_commit: 8808d31cdffb1a2c82645a531a96a0f26dd3e8c3
     cpe:
-      - cpe:2.3:a:arm:mbed_tls:2.28.10:*:*:*:*:*:*:*
-      - cpe:2.3:a:trustedfirmware:mbed_tls:2.28.10:*:*:*:*:*:*:*
-    purl: pkg:github/mbed-tls/mbedtls@v2.28.10
+      - cpe:2.3:a:arm:mbed_tls:4.1.2:*:*:*:*:*:*:*
+      - cpe:2.3:a:trustedfirmware:mbed_tls:4.1.2:*:*:*:*:*:*:*
+    purl: pkg:github/mbed-tls/mbedtls@v4.1.2
     supplier: "Organization: Trusted Firmware (formerly Arm)"
     license: Apache-2.0 OR GPL-2.0-or-later
     note: >-
       NVD files mbed TLS under two CPE vendors, arm:mbed_tls and
-      trustedfirmware:mbed_tls, with disjoint CVE sets; both are listed. The 2.28 LTS branch
-      reached end of life with 2.28.10, so later advisories have no 2.28 fix; lib/vex.json
-      decides each one.
+      trustedfirmware:mbed_tls, with disjoint CVE sets; both are listed. The tree is the release
+      archive mbedtls-4.1.2.tar.bz2 (it contains TF-PSA-Crypto and the generated files) without
+      the test suites, the test framework and the sample programs. 4.1 is the LTS branch until
+      March 2029.
     patches:
-      - library/platform_util.c: use gmtime_r() instead of gmtime()+memcpy
-      - include/mbedtls/net_sockets.h: make mbedtls_net_context an opaque struct
-      # Visual Studio project files differ only in line endings.
+      - include/mbedtls/ssl.h: size the ECDH premaster secret from PSA (upstream 1c7401f3f of the mbedtls-4.1 branch, after 4.1.2)
+
+  lib/Middlewares/Third_Party/mbedtls/tf-psa-crypto:
+    name: tf-psa-crypto
+    version: 1.1.2
+    repository: https://github.com/Mbed-TLS/TF-PSA-Crypto
+    upstream_commit: 6315e1554bc28fddeb1d8ef7646fc06a5da6aa8e  # tag v1.1.2
+    cpe:
+    purl: pkg:github/mbed-tls/tf-psa-crypto@v1.1.2
+    supplier: "Organization: Trusted Firmware (formerly Arm)"
+    license: Apache-2.0 OR GPL-2.0-or-later
+    note: >-
+      The cryptography library of mbedtls 4 (the submodule of the v4.1.2 tag), with the p256-m
+      driver that the firmware uses for P-256. NVD has no CPE for it yet. Its advisories are in
+      Mbed-TLS/mbedtls-docs; utils/sbom/sbom_feeds.py mbedtls-advisories checks them.
 
   lib/Middlewares/Third_Party/LwIP:
     name: lwip

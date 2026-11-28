@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-27"
+REVIEWED = "2026-11-28"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -53,6 +53,7 @@ def investigating(cves: list[str], notes: str) -> Decision:
 
 
 MBEDTLS_CFG = "include/mbedtls/cipher_config_ece.h"
+MBEDTLS_CRYPTO_CFG = "include/mbedtls/crypto_config_ece.h"
 NVD_RANGE = "NVD version range is wrong for this release"
 ESP32_MAP = "the ESP32 esp-nic link map"
 # ICMPv6 (CVE-2020-22283), mDNS (CVE-2026-112062), SNMP (CVE-2026-119053, -8836).
@@ -63,131 +64,66 @@ LWIP_CVES = [
 # Manifest key -> decisions.
 TRIAGE: dict[str, list[Decision]] = {
     "lib/Middlewares/Third_Party/mbedtls": [
-        # Fixed in 2.28.x up to the vendored 2.28.10 (its ChangeLog). The
-        # advisory feed cannot tell for the advisories that say "all versions".
-        not_affected(["CVE-2022-35409"], NP, "Fixed in 2.28.1."),
-        not_affected(["CVE-2022-46392", "CVE-2022-46393"], NP,
-                     "Fixed in 2.28.2."),
-        not_affected(["CVE-2023-43615"], NP, "Fixed in 2.28.5."),
-        not_affected(["CVE-2024-23170", "CVE-2024-23775"], NP,
-                     "Fixed in 2.28.7."),
-        not_affected(["CVE-2024-28960"], NP, "Fixed in 2.28.8."),
-        not_affected(["CVE-2024-45157"], NP, "Fixed in 2.28.9."),
-        not_affected(["CVE-2025-27809", "CVE-2025-27810"], NP,
-                     "Fixed in 2.28.10."),
-        not_affected(
-            ["CVE-2025-47917", "CVE-2025-48965"], NP,
-            "X.509 writing/string-to-names code; MBEDTLS_X509_CRT_WRITE_C and MBEDTLS_X509_CREATE_C are off."
-        ),
-        not_affected(["CVE-2026-25835"], NP,
-                     "PSA Crypto; MBEDTLS_PSA_CRYPTO_C is off."),
-        not_affected(
-            ["CVE-2025-52496"], NP,
-            "AESNI (x86) support; MBEDTLS_AESNI_C is off and the target is Cortex-M."
-        ),
-        not_affected(["CVE-2025-52497"], NP,
-                     "PEM parsing; MBEDTLS_PEM_PARSE_C is off."),
+        # Fixed before or in the vendored 4.1.2 (the advisories in
+        # Mbed-TLS/mbedtls-docs, "Not affected"). The CPE feed cannot tell for
+        # the advisories that say "all versions".
+        not_affected([
+            "CVE-2021-36647", "CVE-2021-43666", "CVE-2021-45451",
+            "CVE-2022-35409", "CVE-2022-46392", "CVE-2022-46393",
+            "CVE-2023-43615", "CVE-2023-52353", "CVE-2024-23170",
+            "CVE-2024-23775", "CVE-2024-28960", "CVE-2024-45157",
+            "CVE-2025-27809", "CVE-2025-27810"
+        ], NP, "Fixed in 2.28.x and 3.x, before 4.0."),
+        not_affected([
+            "CVE-2025-47917", "CVE-2025-48965", "CVE-2025-52496",
+            "CVE-2025-52497", "CVE-2025-54764", "CVE-2025-59438",
+            "CVE-2026-34871", "CVE-2026-34872", "CVE-2026-34877",
+            "CVE-2026-35336", "CVE-2026-25835"
+        ], NP, "Fixed in 4.0.0 or 4.1.0 (TF-PSA-Crypto 1.0.0 or 1.1.0)."),
+        not_affected([
+            "CVE-2026-49300", "CVE-2026-50580", "CVE-2026-50581",
+            "CVE-2026-50584", "CVE-2026-50585", "CVE-2026-50586",
+            "CVE-2026-50587", "CVE-2026-54435", "CVE-2026-54441"
+        ], NP, "Fixed in 4.1.1."),
+        not_affected([
+            "CVE-2026-115488", "CVE-2026-115489", "CVE-2026-115493",
+            "CVE-2026-50582", "CVE-2026-90470", "CVE-2026-93776",
+            "CVE-2026-93777", "CVE-2026-93833", "CVE-2026-93835",
+            "CVE-2026-93842", "CVE-2026-93844"
+        ], NP, "Fixed in 4.1.2."),
         not_affected(
             ["CVE-2025-66442"], NP,
             "Only occurs with LLVM select-optimize; Buddy builds with GCC."),
-        not_affected(
-            ["CVE-2026-34871"], NP,
-            "Linux /dev/urandom fallback; MBEDTLS_NO_PLATFORM_ENTROPY with a hardware entropy source."
-        ),
-        not_affected(["CVE-2026-34872"], NP, "FFDH; MBEDTLS_DHM_C is off."),
-        not_affected(
-            ["CVE-2026-34877"], NP,
-            "Context serialization; MBEDTLS_SSL_CONTEXT_SERIALIZATION is off."
-        ),
-        not_affected(
-            ["CVE-2025-59438"], NP,
-            "Padding error timing in the cipher layer; no cipher padding mode is enabled and E2EE calls mbedtls_aes_crypt_cbc directly."
-        ),
-        not_affected(
-            ["CVE-2025-54764"], NCA,
-            "Microarchitectural (SSBleed/M-Step) attack on RSA keygen needs a co-located privileged attacker; not applicable to a Cortex-M MCU."
-        ),
-        not_affected(["CVE-2021-36647"], NP,
-                     f"{NVD_RANGE}: fixed in 2.27.0/2.16.11, before 2.28.0."),
-        not_affected(
-            ["CVE-2021-43666"], NP,
-            f"{NVD_RANGE}: the pkcs12 empty-password fix is in 2.28.0 (Fixes #5136)."
-        ),
-        not_affected(
-            ["CVE-2021-45451"], NP,
-            f"{NVD_RANGE}: psa_aead_generate_nonce does not exist in 2.28."),
-        not_affected(
-            ["CVE-2023-52353"], NP,
-            "3.x TLS version negotiation; not present in the 2.28 branch (no advisory, not in its ChangeLog)."
-        ),
-        # July 2026 advisories. Their CVE IDs are still RESERVED at CVE.org, so no CPE
-        # feed has them; utils/sbom/sbom_feeds.py mbedtls-advisories finds them.
-        # 2.28 is end of life, so 2.28.10 has none of these fixes.
-        not_affected(["CVE-2026-50584"], NP,
-                     "ChaCha20; MBEDTLS_CHACHA20_C is off."),
-        not_affected(
-            ["CVE-2026-50581"], NP,
-            "Extended master secret; MBEDTLS_SSL_EXTENDED_MASTER_SECRET is off."
-        ),
-        not_affected(
-            ["CVE-2026-35336"], NIEP,
-            "mbedtls_ecdh_calc_secret with an undersized buffer; TLS always passes a large enough buffer and Buddy has no direct calls."
-        ),
-        not_affected(
-            ["CVE-2026-50587"], NIEP,
-            "RSA PKCS#1 v1.5 decryption; E2EE uses RSA-OAEP (PKCS_V21)."),
-        not_affected(
-            ["CVE-2026-50585", "CVE-2026-50586"], NP,
-            "DTLS session-reset state and TLS 1.2 server NewSessionTicket; no DTLS, no SSL server, no session tickets."
-        ),
-        not_affected(["CVE-2026-50580"], NP,
-                     "ECDHE-PSK client; no PSK suites are enabled."),
-        not_affected(
-            ["CVE-2026-49300"], NCA,
-            "CA-bit parsing differential needs user-supplied trust roots validated elsewhere; Buddy embeds one fixed CA."
-        ),
-        not_affected(
-            ["CVE-2026-54435"], NCA,
-            "ECC fast-reduction side channel needs a local privileged trace (enclave model); not an attacker the MCU has."
-        ),
-        not_affected(
-            ["CVE-2026-54441"], NIEP,
-            "The advisory: restrictions set with mbedtls_ssl_conf_sig_algs() (mbedtls_ssl_conf_sig_hashes() in 2.28) are not applied to certificate-chain signatures. Buddy sets no such restriction (src/connect/tls/tls.cpp never calls mbedtls_ssl_conf_sig_hashes), so the chain is verified with the default certificate profile, as intended, against the single embedded Prusa CA."
-        ),
-        # November 2026 advisories (3.6.8, 4.1.2, 4.3.0). No 2.28 release has the fixes.
-        not_affected(
-            ["CVE-2026-115488", "CVE-2026-93844"], NP,
-            f"Buffer resize at renegotiation; MBEDTLS_SSL_VARIABLE_BUFFER_LENGTH and MBEDTLS_SSL_RENEGOTIATION are off ({MBEDTLS_CFG})."
-        ),
-        not_affected(
-            ["CVE-2026-115489"], NIEP,
-            "mbedtls_x509_dn_gets() is called only by mbedtls_x509_crt_info() and the CSR/CRL info functions; Buddy calls none of them and MBEDTLS_DEBUG_C is off."
-        ),
         affected(
             ["CVE-2026-115492"],
             "Undefine MBEDTLS_AES_ROM_TABLES (the tables then use about 2.5 KB of RAM with MBEDTLS_AES_FEWER_TABLES), or move to hardware AES.",
-            f"MBEDTLS_AES_ROM_TABLES is on ({MBEDTLS_CFG}), so the AES tables are read through the flash accelerator cache. The advisory says that short-lived TLS session keys are not at risk; the attacker needs the timing of many AES calls with one key."
+            f"MBEDTLS_AES_ROM_TABLES is on ({MBEDTLS_CRYPTO_CFG}), so the AES tables are read through the flash accelerator cache. No release fixes this: it is a configuration choice. The advisory says that short-lived TLS session keys are not at risk; the attacker needs the timing of many AES calls with one key."
         ),
         not_affected(
-            [
-                "CVE-2026-115493", "CVE-2026-93833", "CVE-2026-93835",
-                "CVE-2026-93842"
-            ], NCA,
-            "Spectre v1 side channels need speculative execution of loads and a local attacker that runs code. No core that links mbedtls executes loads speculatively: the Cortex-M4 main board (STM32F4) and the Cortex-M0+ and Cortex-M33 puppies (anfc, tool_offset_sensor). Arm lists no Cortex-M core as affected by Spectre. The firmware runs no untrusted code."
+            ["CVE-2026-116462"], NP,
+            f"CRL name matching; MBEDTLS_X509_CRL_PARSE_C is off ({MBEDTLS_CFG})."
         ),
-        not_affected(["CVE-2026-116462"], NP,
-                     "CRL name matching; MBEDTLS_X509_CRL_PARSE_C is off."),
+    ],
+    "lib/Middlewares/Third_Party/mbedtls/tf-psa-crypto": [
+        not_affected([
+            "CVE-2026-25835", "CVE-2026-34871", "CVE-2026-34872",
+            "CVE-2026-34875", "CVE-2026-54434"
+        ], NP, "Fixed in TF-PSA-Crypto 1.1.0 or 1.1.1."),
+        not_affected([
+            "CVE-2026-50582", "CVE-2026-115493", "CVE-2026-93833",
+            "CVE-2026-93835", "CVE-2026-93842"
+        ], NP, "Fixed in TF-PSA-Crypto 1.1.2."),
         not_affected(
-            ["CVE-2026-50582"], NP,
-            "PBKDF2 iteration count of an encrypted PKCS#8 key; MBEDTLS_PKCS5_C is off, so the firmware cannot parse encrypted keys."
+            ["CVE-2026-93845"], NP,
+            "p256-m (the P-256 driver of the firmware): fixed in TF-PSA-Crypto 1.1.2."
         ),
         not_affected(
-            ["CVE-2026-90470"], NIEP,
-            "URI matched against a DNS wildcard; src/connect/tls/tls.cpp passes the Connect host name (a DNS name) to mbedtls_ssl_set_hostname(), never a URI."
-        ),
-        not_affected(
-            ["CVE-2026-93776", "CVE-2026-93777"], NP,
-            "TLS server code (SNI resumption, CertificateVerify algorithms); MBEDTLS_SSL_SRV_C is off."
+            ["CVE-2025-66442"], NP,
+            "Only occurs with LLVM select-optimize; Buddy builds with GCC."),
+        affected(
+            ["CVE-2026-115492"],
+            "Undefine MBEDTLS_AES_ROM_TABLES (the tables then use about 2.5 KB of RAM with MBEDTLS_AES_FEWER_TABLES), or move to hardware AES.",
+            f"MBEDTLS_AES_ROM_TABLES is on ({MBEDTLS_CRYPTO_CFG}). See the same CVE for mbedtls."
         ),
     ],
     "lib/Middlewares/Third_Party/FatFs": [

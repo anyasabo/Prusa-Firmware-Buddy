@@ -26,7 +26,6 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbh_conf.h"
-#include "rw_mutex.h"
 
 /** @addtogroup USBH_LIB
   * @{
@@ -193,10 +192,10 @@ extern "C" {
 #define USBH_DEVICE_ADDRESS_DEFAULT                        0x00U
 #define USBH_DEVICE_ADDRESS                                0x01U
 
-#define USBH_MAX_ERROR_COUNT                               0x50U
+#define USBH_MAX_ERROR_COUNT                               0x02U
 
 #if (USBH_USE_OS == 1U)
-#define MSGQUEUE_OBJECTS                                   0x30U
+#define MSGQUEUE_OBJECTS                                   0x10U
 #endif /* (USBH_USE_OS == 1U) */
 
 
@@ -499,7 +498,7 @@ typedef struct _USBH_HandleTypeDef
 #endif
   uint32_t              os_msg;
 #endif /* (USBH_USE_OS == 1U) */
-  RWMutex_t             class_mutex;
+
 } USBH_HandleTypeDef;
 
 
@@ -510,6 +509,34 @@ typedef struct _USBH_HandleTypeDef
 #ifndef __packed
 #define __packed __attribute__((__packed__))
 #endif /* __packed */
+#endif /* __GNUC__ */
+
+/* Macro to get variable aligned on 4-bytes, for __ICCARM__ the directive "#pragma data_alignment=4" must be used instead */
+#if defined (__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050) /* ARM Compiler V6 */
+#ifndef __ALIGN_BEGIN
+#define __ALIGN_BEGIN
+#endif
+#ifndef __ALIGN_END
+#define __ALIGN_END      __attribute__ ((aligned (4)))
+#endif
+#elif defined ( __GNUC__ ) && !defined (__CC_ARM) /* GNU Compiler */
+#ifndef __ALIGN_END
+#define __ALIGN_END    __attribute__ ((aligned (4)))
+#endif /* __ALIGN_END */
+#ifndef __ALIGN_BEGIN
+#define __ALIGN_BEGIN
+#endif /* __ALIGN_BEGIN */
+#else
+#ifndef __ALIGN_END
+#define __ALIGN_END
+#endif /* __ALIGN_END */
+#ifndef __ALIGN_BEGIN
+#if defined   (__CC_ARM)      /* ARM Compiler V5*/
+#define __ALIGN_BEGIN    __align(4)
+#elif defined (__ICCARM__)    /* IAR Compiler */
+#define __ALIGN_BEGIN
+#endif /* __CC_ARM */
+#endif /* __ALIGN_BEGIN */
 #endif /* __GNUC__ */
 
 #ifdef __cplusplus

@@ -207,6 +207,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Inquiry(USBH_HandleTypeDef *phost, uint8_t lun,
 {
   USBH_StatusTypeDef error = USBH_FAIL;
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
+  uint8_t *inquiry_data = (uint8_t *)(void *)MSC_Handle->hbot.data;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
@@ -240,10 +241,10 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Inquiry(USBH_HandleTypeDef *phost, uint8_t lun,
       {
         (void)USBH_memset(inquiry, 0, sizeof(SCSI_StdInquiryDataTypeDef));
         /* Assign Inquiry Data */
-        inquiry->DeviceType = MSC_Handle->hbot.pbuf[0] & 0x1FU;
-        inquiry->PeripheralQualifier = MSC_Handle->hbot.pbuf[0] >> 5U;
+        inquiry->DeviceType = inquiry_data[0] & 0x1FU;
+        inquiry->PeripheralQualifier = inquiry_data[0] >> 5U;
 
-        if (((uint32_t)MSC_Handle->hbot.pbuf[1] & 0x80U) == 0x80U)
+        if (((uint32_t)inquiry_data[1] & 0x80U) == 0x80U)
         {
           inquiry->RemovableMedia = 1U;
         }
@@ -252,9 +253,9 @@ USBH_StatusTypeDef USBH_MSC_SCSI_Inquiry(USBH_HandleTypeDef *phost, uint8_t lun,
           inquiry->RemovableMedia = 0U;
         }
 
-        (void)USBH_memcpy(inquiry->vendor_id, &MSC_Handle->hbot.pbuf[8], 8U);
-        (void)USBH_memcpy(inquiry->product_id, &MSC_Handle->hbot.pbuf[16], 16U);
-        (void)USBH_memcpy(inquiry->revision_id, &MSC_Handle->hbot.pbuf[32], 4U);
+        (void)USBH_memcpy(inquiry->vendor_id, &inquiry_data[8], 8U);
+        (void)USBH_memcpy(inquiry->product_id, &inquiry_data[16], 16U);
+        (void)USBH_memcpy(inquiry->revision_id, &inquiry_data[32], 4U);
       }
       break;
 
@@ -279,6 +280,7 @@ USBH_StatusTypeDef USBH_MSC_SCSI_RequestSense(USBH_HandleTypeDef *phost,
 {
   USBH_StatusTypeDef error = USBH_FAIL;
   MSC_HandleTypeDef *MSC_Handle = (MSC_HandleTypeDef *) phost->pActiveClassData;
+  uint8_t *sense_response = (uint8_t *)(void *)MSC_Handle->hbot.data;
 
   switch (MSC_Handle->hbot.cmd_state)
   {
@@ -309,9 +311,9 @@ USBH_StatusTypeDef USBH_MSC_SCSI_RequestSense(USBH_HandleTypeDef *phost,
 
       if (error == USBH_OK)
       {
-        sense_data->key  = MSC_Handle->hbot.pbuf[2] & 0x0FU;
-        sense_data->asc  = MSC_Handle->hbot.pbuf[12];
-        sense_data->ascq = MSC_Handle->hbot.pbuf[13];
+        sense_data->key  = sense_response[2] & 0x0FU;
+        sense_data->asc  = sense_response[12];
+        sense_data->ascq = sense_response[13];
 
         if (sense_data->asc == SCSI_ASC_MEDIUM_NOT_PRESENT)
         {

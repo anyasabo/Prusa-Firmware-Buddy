@@ -234,7 +234,7 @@ USBH_StatusTypeDef USBH_BulkReceiveData(USBH_HandleTypeDef *phost,
   */
 USBH_StatusTypeDef USBH_InterruptReceiveData(USBH_HandleTypeDef *phost,
                                              uint8_t *buff,
-                                             uint8_t length,
+                                             uint16_t length,
                                              uint8_t pipe_num)
 {
   (void)USBH_LL_SubmitURB(phost,                /* Driver handle    */
@@ -243,7 +243,7 @@ USBH_StatusTypeDef USBH_InterruptReceiveData(USBH_HandleTypeDef *phost,
                           USBH_EP_INTERRUPT,    /* EP type          */
                           USBH_PID_DATA,        /* Type Data        */
                           buff,                 /* data buffer      */
-                          (uint16_t)length,     /* data length      */
+                          length,               /* data length      */
                           0U);
 
   return USBH_OK;
@@ -260,7 +260,7 @@ USBH_StatusTypeDef USBH_InterruptReceiveData(USBH_HandleTypeDef *phost,
   */
 USBH_StatusTypeDef USBH_InterruptSendData(USBH_HandleTypeDef *phost,
                                           uint8_t *buff,
-                                          uint8_t length,
+                                          uint16_t length,
                                           uint8_t pipe_num)
 {
   (void)USBH_LL_SubmitURB(phost,                /* Driver handle    */
@@ -269,7 +269,7 @@ USBH_StatusTypeDef USBH_InterruptSendData(USBH_HandleTypeDef *phost,
                           USBH_EP_INTERRUPT,    /* EP type          */
                           USBH_PID_DATA,        /* Type Data        */
                           buff,                 /* data buffer      */
-                          (uint16_t)length,     /* data length      */
+                          length,               /* data length      */
                           0U);
 
   return USBH_OK;

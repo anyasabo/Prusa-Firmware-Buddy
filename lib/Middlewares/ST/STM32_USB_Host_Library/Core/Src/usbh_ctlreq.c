@@ -130,6 +130,7 @@ USBH_StatusTypeDef USBH_Get_CfgDesc(USBH_HandleTypeDef *phost, uint16_t length)
 {
   USBH_StatusTypeDef status;
   uint8_t *pData = phost->device.CfgDesc_Raw;
+  uint32_t xfer_size;
 
   if (length > sizeof(phost->device.CfgDesc_Raw))
   {
@@ -142,6 +143,14 @@ USBH_StatusTypeDef USBH_Get_CfgDesc(USBH_HandleTypeDef *phost, uint16_t length)
 
   if (status == USBH_OK)
   {
+    /* The device may return less data than requested: parse only the received bytes */
+    xfer_size = USBH_LL_GetLastXferSize(phost, phost->Control.pipe_in);
+
+    if (xfer_size < length)
+    {
+      length = (uint16_t)xfer_size;
+    }
+
     /* Commands successfully sent and Response Received  */
     status = USBH_ParseCfgDesc(phost, pData, length);
   }
@@ -434,14 +443,20 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
   USBH_EpDescTypeDef           *pep;
   USBH_DescHeader_t            *pdesc;
   uint16_t                     ptr;
+  uint16_t                     total_length;
+  uint32_t                     offset;
   uint8_t                      if_ix = 0U;
   uint8_t                      ep_ix = 0U;
-  uint16_t                     limit;
-  uint32_t                     off;
 
   if (buf == NULL)
   {
     return USBH_FAIL;
+  }
+
+  /* The configuration descriptor itself must have been fully received */
+  if (length < USB_CONFIGURATION_DESC_SIZE)
+  {
+    return USBH_NOT_SUPPORTED;
   }
 
   pdesc = (USBH_DescHeader_t *)(void *)buf;
@@ -464,32 +479,26 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
 
   if (length > USB_CONFIGURATION_DESC_SIZE)
   {
+    /* Never walk beyond the bytes received from the device */
+    total_length = MIN(cfg_desc->wTotalLength, length);
     ptr = USB_LEN_CFG_DESC;
     pif = (USBH_InterfaceDescTypeDef *)NULL;
 
-    /* Prusa: parse only the bytes that are in the buffer and in the descriptor.
-       ptr is not the offset of pdesc (it is 9 more), thus use the pointers. */
-    limit = MIN(cfg_desc->wTotalLength, length);
-
-    while ((if_ix < USBH_MAX_NUM_INTERFACES) && (ptr < cfg_desc->wTotalLength))
+    while ((if_ix < USBH_MAX_NUM_INTERFACES) && (ptr < total_length))
     {
       pdesc = USBH_GetNextDesc((uint8_t *)(void *)pdesc, &ptr);
-      off = (uint32_t)((uint8_t *)(void *)pdesc - buf);
+      offset = (uint32_t)((uint8_t *)(void *)pdesc - buf);
 
-      /* Prusa: stop if the header of the next descriptor is not in the limit */
-      if ((off + USB_LEN_DESC_HDR) > limit)
+      /* Stop at the first descriptor that is not entirely available */
+      if (((offset + USB_LEN_DESC_HDR) > total_length) ||
+          ((pdesc->bDescriptorType == USB_DESC_TYPE_INTERFACE) &&
+           ((offset + USB_INTERFACE_DESC_SIZE) > total_length)))
       {
         break;
       }
 
       if (pdesc->bDescriptorType == USB_DESC_TYPE_INTERFACE)
       {
-        /* Prusa: an interface descriptor that is not fully in the limit is not supported */
-        if ((off + USB_INTERFACE_DESC_SIZE) > limit)
-        {
-          return USBH_NOT_SUPPORTED;
-        }
-
         /* Make sure that the interface descriptor's bLength is equal to USB_INTERFACE_DESC_SIZE */
         if (pdesc->bLength != USB_INTERFACE_DESC_SIZE)
         {
@@ -502,15 +511,15 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
         ep_ix = 0U;
         pep = (USBH_EpDescTypeDef *)NULL;
 
-        while ((ep_ix < USBH_MAX_NUM_ENDPOINTS) && (ep_ix < pif->bNumEndpoints) && (ptr < cfg_desc->wTotalLength))
+        while ((ep_ix < USBH_MAX_NUM_ENDPOINTS) && (ep_ix < pif->bNumEndpoints) && (ptr < total_length))
         {
           pdesc = USBH_GetNextDesc((uint8_t *)(void *)pdesc, &ptr);
-          off = (uint32_t)((uint8_t *)(void *)pdesc - buf);
+          offset = (uint32_t)((uint8_t *)(void *)pdesc - buf);
 
-          /* Prusa: stop if the next descriptor is not fully in the limit */
-          if (((off + USB_LEN_DESC_HDR) > limit) ||
+          /* Stop at the first descriptor that is not entirely available */
+          if (((offset + USB_LEN_DESC_HDR) > total_length) ||
               ((pdesc->bDescriptorType == USB_DESC_TYPE_ENDPOINT) &&
-               ((off + USB_ENDPOINT_DESC_SIZE) > limit)))
+               ((offset + USB_ENDPOINT_DESC_SIZE) > total_length)))
           {
             break;
           }
@@ -536,7 +545,12 @@ static USBH_StatusTypeDef USBH_ParseCfgDesc(USBH_HandleTypeDef *phost, uint8_t *
 
             pep = &cfg_desc->Itf_Desc[if_ix].Ep_Desc[ep_ix];
 
-            status = USBH_ParseEPDesc(phost, pep, (uint8_t *)(void *)pdesc);
+            /* A rejected endpoint is not kept and makes the configuration not supported */
+            if (USBH_ParseEPDesc(phost, pep, (uint8_t *)(void *)pdesc) != USBH_OK)
+            {
+              (void)USBH_memset(pep, 0, sizeof(USBH_EpDescTypeDef));
+              return USBH_NOT_SUPPORTED;
+            }
 
             ep_ix++;
           }
@@ -651,12 +665,12 @@ static USBH_StatusTypeDef USBH_ParseEPDesc(USBH_HandleTypeDef *phost, USBH_EpDes
         status = USBH_NOT_SUPPORTED;
       }
     }
-    /* For full-speed isochronous endpoints, the value of bInterval must be in the range from 1 to 16.*/
+    /* For full-speed isochronous endpoints, wMaxPacketSize is at most 1023 and bInterval is 1 to 16. */
     else if ((ep_descriptor->bmAttributes & EP_TYPE_MSK) == EP_TYPE_ISOC)
     {
       if ((ep_descriptor->bInterval == 0U) ||
           (ep_descriptor->bInterval > 0x10U) ||
-          (ep_descriptor->wMaxPacketSize > 64U))
+          (ep_descriptor->wMaxPacketSize > 1023U))
       {
         status = USBH_NOT_SUPPORTED;
       }
@@ -1132,7 +1146,7 @@ static USBH_StatusTypeDef USBH_HandleControl(USBH_HandleTypeDef *phost)
       }
       else
       {
-        if (URB_Status == USBH_URB_ERROR || URB_Status == USBH_URB_STALL)
+        if (URB_Status == USBH_URB_ERROR)
         {
           phost->Control.state = CTRL_ERROR;
 

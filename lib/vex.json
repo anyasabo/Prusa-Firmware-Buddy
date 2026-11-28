@@ -1,6 +1,6 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:763ac3c1-2163-5db0-b1e7-a0c69868a0f4",
+ "@id": "urn:uuid:f55945b0-352a-5f56-af85-ca060a08705d",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
  "timestamp": "2026-11-28T00:00:00Z",
  "version": 1,
@@ -700,7 +700,7 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2"
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2#src/apps/mdns"
     }
    ],
    "status": "not_affected",
@@ -713,7 +713,7 @@
    },
    "products": [
     {
-     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2"
+     "@id": "pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2#src/apps/mdns"
     }
    ],
    "status": "not_affected",

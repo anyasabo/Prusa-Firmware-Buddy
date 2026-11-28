@@ -680,7 +680,7 @@ components:
     repository: https://git.savannah.nongnu.org/git/lwip.git
     upstream_commit: a33328d0ee94ad4d4656dcf80cc60b83cba941e2  # master, STABLE-2_2_1_RELEASE-118
     cpe: cpe:2.3:a:lwip_project:lwip:2.2.1:*:*:*:*:*:*:*
-    purl: pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2
+    purl: pkg:generic/lwip@2.2.1?vcs_url=git%2Bhttps://git.savannah.nongnu.org/git/lwip.git%40a33328d0ee94ad4d4656dcf80cc60b83cba941e2#src/apps/mdns
     supplier: "Organization: lwIP project (Savannah)"
     license: BSD-3-Clause
     note: >-
@@ -699,6 +699,7 @@ components:
       - "all files: clang-formatted; includes changed from lwip/apps/... to local and <lwip/...>"
       - "mdns.c, mdns_out.c, mdns_domain.[ch], mdns_priv.h: hostname comes from netif->hostname (per-host name buffer and txt_fn removed); service records are const and static"
       - "mdns.c, mdns.h: mdns_resp_add_netif() has no hostname argument; mdns_resp_add_service_prusalink() hard-codes _prusalink._tcp:80; dynamic add/del/rename service API #if 0'd"
+      - "mdns.c: mdns_handle_tc_question() does not answer when the netif has no mDNS host (the timer can run after mdns_resp_remove_netif())"
       - "all files: '#error dead code' marker comments (BFW-5461)"
 
   lib/WUI/sntp:

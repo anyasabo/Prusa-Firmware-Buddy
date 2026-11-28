@@ -13,6 +13,7 @@ with the unit-test tree, so they share its stubs and mocks.
 | `gcode_parser` | `GCodeParser2` (options, quoted strings, number conversion) | every executed G-code line |
 | `marlin_parser` | Marlin `GCodeParser` (`lib/Marlin/Marlin/src/gcode/parser.cpp`) and the value accessors of the handlers | every executed G-code line |
 | `lwip_tcp_input` | lwIP `tcp_input` through `ip4_input` (a fixed 20-byte IPv4 header), with the test `lwipopts.h` of `ooseq_tcp_tests` (the Buddy TCP options with an 8 KB window, without the fork's runtime window) and `lib/WUI/ooseq_limit.cpp`. An lwIP assert or a leaked pcb, segment or pbuf is a crash | TCP packets from any LAN host (PrusaLink, port 80) |
+| `lwip_eth_input` | lwIP receive path from the Ethernet frame: `ethernet_input`, ARP, IPv4 with reassembly, ICMP, IGMP, UDP, the DHCP client with the address conflict detection, and the mDNS responder of `lib/WUI/mdns`, with the options of `lwip_eth/buddy/lwipopts.h` (TCP off, no checksum checks). A static address or DHCP. An lwIP assert or an ASan finding is a crash | Ethernet and Wi-Fi frames from any LAN host |
 | `motion_klipper` | `PreciseStepping` with the input shaper and pressure advance step generators, compared with Klipper's step generation | G-code moves and M593/M572 parameters (an oracle test, not a parser) |
 
 `corpus/<name>/` holds seed inputs. ctest replays them in both build flavours, so they double as

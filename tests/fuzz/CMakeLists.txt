@@ -191,3 +191,50 @@ buddy_add_fuzzer_from_test(
 target_compile_definitions(
   fuzz_lwip_tcp_input PRIVATE "LWIP_HOOK_TCP_ISN(local_ip,local_port,remote_ip,remote_port)=6510u"
   )
+
+# lwIP receive path from the Ethernet frame up: ARP, IPv4 with reassembly, ICMP, IGMP, UDP, DHCP
+# with the address conflict detection, and the mDNS responder (lib/WUI/mdns). Any host on the LAN
+# can send these frames. TCP is off (lwip_tcp_input covers it).
+set(BUDDY_LWIP_SRC ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/src)
+buddy_add_fuzzer(
+  lwip_eth_input
+  SOURCES
+  lwip_eth_input.cpp
+  ${BUDDY_LWIP_SRC}/core/def.c
+  ${BUDDY_LWIP_SRC}/core/inet_chksum.c
+  ${BUDDY_LWIP_SRC}/core/init.c
+  ${BUDDY_LWIP_SRC}/core/ip.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/acd.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/dhcp.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/etharp.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/icmp.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/igmp.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/ip4.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/ip4_addr.c
+  ${BUDDY_LWIP_SRC}/core/ipv4/ip4_frag.c
+  ${BUDDY_LWIP_SRC}/core/mem.c
+  ${BUDDY_LWIP_SRC}/core/memp.c
+  ${BUDDY_LWIP_SRC}/core/netif.c
+  ${BUDDY_LWIP_SRC}/core/pbuf.c
+  ${BUDDY_LWIP_SRC}/core/raw.c
+  ${BUDDY_LWIP_SRC}/core/stats.c
+  ${BUDDY_LWIP_SRC}/core/timeouts.c
+  ${BUDDY_LWIP_SRC}/core/udp.c
+  ${BUDDY_LWIP_SRC}/netif/ethernet.c
+  ${CMAKE_SOURCE_DIR}/lib/WUI/mdns/mdns.c
+  ${CMAKE_SOURCE_DIR}/lib/WUI/mdns/mdns_domain.c
+  ${CMAKE_SOURCE_DIR}/lib/WUI/mdns/mdns_out.c
+  INCLUDES
+  ${CMAKE_CURRENT_SOURCE_DIR}/lwip_eth
+  ${BUDDY_LWIP_SRC}/include
+  ${CMAKE_SOURCE_DIR}/lib/WUI/mdns
+  )
+# As the firmware build (GCC 15 and later default to C23): the mDNS copy uses the static_assert
+# keyword.
+set_target_properties(fuzz_lwip_eth_input PROPERTIES C_STANDARD 23)
+# The mDNS copy asserts that its host struct fits the 128-byte pool of the 32-bit firmware. The
+# pointers of the 64-bit host make it larger, so remove that check in this build (an option, because
+# COMPILE_DEFINITIONS does not take a function-like macro).
+set_source_files_properties(
+  ${CMAKE_SOURCE_DIR}/lib/WUI/mdns/mdns.c PROPERTIES COMPILE_OPTIONS "-Dstatic_assert(...)="
+  )

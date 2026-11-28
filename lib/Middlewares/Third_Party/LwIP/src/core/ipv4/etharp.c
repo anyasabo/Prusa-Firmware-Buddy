@@ -689,7 +689,12 @@ etharp_input(struct pbuf *p, struct netif *netif)
    * defending or retreating and will make sure a new IP address is selected.
    * etharp_input does not need to handle packets that originate "from_us".
    */
-  acd_arp_reply(netif, hdr);
+  // ESP sometimes for some unknown reason decides to participate in the ARP negotiations
+  // and then it refuses all the IP addresses the printer wants, because it has the same IP.
+  // This hack prevents this behaviour, because sadly we cannot just turn off the ARP on the ESP.
+  if (!eth_addr_eq(&hdr->shwaddr, &hdr->dhwaddr) && !eth_addr_eq(&hdr->shwaddr, (struct eth_addr *)netif->hwaddr)) {
+    acd_arp_reply(netif, hdr);
+  }
 #endif /* LWIP_ACD */
 
   /* Copy struct ip4_addr_wordaligned to aligned ip4_addr, to support compilers without

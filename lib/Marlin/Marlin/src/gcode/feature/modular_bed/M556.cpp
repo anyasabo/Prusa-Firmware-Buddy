@@ -83,7 +83,7 @@ void GcodeSuite::M556() {
     } else if (parser.seen("D")) {
         active &= ~affected_beds;
     } else {
-        SERIAL_ECHOPGM("No operation specified");
+        SERIAL_ECHOLNPGM("No operation specified");
         return;
     }
 

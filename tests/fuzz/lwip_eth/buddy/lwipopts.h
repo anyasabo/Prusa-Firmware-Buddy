@@ -5,7 +5,9 @@
 // received frames: Ethernet, ARP, IPv4 with reassembly, ICMP, IGMP, UDP, raw, DHCP with the address
 // conflict detection, and the mDNS responder of lib/WUI/mdns. TCP is off: fuzz_lwip_tcp_input
 // covers it. The host values: NO_SYS, malloc for the heap and the pools (so that ASan finds a
-// leak or a use after free), and no checksum check (the fuzzer cannot compute checksums).
+// leak or a use after free, else the pools of the firmware), and no checksum check (the fuzzer
+// cannot compute checksums). On the 64-bit host, structs with pointers are larger than on the
+// printer, so the pool use is not exactly the same.
 #pragma once
 
 #include <stdint.h>
@@ -37,13 +39,24 @@
 #define IP_REASSEMBLY                  1 // lwIP default, as in Buddy
 #define IP_FRAG                        1 // lwIP default, as in Buddy
 #define IP_REASS_MAX_PBUFS             15 // Buddy
-#define MEM_LIBC_MALLOC                1
-#define MEMP_MEM_MALLOC                1
 #define MEM_ALIGNMENT                  8
-#define PBUF_POOL_SIZE                 64
-#define PBUF_POOL_BUFSIZE              1600
-#define MEMP_NUM_SYS_TIMEOUT           64
-#define LWIP_STATS                     0
-#define CHECKSUM_CHECK_IP              0
-#define CHECKSUM_CHECK_UDP             0
-#define CHECKSUM_CHECK_ICMP            0
+#define PBUF_POOL_SIZE                 0 // Buddy: the RX path has its own pbufs
+#if BUDDY_FUZZ_LWIP_POOLS
+    // The heap pools (buddy/lwippools.h) and the pool counts of the firmware.
+    #define MEM_LIBC_MALLOC       0
+    #define MEMP_MEM_MALLOC       0
+    #define MEM_USE_POOLS         1
+    #define MEMP_USE_CUSTOM_POOLS 1
+    #define MEMP_NUM_UDP_PCB      5
+    // The firmware adds 2 to the core count. Its core count also has the TCP and DNS timers, which
+    // this build does not have, so that the free count is the same.
+    #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 2 + 6 + MDNS_MAX_STORED_PKTS)
+#else
+    #define MEM_LIBC_MALLOC      1
+    #define MEMP_MEM_MALLOC      1
+    #define MEMP_NUM_SYS_TIMEOUT 64 // ignored with MEMP_MEM_MALLOC
+#endif
+#define LWIP_STATS          0
+#define CHECKSUM_CHECK_IP   0
+#define CHECKSUM_CHECK_UDP  0
+#define CHECKSUM_CHECK_ICMP 0

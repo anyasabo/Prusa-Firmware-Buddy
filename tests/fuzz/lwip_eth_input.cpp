@@ -15,8 +15,11 @@
 //   4: Ethernet, IPv4 and UDP headers from a host on the LAN to the mDNS group (port 5353)
 //   5 to 7: as 2, but to the broadcast MAC address
 // Bits 4 to 6 of ctl advance the time by that count of 500 ms steps after the record, and the
-// timers run. At the end, the harness stops DHCP and mDNS, removes the netif, runs the timers for
-// 60 s, and clears the timeout list, so that ASan can find a leaked pbuf, pool entry or timeout.
+// timers run. At the end, the harness stops DHCP and mDNS, runs the timers for 60 s, removes the
+// netif, and clears the timeout list. In the default build, the pools come from malloc, so that
+// ASan can find a leaked pbuf, pool entry or timeout. The build with BUDDY_FUZZ_LWIP_POOLS
+// (fuzz_lwip_eth_input_pools) has the heap pools and the timeout count of the firmware, so that
+// the fuzzer reaches the paths for a full pool.
 
 #include <lwip/acd.h>
 #include <lwip/dhcp.h>
@@ -84,6 +87,10 @@ void clear_timeouts() {
         *list = t->next;
         memp_free(MEMP_SYS_TIMEOUT, t);
     }
+}
+
+void free_rx_pbuf(pbuf *p) {
+    std::free(p); // the pbuf_custom is at the start of the block
 }
 
 u8_t *put_eth(u8_t *at, const u8_t *dst, u16_t type) {
@@ -156,12 +163,16 @@ void send_record(u8_t ctl, const u8_t *data, size_t len) {
     }
     const size_t frame_len = static_cast<size_t>(at - frame) + len;
 
-    // One pbuf for each frame, as the RX path of the firmware gives.
-    pbuf *p = pbuf_alloc(PBUF_RAW, static_cast<u16_t>(frame_len), PBUF_RAM);
-    if (p == nullptr) {
+    // One custom pbuf for each frame, as the RX path of the firmware (lib/WUI/pbuf_rx.cpp) gives.
+    // Its own malloc block, so that ASan finds a read past the frame.
+    auto *custom = static_cast<pbuf_custom *>(std::malloc(sizeof(pbuf_custom) + frame_len));
+    if (custom == nullptr) {
         abort();
     }
-    std::memcpy(p->payload, frame, frame_len);
+    custom->custom_free_function = free_rx_pbuf;
+    auto *payload = reinterpret_cast<u8_t *>(custom + 1);
+    std::memcpy(payload, frame, frame_len);
+    pbuf *p = pbuf_alloced_custom(PBUF_RAW, static_cast<u16_t>(frame_len), PBUF_POOL, custom, payload, static_cast<u16_t>(frame_len));
     if (nif.input(p, &nif) != ERR_OK) {
         pbuf_free(p);
     }
@@ -197,11 +208,12 @@ void setup(bool static_ip) {
 }
 
 void teardown() {
+    // As lib/WUI/wui.cpp when an interface goes down: mDNS stops, the netif stays.
     mdns_resp_remove_netif(&nif);
     dhcp_release_and_stop(&nif);
+    run_timers(120); // expire the reassembly buffers and the delayed mDNS packets
     dhcp_cleanup(&nif);
     netif_remove(&nif);
-    run_timers(120); // expire the reassembly buffers and the delayed mDNS packets
     clear_timeouts();
 }
 

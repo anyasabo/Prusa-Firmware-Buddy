@@ -23,6 +23,7 @@ if (static_cast<uint32_t>(ticks_ms()) > deadline) {
 if (ticks_ms() + 10 > deadline) {
 while (osKernelGetTickCount() < end) {
 if (osKernelSysTick() >= deadline) {
+if (deadline < static_cast<uint32_t>(ticks_ms())) {
 """
 
 CORRECT = """\
@@ -35,6 +36,7 @@ if (timeout > ticks_ms() - start) {
 // Do not write ticks_ms() >= start + timeout.
 const auto now = ticks_ms();
 if (last_ticks_ms() - start >= timeout) {
+if (ticks_s() > deadline_s) {
 """
 
 

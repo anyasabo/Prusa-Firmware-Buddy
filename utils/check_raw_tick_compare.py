@@ -45,7 +45,8 @@ CAST = r"static_cast<[\w:]+>\(\s*" + TICK + r"\s*\)"
 TICK_LEFT = re.compile(r"(?:" + CAST + r"|" + TICK +
                        r")(?:\s*\+\s*[\w:]+)?\s+" + OPERATOR + r"\s")
 # "x > ticks_ms() - start" is a correct form.
-TICK_RIGHT = re.compile(r"\s" + OPERATOR + r"\s+\(?\s*" + TICK + r"(?!\s*-)")
+TICK_RIGHT = re.compile(r"\s" + OPERATOR + r"\s+\(?\s*(?:" + CAST + r"|" +
+                        TICK + r")(?!\s*-)")
 COMMENT = re.compile(r"//.*$")
 
 

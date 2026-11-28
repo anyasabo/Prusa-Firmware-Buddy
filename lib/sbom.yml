@@ -71,6 +71,7 @@ components:
     patches:
       - "src/core/ipv4/etharp.c: address conflict detection (acd_arp_reply(), all ACD states) ignores ARP packets from our own MAC address (the ESP module) and packets with the same sender and target MAC"
       - src/core/timeouts.c: use sys_timeout_abs() in sys_timeouts_init() to avoid core-lock assert
+      - src/core/tcp_in.c: stop the persist timer when tcp_receive() frees the last unsent segment (tcp_slowtmr() asserts it)
       - src/include/lwip/opt.h: include buddy/lwipopts.h
       - src/include/lwip/priv/memp_std.h: include buddy/lwippools.h
       - "src/api/tcpip.c, src/include/lwip/priv/tcpip_priv.h, src/core/tcp.c, src/core/tcp_in.c, src/core/tcp_out.c, src/include/lwip/tcp.h: fork EXPERIMENT hooks (upload-experiments: timing, RX counters, advertised MSS, runtime receive window)"

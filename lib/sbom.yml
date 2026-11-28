@@ -468,20 +468,20 @@ components:
 
   lib/inih:
     name: inih
-    version: r46-2-gd0a152d
+    version: r63
     repository: https://github.com/benhoyt/inih
-    upstream_commit: d0a152d531664afc23723ad3f1ef9568bcc74695
-    subrepo_commit: d0a152d531664afc23723ad3f1ef9568bcc74695
+    upstream_commit: 611ab51f8dd7ec583543815b0de693495045fbf8  # tag r63
     cpe: null
-    purl: pkg:github/benhoyt/inih@d0a152d531664afc23723ad3f1ef9568bcc74695
+    purl: pkg:github/benhoyt/inih@r63
     supplier: "Person: Ben Hoyt"
     license: BSD-3-Clause
     note: >-
-      .gitrepo remote is prusa3d/inih (branch buddy); buddy head is the
-      unmodified upstream commit d0a152d (2019-12-11), 2 after r46, 2 before r47.
-      No NVD CPE (checked 2026-11-03). CVE-2025-71450 (inih before r63, ini_parse_stream one-byte under-read; Awaiting Analysis, no CPE configuration) matches this version by description and needs triage.
+      Fork: the files of tag r63, then the Prusa changes. Not a git
+      subrepo (the old copy was the buddy branch of prusa3d/inih,
+      r46-2-gd0a152d), thus this entry is the only record of the version. No NVD CPE (checked 2026-11-03).
+      r63 fixes CVE-2025-71450.
     patches:
-      - ini.c: strip single/double quotes around values (unquote())
+      - ini.c: strip single/double quotes around values (ini_unquote())
       - ini.h: comment prefix "#" only (';' no longer starts a comment)
 
   lib/jsmn:

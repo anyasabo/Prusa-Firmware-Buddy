@@ -1,8 +1,8 @@
 {
  "@context": "https://openvex.dev/ns/v0.2.0",
- "@id": "urn:uuid:be860b6b-d9bd-5026-990f-c37ce3bbb4c6",
+ "@id": "urn:uuid:3725a0e5-ab8e-5d6d-a180-f29ebd836e3f",
  "author": "Buddy SBOM triage (utils/sbom/gen_vex.py)",
- "timestamp": "2026-11-26T00:00:00Z",
+ "timestamp": "2026-11-28T00:00:00Z",
  "version": 1,
  "statements": [
   {
@@ -2494,12 +2494,12 @@
    },
    "products": [
     {
-     "@id": "pkg:github/benhoyt/inih@d0a152d531664afc23723ad3f1ef9568bcc74695"
+     "@id": "pkg:github/benhoyt/inih@r63"
     }
    ],
    "status": "not_affected",
    "justification": "vulnerable_code_not_present",
-   "impact_statement": "The abyss[] overlong-line discard loop (fixed in r63) does not exist in Buddy's r46-based ini.c."
+   "impact_statement": "Fixed in r63 (8e06f6b checks abyss_len before it reads abyss[abyss_len - 1])."
   }
  ]
 }

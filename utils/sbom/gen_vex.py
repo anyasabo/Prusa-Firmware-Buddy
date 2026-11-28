@@ -20,7 +20,7 @@ from sbom_manifest import MANIFEST, ROOT, load_components
 
 OUTPUT = ROOT / "lib" / "vex.json"
 # Date of the last change to TRIAGE; becomes the document timestamp.
-REVIEWED = "2026-11-26"
+REVIEWED = "2026-11-28"
 NAMESPACE = uuid.UUID("0b1d6f53-5a1e-4c43-9c1a-7665782d6275")
 
 # OpenVEX justifications for not_affected.
@@ -469,7 +469,7 @@ TRIAGE: dict[str, list[Decision]] = {
     "lib/inih": [
         not_affected(
             ["CVE-2025-71450"], NP,
-            "The abyss[] overlong-line discard loop (fixed in r63) does not exist in Buddy's r46-based ini.c."
+            "Fixed in r63 (8e06f6b checks abyss_len before it reads abyss[abyss_len - 1])."
         ),
     ],
 }

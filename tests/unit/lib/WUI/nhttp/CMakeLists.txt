@@ -40,7 +40,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/common/directory.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/e2ee.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/sha256_multiuse.cpp
-  ${CMAKE_SOURCE_DIR}/src/common/e2ee/movable_aes_context.cpp
+  ${CMAKE_SOURCE_DIR}/src/common/e2ee/aes_block_decryptor.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/key.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/decryptor.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/utils.cpp
@@ -64,8 +64,6 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/transfers/changed_path.cpp
   ${CMAKE_SOURCE_DIR}/src/transfers/files.cpp
   ${CMAKE_SOURCE_DIR}/src/transfers/transfer_recovery.cpp
-  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/sha256.c
-  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/md5.c
   ${CMAKE_SOURCE_DIR}/lib/heatshrink/heatshrink_decoder.c
   # Dependencies.
   # It seems it's not possible to just link the damn LwIP library:
@@ -125,13 +123,11 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/persistent_stores
           ${CMAKE_SOURCE_DIR}/src
           ${CMAKE_SOURCE_DIR}/src/lang
-          ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/include
           ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/src/include
           ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/system
           ${CMAKE_SOURCE_DIR}/lib/jsmn
           ${CMAKE_SOURCE_DIR}/lib/heatshrink
           ${CMAKE_SOURCE_DIR}/lib
-          ${CMAKE_SOURCE_DIR}/include/mbedtls
           ${CMAKE_SOURCE_DIR}/include/usb_host
   )
 

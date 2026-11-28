@@ -1,6 +1,6 @@
 #pragma once
 
-#include "movable_aes_context.hpp"
+#include "aes_block_decryptor.hpp"
 #include "e2ee.hpp"
 
 namespace e2ee {
@@ -26,12 +26,13 @@ public:
     Decryptor();
     Decryptor(const Decryptor &) = delete;
     Decryptor operator=(const Decryptor &) = delete;
-    Decryptor(Decryptor &&) = default;
-    Decryptor &operator=(Decryptor &&) = default;
+    Decryptor(Decryptor &&) = delete;
+    Decryptor &operator=(Decryptor &&) = delete;
     ~Decryptor();
 
 private:
-    MovableAesContext aes_ctx;
+    AesBlockDecryptor aes;
+    bool key_valid = false;
     uint32_t remaining_encrypted_data_size = 0;
     uint32_t num_of_hmacs = 0;
     uint8_t *cache_curr_pos = 0;

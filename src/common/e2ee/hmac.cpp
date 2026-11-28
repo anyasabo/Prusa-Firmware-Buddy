@@ -14,25 +14,35 @@ LOG_COMPONENT_REF(PRUSA_PACK_READER);
 namespace e2ee {
 
 HMAC::HMAC(const uint8_t *sign_key, size_t key_len) {
-    mbedtls_md_init(&md_ctx);
-    // These errors should not happen in practise
-    if (auto res = mbedtls_md_setup(&md_ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1); res != 0) {
-        bsod("Unable to setup HMAC context: %d", res);
+    // The key is in the PSA key store only during the setup. The operation keeps its own copy.
+    // If the setup fails, the operation stays inactive and finish() fails.
+    if (psa_crypto_init() != PSA_SUCCESS) {
+        return;
     }
-    mbedtls_md_hmac_starts(&md_ctx, sign_key, key_len);
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_HMAC);
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_algorithm(&attributes, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+    mbedtls_svc_key_id_t key_id;
+    if (psa_import_key(&attributes, sign_key, key_len, &key_id) != PSA_SUCCESS) {
+        return;
+    }
+    psa_mac_sign_setup(&operation, key_id, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+    psa_destroy_key(key_id);
 }
 
 HMAC::~HMAC() {
-    mbedtls_md_free(&md_ctx);
+    psa_mac_abort(&operation);
 }
 
 void HMAC::update(uint8_t *data, size_t size) {
-    mbedtls_md_hmac_update(&md_ctx, data, size);
+    psa_mac_update(&operation, data, size);
 }
 
-void HMAC::finish(uint8_t *output, [[maybe_unused]] size_t size) {
+bool HMAC::finish(uint8_t *output, [[maybe_unused]] size_t size) {
     debug_assert(size == e2ee::HMAC_SIZE);
-    mbedtls_md_hmac_finish(&md_ctx, output);
+    size_t mac_len;
+    return psa_mac_sign_finish(&operation, output, e2ee::HMAC_SIZE, &mac_len) == PSA_SUCCESS;
 }
 
 CheckResult check_hmac_and_crc(FILE *file, BlockHeader header, e2ee::SymmetricCipherInfo &info, bool check_crc) {
@@ -95,7 +105,9 @@ CheckResult check_hmac_and_crc(FILE *file, BlockHeader header, e2ee::SymmetricCi
 
     if (check_hmac) {
         uint8_t computed_hmac[e2ee::HMAC_SIZE];
-        hmac.finish(computed_hmac, sizeof(computed_hmac));
+        if (!hmac.finish(computed_hmac, sizeof(computed_hmac))) {
+            return CheckResult::ERROR;
+        }
         // read_block_header() checked that the block end fits in the file positions
         // (block_end_position()), so this sum does not wrap
         size_t hmac_pos = header.get_position() + header.get_size() + bgcode::core::block_payload_size(header) - info.num_of_hmacs * e2ee::HMAC_SIZE + info.hmac_index * e2ee::HMAC_SIZE;

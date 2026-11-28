@@ -1,7 +1,7 @@
 #pragma once
 
 #include "e2ee.hpp"
-#include <md.h>
+#include <psa/crypto.h>
 #include <core/core.hpp>
 
 namespace e2ee {
@@ -10,11 +10,12 @@ class HMAC {
 public:
     HMAC(const uint8_t *sign_key, size_t key_len);
     void update(uint8_t *data, size_t size);
-    void finish(uint8_t *output, [[maybe_unused]] size_t size);
+    /// Returns false if the HMAC could not be computed (for example, out of memory in the constructor).
+    [[nodiscard]] bool finish(uint8_t *output, [[maybe_unused]] size_t size);
     ~HMAC();
 
 private:
-    mbedtls_md_context_t md_ctx;
+    psa_mac_operation_t operation = PSA_MAC_OPERATION_INIT;
 };
 
 template <typename CB>

@@ -3,7 +3,7 @@
 
 #include <bsod.h>
 #include <logging/log.hpp>
-#include <mbedtls/sha256.h>
+#include <psa/crypto.h>
 #include <timing.h>
 #include <unistd.h>
 #include <array>
@@ -15,23 +15,29 @@ bool buddy::compute_file_digest(const int fd, const uint32_t salt, Digest output
         return false;
     }
 
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, reinterpret_cast<const uint8_t *>(&salt), sizeof(salt));
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    if (psa_hash_setup(&ctx, PSA_ALG_SHA_256) != PSA_SUCCESS
+        || psa_hash_update(&ctx, reinterpret_cast<const uint8_t *>(&salt), sizeof(salt)) != PSA_SUCCESS) {
+        psa_hash_abort(&ctx);
+        return false;
+    }
 
     std::array<uint8_t, 128> buffer;
     for (;;) {
         const ssize_t nread = read(fd, buffer.data(), buffer.size());
         if (nread == -1) {
-            mbedtls_sha256_free(&ctx);
+            psa_hash_abort(&ctx);
             return false;
         } else if (nread == 0) {
-            mbedtls_sha256_finish_ret(&ctx, (unsigned char *)output.data());
-            mbedtls_sha256_free(&ctx);
+            size_t hash_len;
+            if (psa_hash_finish(&ctx, (unsigned char *)output.data(), output.size(), &hash_len) != PSA_SUCCESS) {
+                psa_hash_abort(&ctx);
+                return false;
+            }
             return true;
-        } else {
-            mbedtls_sha256_update_ret(&ctx, buffer.data(), nread);
+        } else if (psa_hash_update(&ctx, buffer.data(), nread) != PSA_SUCCESS) {
+            psa_hash_abort(&ctx);
+            return false;
         }
     }
 }

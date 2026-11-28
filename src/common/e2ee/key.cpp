@@ -9,8 +9,7 @@
 #include <unique_file_ptr.hpp>
 #include <raii/deleter.hpp>
 #include <heap.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
+#include <psa/crypto.h>
 #include <memory>
 #include <cstring>
 #include <bsod/bsod.h>
@@ -23,31 +22,6 @@ size_t strlcat(char *, const char *, size_t);
 }
 
 namespace {
-
-// So we get RAII for all the init-free contexts of mbedtls
-struct KeyGenContexts {
-    mbedtls_entropy_context entropy;
-    mbedtls_ctr_drbg_context ctr_drbg;
-    mbedtls_pk_context pk;
-
-    KeyGenContexts() {
-        mbedtls_entropy_init(&entropy);
-        mbedtls_ctr_drbg_init(&ctr_drbg);
-        mbedtls_pk_init(&pk);
-        mbedtls_pk_setup(&pk, mbedtls_pk_info_from_type(MBEDTLS_PK_RSA));
-        crash_dump::privacy_protection.reg(pk.pk_ctx, sizeof(mbedtls_rsa_context));
-    }
-    KeyGenContexts(const KeyGenContexts &) = delete;
-    KeyGenContexts(KeyGenContexts &&) = delete;
-    KeyGenContexts &operator=(const KeyGenContexts &) = delete;
-    KeyGenContexts &operator=(KeyGenContexts &&) = delete;
-    ~KeyGenContexts() {
-        crash_dump::privacy_protection.unreg(pk.pk_ctx);
-        mbedtls_pk_free(&pk);
-        mbedtls_ctr_drbg_free(&ctr_drbg);
-        mbedtls_entropy_free(&entropy);
-    }
-};
 
 bool save_identity_key_impl(const e2ee::IdentityInfo &info, const char *folder) {
     e2ee::IdentityKeyInfo key_info;
@@ -110,6 +84,21 @@ Pk::~Pk() {
     mbedtls_pk_free(&pk);
 }
 
+bool public_key_from_private_der(std::span<const uint8_t> private_key_der, Pk &public_key) {
+    if (psa_crypto_init() != PSA_SUCCESS) {
+        return false;
+    }
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_RSA_KEY_PAIR);
+    mbedtls_svc_key_id_t key_id;
+    if (psa_import_key(&attributes, private_key_der.data(), private_key_der.size(), &key_id) != PSA_SUCCESS) {
+        return false;
+    }
+    const int ret = mbedtls_pk_copy_public_from_psa(key_id, &public_key.pk);
+    psa_destroy_key(key_id);
+    return ret == 0;
+}
+
 void generate_key(AsyncJobExecutionControl &control, bool &result) {
     result = false;
     unique_ptr<uint8_t, FreeDeleter> buffer(reinterpret_cast<uint8_t *>(malloc_fallible(PRIVATE_KEY_BUFFER_SIZE)));
@@ -118,26 +107,27 @@ void generate_key(AsyncJobExecutionControl &control, bool &result) {
     }
     crash_dump::ManualSecret secret(buffer.get(), PRIVATE_KEY_BUFFER_SIZE);
 
-    int export_res = 0;
+    size_t export_size = 0;
     {
-        struct KeyGenContexts contexts;
-
-        const char *pers = "ecp_keypair";
-
-        if (mbedtls_ctr_drbg_seed(&contexts.ctr_drbg, mbedtls_entropy_func, &contexts.entropy, (const unsigned char *)pers, strlen(pers)) != 0) {
+        if (psa_crypto_init() != PSA_SUCCESS) {
             return;
         }
-
-        mbedtls_rsa_context *rsa = mbedtls_pk_rsa(contexts.pk);
-        if (mbedtls_rsa_gen_key(rsa, mbedtls_ctr_drbg_random, &contexts.ctr_drbg, 2048, 65537) != 0) {
+        // The public exponent is 65537, the default of PSA.
+        psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+        psa_set_key_type(&attributes, PSA_KEY_TYPE_RSA_KEY_PAIR);
+        psa_set_key_bits(&attributes, 2048);
+        psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_EXPORT);
+        mbedtls_svc_key_id_t key_id;
+        if (psa_generate_key(&attributes, &key_id) != PSA_SUCCESS) {
             return;
         }
-
-        export_res = mbedtls_pk_write_key_der(&contexts.pk, buffer.get(), PRIVATE_KEY_BUFFER_SIZE);
-        if (export_res <= 0) {
+        // The PKCS#1 RSAPrivateKey DER, the same format that earlier firmware wrote.
+        const psa_status_t status = psa_export_key(key_id, buffer.get(), PRIVATE_KEY_BUFFER_SIZE, &export_size);
+        psa_destroy_key(key_id);
+        if (status != PSA_SUCCESS) {
             return;
         }
-    } // Free the mbedtls contexts, better chance to have RAM for the file
+    } // Free the key, better chance to have RAM for the file
 
     if (control.is_discarded()) {
         // We aborted the generation, so do not save the key
@@ -150,8 +140,7 @@ void generate_key(AsyncJobExecutionControl &control, bool &result) {
         return;
     }
 
-    // Note: The mbedtls_pk_write_key_der writes to the _end_ of the buffer.
-    if (fwrite(buffer.get() + PRIVATE_KEY_BUFFER_SIZE - export_res, export_res, 1, fout.get()) != 1) {
+    if (fwrite(buffer.get(), export_size, 1, fout.get()) != 1) {
         return;
     }
 
@@ -181,7 +170,7 @@ bool export_key() {
     int ret = 0;
     {
         Pk pk;
-        if (mbedtls_pk_parse_key(&pk.pk, buffer.get(), ins, NULL /* No password */, 0) != 0) {
+        if (!public_key_from_private_der(std::span(buffer.get(), ins), pk)) {
             return false;
         }
 
@@ -212,8 +201,13 @@ void get_key_hash_string(char *out, [[maybe_unused]] size_t size, e2ee::Pk *pk) 
     debug_assert(size >= e2ee::KEY_HASH_STR_BUFFER_LEN);
     uint8_t key_hash[e2ee::HASH_SIZE];
     std::array<uint8_t, e2ee::PUBLIC_KEY_BUFFER_SIZE> buffer;
-    int ret = mbedtls_pk_write_pubkey_der(&pk->pk, buffer.data(), e2ee::PUBLIC_KEY_BUFFER_SIZE);
-    mbedtls_sha256_ret(buffer.data() + buffer.size() - ret, ret, key_hash, false);
+    const int ret = mbedtls_pk_write_pubkey_der(&pk->pk, buffer.data(), e2ee::PUBLIC_KEY_BUFFER_SIZE);
+    size_t hash_len;
+    if (ret <= 0 || psa_hash_compute(PSA_ALG_SHA_256, buffer.data() + buffer.size() - ret, ret, key_hash, sizeof key_hash, &hash_len) != PSA_SUCCESS) {
+        // No identity file has this name, so the identity is not trusted.
+        strlcpy(out, "invalid", size);
+        return;
+    }
 
     for (size_t i = 0; i < e2ee::HASH_SIZE; i++) {
         sprintf(&out[i * 2], "%02x", key_hash[i]);

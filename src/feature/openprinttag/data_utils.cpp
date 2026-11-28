@@ -8,7 +8,7 @@
 #include <utility>
 
 #include <uuid/uuid_constexpr.hpp>
-#include <mbedtls/sha1.h>
+#include <psa/crypto.h>
 
 #include <option/has_chamber_filtration_api.h>
 
@@ -140,16 +140,17 @@ UUIDInfo::UUIDInfo(const RequestRef &req, const TagUID &tag_uid) {
     }
 
     static constexpr auto make_uuid = [](const UUID &namespace_, std::span<const std::byte> a, std::span<const std::byte> b = {}) {
-        mbedtls_sha1_context ctx {};
-        mbedtls_sha1_init(&ctx);
-        mbedtls_sha1_starts_ret(&ctx);
-        mbedtls_sha1_update_ret(&ctx, (const uint8_t *)namespace_.bytes.data(), namespace_.bytes.size());
-        mbedtls_sha1_update_ret(&ctx, (const uint8_t *)a.data(), a.size());
-        mbedtls_sha1_update_ret(&ctx, (const uint8_t *)b.data(), b.size());
+        psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+        psa_hash_setup(&ctx, PSA_ALG_SHA_1);
+        psa_hash_update(&ctx, (const uint8_t *)namespace_.bytes.data(), namespace_.bytes.size());
+        psa_hash_update(&ctx, (const uint8_t *)a.data(), a.size());
+        psa_hash_update(&ctx, (const uint8_t *)b.data(), b.size());
 
-        std::array<std::byte, 20> sha1;
-        mbedtls_sha1_finish_ret(&ctx, (uint8_t *)sha1.data());
-        mbedtls_sha1_free(&ctx);
+        std::array<std::byte, 20> sha1 {};
+        size_t sha1_len;
+        if (psa_hash_finish(&ctx, (uint8_t *)sha1.data(), sha1.size(), &sha1_len) != PSA_SUCCESS) {
+            psa_hash_abort(&ctx);
+        }
 
         return UUID::make_v5_from_sha1(sha1);
     };

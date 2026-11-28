@@ -1,7 +1,7 @@
 #include "support_utils.h"
 
 #include "otp.hpp"
-#include "mbedtls/sha256.h"
+#include <psa/crypto.h>
 #include "support_utils_lib.hpp"
 #include <bsod/bsod.h>
 
@@ -10,21 +10,23 @@ void printerHash(char *str, size_t size) {
     const uint8_t serial_nr_len = otp_get_serial_nr(serial_nr);
 
     uint8_t hash[32];
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, false);
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    psa_hash_setup(&ctx, PSA_ALG_SHA_256);
 
     /// CPU ID
-    mbedtls_sha256_update_ret(&ctx, otp_get_STM32_UUID()->uuid, sizeof(otp_get_STM32_UUID()->uuid));
+    psa_hash_update(&ctx, otp_get_STM32_UUID()->uuid, sizeof(otp_get_STM32_UUID()->uuid));
 
     /// MAC
-    mbedtls_sha256_update_ret(&ctx, otp_get_mac_address()->mac, sizeof(otp_get_mac_address()->mac));
+    psa_hash_update(&ctx, otp_get_mac_address()->mac, sizeof(otp_get_mac_address()->mac));
 
     /// SN
-    mbedtls_sha256_update_ret(&ctx, reinterpret_cast<const unsigned char *>(serial_nr.begin()), serial_nr_len);
+    psa_hash_update(&ctx, reinterpret_cast<const unsigned char *>(serial_nr.begin()), serial_nr_len);
 
-    mbedtls_sha256_finish_ret(&ctx, hash);
-    mbedtls_sha256_free(&ctx);
+    size_t hash_len;
+    if (psa_hash_finish(&ctx, hash, sizeof hash, &hash_len) != PSA_SUCCESS) {
+        // The printer hash identifies the printer. A wrong value must not leave the printer.
+        bsod("printerHash");
+    }
 
     /// convert number by 5-bit chunks (32 symbol alphabet)
     debug_assert(sizeof(hash) * 8 >= size * 5);

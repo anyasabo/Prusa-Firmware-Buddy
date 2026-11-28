@@ -5,7 +5,7 @@
 
 namespace e2ee {
 void Decryptor::set_cipher_info(e2ee::SymmetricCipherInfo cipher_info) {
-    mbedtls_aes_setkey_dec(aes_ctx.context.get(), cipher_info.keys->encryption_key, e2ee::KEY_SIZE * 8);
+    key_valid = aes.set_key(cipher_info.keys->encryption_key, e2ee::KEY_SIZE);
     num_of_hmacs = cipher_info.num_of_hmacs;
 }
 
@@ -53,7 +53,7 @@ namespace {
 
 // Note: The error checks here can fail only from programmer mistakes or malformed bgcode file
 bool Decryptor::decrypt(FILE *file, uint8_t *buffer, size_t size) {
-    if (size > remaining_encrypted_data_size) {
+    if (!key_valid || size > remaining_encrypted_data_size) {
         return false;
     }
 
@@ -72,10 +72,14 @@ bool Decryptor::decrypt(FILE *file, uint8_t *buffer, size_t size) {
             return false;
         }
         size_t to_return = std::min(size, in.size());
-        auto ret = mbedtls_aes_crypt_cbc(aes_ctx.context.get(), MBEDTLS_AES_DECRYPT, cache.size(), iv.data(), in.data(), cache.data());
-        if (ret != 0) {
+        // CBC: each plaintext block is the decrypted block XOR the previous ciphertext block.
+        if (!aes.decrypt_block(in, cache)) {
             return false;
         }
+        for (size_t i = 0; i < BlockSize; i++) {
+            cache[i] ^= iv[i];
+        }
+        iv = in;
         // last block, handle padding
         if (remaining_encrypted_data_size == BlockSize) {
             auto data_size_opt = pkcs7_padding_data_len(cache);

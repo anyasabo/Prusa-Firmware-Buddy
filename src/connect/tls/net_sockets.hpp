@@ -1,16 +1,25 @@
 #pragma once
 
 #include <common/http/socket.hpp>
-#include <mbedtls/net_sockets.h>
 
-struct mbedtls_net_context {
+namespace connect_client {
+
+/// The TCP connection under a TLS connection, and the send and receive callbacks for mbedtls_ssl_set_bio().
+struct NetContext {
     http::socket_con plain_conn;
     bool timeout_happened;
-    mbedtls_net_context(uint8_t timeout_s);
-    mbedtls_net_context(const mbedtls_net_context &other) = delete;
-    mbedtls_net_context(mbedtls_net_context &&other) = delete;
-    mbedtls_net_context &operator=(const mbedtls_net_context &other) = delete;
-    mbedtls_net_context &operator=(mbedtls_net_context &&other) = delete;
+    NetContext(uint8_t timeout_s);
+    NetContext(const NetContext &other) = delete;
+    NetContext(NetContext &&other) = delete;
+    NetContext &operator=(const NetContext &other) = delete;
+    NetContext &operator=(NetContext &&other) = delete;
 };
 
-int mbedtls_plain_connect(mbedtls_net_context *ctx, const char *host, uint16_t port);
+/// Connects the TCP connection. Returns 0 or an MBEDTLS_ERR_NET_ error.
+int net_connect(NetContext *ctx, const char *host, uint16_t port);
+/// The send callback for mbedtls_ssl_set_bio(). ctx is a NetContext.
+int net_send(void *ctx, const unsigned char *buf, size_t len);
+/// The receive callback for mbedtls_ssl_set_bio(). ctx is a NetContext.
+int net_recv(void *ctx, unsigned char *buf, size_t len);
+
+} // namespace connect_client

@@ -6,6 +6,7 @@
 #include <memory>
 #include <array>
 #include <cstring>
+#include <span>
 #include <string>
 
 namespace bgcode {
@@ -13,7 +14,7 @@ namespace core {
     struct BlockHeader;
 }
 } // namespace bgcode
-struct mbedtls_pk_context;
+typedef struct mbedtls_pk_context mbedtls_pk_context;
 
 namespace e2ee {
 
@@ -89,11 +90,13 @@ public:
     PrinterPrivateKey &operator=(const PrinterPrivateKey &) = delete;
     PrinterPrivateKey(PrinterPrivateKey &&) = delete;
     PrinterPrivateKey &operator=(PrinterPrivateKey &&) = delete;
-    mbedtls_pk_context *get_printer_private_key();
+    /// The printer private key (PKCS#1 DER), or an empty span if there is no valid key.
+    std::span<const uint8_t> get_printer_private_key();
 
 private:
-    bool key_valid = false;
-    std::unique_ptr<Pk> key;
+    // The DER is registered with the crash dump privacy protection while it is valid.
+    std::unique_ptr<uint8_t[]> key;
+    size_t key_size = 0;
 };
 
 // Looks for private key at private_key_path
@@ -115,9 +118,10 @@ struct SymmetricCipherInfo {
     bool extract_keys(uint8_t *key_block, size_t size);
 };
 
-std::optional<SymmetricCipherInfo> decrypt_key_block(FILE *file, const bgcode::core::BlockHeader &block_header, Pk &identity_pk, mbedtls_pk_context *printer_private_key, SHA256MultiuseHash *hash);
+std::optional<SymmetricCipherInfo> decrypt_key_block(FILE *file, const bgcode::core::BlockHeader &block_header, Pk &identity_pk, std::span<const uint8_t> printer_private_key, SHA256MultiuseHash *hash);
 
 bool rsa_sha256_sign_verify(mbedtls_pk_context &pk, const uint8_t *message, size_t message_size, const uint8_t *signature, size_t sig_size);
-bool rsa_oaep_decrypt(mbedtls_pk_context &pk, const uint8_t *encrypted_msg, size_t msg_size, uint8_t *output, size_t out_size);
+/// Decrypts with RSA-OAEP (SHA-256). The key is a PKCS#1 DER RSA private key.
+bool rsa_oaep_decrypt(std::span<const uint8_t> private_key_der, const uint8_t *encrypted_msg, size_t msg_size, uint8_t *output, size_t out_size, size_t &decrypted_size);
 
 } // namespace e2ee

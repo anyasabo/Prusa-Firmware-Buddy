@@ -4,19 +4,13 @@
 
 #include <core/core.hpp>
 #include <heap.h>
-#include <sha256.h>
 #include "unique_file_ptr.hpp"
 #include <unique_file_ptr.hpp>
 #include <sys/stat.h>
 #include <common/stat_retry.hpp>
 
-#include <mbedtls/config.h>
-#include <mbedtls/ecp.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/error.h>
 #include <mbedtls/pk.h>
-#include <mbedtls/rsa.h>
+#include <psa/crypto.h>
 
 #include <utility_extensions.hpp>
 #include <utils/buffer_reader.hpp>
@@ -74,12 +68,11 @@ IdentityBlockInfo::~IdentityBlockInfo() = default;
 IdentityBlockInfo::IdentityBlockInfo(IdentityBlockInfo &&other) = default;
 IdentityBlockInfo &IdentityBlockInfo::operator=(IdentityBlockInfo &&other) = default;
 
-PrinterPrivateKey::PrinterPrivateKey()
-    : key(std::make_unique<Pk>()) {}
+PrinterPrivateKey::PrinterPrivateKey() = default;
 
 PrinterPrivateKey::~PrinterPrivateKey() {
-    if (key_valid) {
-        crash_dump::privacy_protection.unreg(key->pk.pk_ctx);
+    if (key) {
+        crash_dump::privacy_protection.unreg(key.get());
     }
 }
 
@@ -88,75 +81,68 @@ bool is_private_key_present() {
     return stat_retry(private_key_path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
-mbedtls_pk_context *PrinterPrivateKey::get_printer_private_key() {
-    if (key_valid) {
-        return &key->pk;
+std::span<const uint8_t> PrinterPrivateKey::get_printer_private_key() {
+    if (key) {
+        return { key.get(), key_size };
     }
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[e2ee::PRIVATE_KEY_BUFFER_SIZE]);
-    crash_dump::ManualSecret secret(buffer.get(), e2ee::PRIVATE_KEY_BUFFER_SIZE);
+    crash_dump::privacy_protection.reg(buffer.get(), e2ee::PRIVATE_KEY_BUFFER_SIZE);
+    const auto fail = [&buffer]() {
+        crash_dump::privacy_protection.unreg(buffer.get());
+        return std::span<const uint8_t> {};
+    };
     unique_file_ptr inf(fopen(e2ee::private_key_path, "rb"));
     if (!inf) {
-        return nullptr;
+        return fail();
     }
 
     const size_t ins = fread(buffer.get(), 1, e2ee::PRIVATE_KEY_BUFFER_SIZE, inf.get());
     if (ins == 0 || ferror(inf.get()) || !feof(inf.get())) {
-        return nullptr;
+        return fail();
     }
     inf.reset();
 
-    if (mbedtls_pk_parse_key(&key->pk, buffer.get(), ins, NULL /* No password */, 0) != 0) {
-        return nullptr;
-    }
-    crash_dump::privacy_protection.reg(key->pk.pk_ctx, sizeof(mbedtls_rsa_context));
-
-    key_valid = true;
-    return &key->pk;
+    key = std::move(buffer);
+    key_size = ins;
+    return { key.get(), key_size };
 }
 
 bool rsa_sha256_sign_verify(mbedtls_pk_context &pk, const uint8_t *message, size_t message_size, const uint8_t *signature, size_t sig_size) {
     unsigned char hash[HASH_SIZE];
 
     // Calculate the SHA-256 hash of the message
-    const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    if ((mbedtls_md(md_info, message, message_size, hash)) != 0) {
+    size_t hash_len;
+    if (psa_hash_compute(PSA_ALG_SHA_256, message, message_size, hash, sizeof hash, &hash_len) != PSA_SUCCESS) {
         return false;
     }
 
-    // Note: Enabling PSS padding in mbedtls adds ~ 2KB of flash, but it is more secure
-    // then PKCS1_V15 which we already have in the code rn. The same define brings in OAEP padding
-    // for encryption and that one is also more secure then PKCS1_V15, so maybe it is worth it
-    mbedtls_rsa_context *rsa = mbedtls_pk_rsa(pk);
-    if (sig_size != rsa->len) {
+    if (sig_size != (mbedtls_pk_get_bitlen(&pk) + 7) / 8) {
         return false;
     }
-    if ((mbedtls_rsa_rsassa_pss_verify(rsa, nullptr, nullptr, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256, HASH_SIZE, hash, signature)) != 0) {
-        return false;
-    }
-
-    return true;
+    // RSA-PSS with MGF1-SHA-256 and any salt length. The call fails for a key that is not RSA.
+    return mbedtls_pk_verify_ext(MBEDTLS_PK_SIGALG_RSA_PSS, &pk, MBEDTLS_MD_SHA256, hash, HASH_SIZE, signature, sig_size) == 0;
 }
 
-bool rsa_oaep_decrypt(mbedtls_pk_context &pk, const uint8_t *encrypted_msg, size_t msg_size, uint8_t *output, size_t out_size, size_t &decrypted_size) {
-    // Ensure the key is an RSA key
-    if (!mbedtls_pk_can_do(&pk, MBEDTLS_PK_RSA)) {
+bool rsa_oaep_decrypt(std::span<const uint8_t> private_key_der, const uint8_t *encrypted_msg, size_t msg_size, uint8_t *output, size_t out_size, size_t &decrypted_size) {
+    if (psa_crypto_init() != PSA_SUCCESS) {
         return false;
     }
-
-    // Perform the decryption
-    mbedtls_rsa_context *rsa = mbedtls_pk_rsa(pk);
-    mbedtls_rsa_set_padding(rsa, MBEDTLS_RSA_PKCS_V21, MBEDTLS_MD_SHA256);
-    if (msg_size != rsa->len) {
+    // The key is in the PSA key store only for this call. Import fails for a key that is not RSA.
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_RSA_KEY_PAIR);
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_DECRYPT);
+    psa_set_key_algorithm(&attributes, PSA_ALG_RSA_OAEP(PSA_ALG_SHA_256));
+    mbedtls_svc_key_id_t key_id;
+    if (psa_import_key(&attributes, private_key_der.data(), private_key_der.size(), &key_id) != PSA_SUCCESS) {
         return false;
     }
-    if (mbedtls_rsa_rsaes_oaep_decrypt(rsa, nullptr, nullptr,
-            MBEDTLS_RSA_PRIVATE, nullptr, 0,
-            &decrypted_size, encrypted_msg, output, out_size)
-        != 0) {
-        return false;
-    }
-
-    return true;
+    psa_reset_key_attributes(&attributes);
+    bool ok = psa_get_key_attributes(key_id, &attributes) == PSA_SUCCESS
+        && msg_size == PSA_BITS_TO_BYTES(psa_get_key_bits(&attributes))
+        && psa_asymmetric_decrypt(key_id, PSA_ALG_RSA_OAEP(PSA_ALG_SHA_256), encrypted_msg, msg_size, nullptr, 0, output, out_size, &decrypted_size) == PSA_SUCCESS;
+    psa_reset_key_attributes(&attributes);
+    psa_destroy_key(key_id);
+    return ok;
 }
 const char *read_and_verify_identity_block(FILE *file, const BlockHeader &block_header, uint8_t *computed_intro_hash, IdentityBlockInfo &info, bool verify_signature) {
     uint16_t algo;
@@ -246,7 +232,8 @@ const char *read_and_verify_identity_block(FILE *file, const BlockHeader &block_
         return identity_name_too_long;
     }
 
-    if (mbedtls_pk_parse_public_key(&info.identity_pk->pk, key_ptr, key_len) != 0) {
+    // mbedtls 4 parses keys with PSA.
+    if (psa_crypto_init() != PSA_SUCCESS || mbedtls_pk_parse_public_key(&info.identity_pk->pk, key_ptr, key_len) != 0) {
         return identity_parsing_error;
     }
 
@@ -283,8 +270,8 @@ bool SymmetricCipherInfo::extract_keys(uint8_t *key_block, size_t size) {
     return true;
 }
 
-std::optional<SymmetricCipherInfo> decrypt_key_block(FILE *file, const bgcode::core::BlockHeader &block_header, Pk &identity_pk, mbedtls_pk_context *printer_private_key, SHA256MultiuseHash *hash) {
-    if (printer_private_key == nullptr) {
+std::optional<SymmetricCipherInfo> decrypt_key_block(FILE *file, const bgcode::core::BlockHeader &block_header, Pk &identity_pk, std::span<const uint8_t> printer_private_key, SHA256MultiuseHash *hash) {
+    if (printer_private_key.empty()) {
         return std::nullopt;
     }
     if (block_header.compression != std::to_underlying(ECompressionType::None)) {
@@ -341,25 +328,28 @@ std::optional<SymmetricCipherInfo> decrypt_key_block(FILE *file, const bgcode::c
         const size_t correct_decrypted_size = 2 * HASH_SIZE + 2 * KEY_SIZE;
         size_t decrypted_size;
         uint8_t decrypted_key_block[correct_decrypted_size];
-        if (!rsa_oaep_decrypt(*printer_private_key, encrypted_block.data(), encrypted_block.size(), decrypted_key_block, sizeof(decrypted_key_block), decrypted_size)) {
+        if (!rsa_oaep_decrypt(printer_private_key, encrypted_block.data(), encrypted_block.size(), decrypted_key_block, sizeof(decrypted_key_block), decrypted_size)) {
             return std::nullopt;
         }
         if (decrypted_size != correct_decrypted_size) {
             return std::nullopt;
         }
-        auto ret = mbedtls_pk_write_pubkey_der(printer_private_key, buffer.data(), buffer.size());
-        if (ret <= 0) {
+        // The hashes are of the SubjectPublicKeyInfo DER of each public key.
+        Pk printer_public_key;
+        if (!public_key_from_private_der(printer_private_key, printer_public_key)) {
             return std::nullopt;
         }
         uint8_t printer_public_key_hash[HASH_SIZE];
-        mbedtls_sha256_ret(buffer.data() + buffer.size() - ret, ret, printer_public_key_hash, false);
-
-        ret = mbedtls_pk_write_pubkey_der(&identity_pk.pk, buffer.data(), buffer.size());
-        if (ret <= 0) {
+        uint8_t identity_public_key_hash[HASH_SIZE];
+        const auto hash_public_key = [&buffer](Pk &pk, uint8_t *out) {
+            const int ret = mbedtls_pk_write_pubkey_der(&pk.pk, buffer.data(), buffer.size());
+            size_t hash_len;
+            return ret > 0
+                && psa_hash_compute(PSA_ALG_SHA_256, buffer.data() + buffer.size() - ret, ret, out, HASH_SIZE, &hash_len) == PSA_SUCCESS;
+        };
+        if (!hash_public_key(printer_public_key, printer_public_key_hash) || !hash_public_key(identity_pk, identity_public_key_hash)) {
             return std::nullopt;
         }
-        uint8_t identity_public_key_hash[HASH_SIZE];
-        mbedtls_sha256_ret(buffer.data() + buffer.size() - ret, ret, identity_public_key_hash, false);
 
         string_view_u8 identity_pub_key_hash_file(decrypted_key_block, HASH_SIZE);
         string_view_u8 printer_pub_key_hash_file(decrypted_key_block + HASH_SIZE, HASH_SIZE);

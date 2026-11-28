@@ -1,5 +1,5 @@
 #include "e2ee.hpp"
-#include <mbedtls/sha256.h>
+#include <psa/crypto.h>
 
 namespace e2ee {
 
@@ -9,12 +9,14 @@ public:
 
     ~SHA256MultiuseHash();
 
-    void get_hash(uint8_t *buffer, size_t buffer_size);
+    /// Writes the hash of the data since the last call and starts a new hash. Returns false if
+    /// the hash failed.
+    [[nodiscard]] bool get_hash(uint8_t *buffer, size_t buffer_size);
 
     void update(const uint8_t *data, size_t size);
 
 private:
-    mbedtls_sha256_context sha256_ctx;
+    psa_hash_operation_t sha256_ctx = PSA_HASH_OPERATION_INIT;
     void reset();
 };
 

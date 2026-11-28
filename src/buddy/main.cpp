@@ -1,5 +1,4 @@
 #include <buddy/main.h>
-#include "platform.h"
 #include <device/board.h>
 #include <device/peripherals.hpp>
 #include <device/peripherals_uart.hpp>

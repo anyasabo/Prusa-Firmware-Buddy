@@ -26,6 +26,9 @@
 
 #include "net_sockets.hpp"
 
+#include <mbedtls/net_sockets.h>
+#include <mbedtls/ssl.h>
+
 using http::Error;
 using std::get;
 using std::get_if;
@@ -51,18 +54,16 @@ int convert_result(variant<size_t, Error> result, int timeout_error) {
 
 } // namespace
 
-mbedtls_net_context::mbedtls_net_context(uint8_t timeout_s)
+namespace connect_client {
+
+NetContext::NetContext(uint8_t timeout_s)
     : plain_conn(timeout_s)
     , timeout_happened(false) {}
-
-void mbedtls_net_init(mbedtls_net_context *) {
-    // We have a real constructor there, but we still shall have this function.
-}
 
 /*
  * Initiate a TCP connection with host:port
  */
-int mbedtls_plain_connect(mbedtls_net_context *ctx, const char *host, uint16_t port) {
+int net_connect(NetContext *ctx, const char *host, uint16_t port) {
     auto error = ctx->plain_conn.connection(host, port);
     if (error.has_value()) {
         switch (*error) {
@@ -80,8 +81,8 @@ int mbedtls_plain_connect(mbedtls_net_context *ctx, const char *host, uint16_t p
 /*
  * Read at most 'len' characters
  */
-int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len) {
-    mbedtls_net_context *context = reinterpret_cast<mbedtls_net_context *>(ctx);
+int net_recv(void *ctx, unsigned char *buf, size_t len) {
+    NetContext *context = reinterpret_cast<NetContext *>(ctx);
     // Note: We don't support/use nonblock mode on TLS sockets, which makes this code a bit easier.
     auto result = context->plain_conn.rx(buf, len, false);
     auto converted = convert_result(result, MBEDTLS_ERR_SSL_WANT_READ);
@@ -97,8 +98,8 @@ int mbedtls_net_recv(void *ctx, unsigned char *buf, size_t len) {
 /*
  * Write at most 'len' characters
  */
-int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len) {
-    mbedtls_net_context *context = reinterpret_cast<mbedtls_net_context *>(ctx);
+int net_send(void *ctx, const unsigned char *buf, size_t len) {
+    NetContext *context = reinterpret_cast<NetContext *>(ctx);
     auto result = context->plain_conn.tx(buf, len);
     auto converted = convert_result(result, MBEDTLS_ERR_SSL_WANT_WRITE);
 
@@ -110,6 +111,4 @@ int mbedtls_net_send(void *ctx, const unsigned char *buf, size_t len) {
     return converted;
 }
 
-void mbedtls_net_free(mbedtls_net_context *) {
-    // Handled by the actual destructor on ctx.
-}
+} // namespace connect_client

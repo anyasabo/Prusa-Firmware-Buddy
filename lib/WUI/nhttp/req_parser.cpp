@@ -6,7 +6,7 @@
 #include <inttypes.h> // PRI* macros (not available in <cinttypes>)
 #include "../wui_api.h"
 
-#include <mbedtls/md5.h>
+#include <psa/crypto.h>
 #include <random/random.h>
 #include <str_utils.hpp>
 
@@ -368,18 +368,21 @@ bool RequestParser::check_auth(Step &out) const {
 namespace {
     static const size_t MD5_SIZE = 16;
     static const size_t MD5_HEX_SIZE = 33;
-    void md5_update(mbedtls_md5_context &ctx, string_view first) {
-        mbedtls_md5_update(&ctx, (const uint8_t *)first.data(), first.size());
+    void md5_update(psa_hash_operation_t &ctx, string_view first) {
+        psa_hash_update(&ctx, (const uint8_t *)first.data(), first.size());
     }
     template <typename... Args>
     std::array<uint8_t, MD5_SIZE> md5_hash(Args... args) {
-        std::array<uint8_t, MD5_SIZE> hash;
-        mbedtls_md5_context ctx;
-        mbedtls_md5_init(&ctx);
-        mbedtls_md5_starts(&ctx);
+        std::array<uint8_t, MD5_SIZE> hash {};
+        psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+        psa_hash_setup(&ctx, PSA_ALG_MD5);
         (md5_update(ctx, args), ...);
-        mbedtls_md5_finish(&ctx, hash.data());
-        mbedtls_md5_free(&ctx);
+        size_t hash_len;
+        if (psa_hash_finish(&ctx, hash.data(), hash.size(), &hash_len) != PSA_SUCCESS) {
+            // An all-zero hash does not match any digest response, so the authentication fails.
+            psa_hash_abort(&ctx);
+            hash.fill(0);
+        }
 
         return hash;
     }

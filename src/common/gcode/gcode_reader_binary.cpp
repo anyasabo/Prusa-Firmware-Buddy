@@ -1,6 +1,5 @@
 #include "gcode_reader_binary.hpp"
 #include <utility_extensions.hpp>
-#include <md.h>
 #include <crc32.h>
 #include <logging/log.hpp>
 #include "transfers/transfer.hpp"
@@ -1011,8 +1010,8 @@ bool PrusaPackGcodeReader::valid_for_print(bool full_check) {
             }
             uint8_t key_block_hash[e2ee::HASH_SIZE];
             if (valid_context.full_check) {
-                valid_context.hash.get_hash(key_block_hash, sizeof(key_block_hash));
-                if (memcmp(key_block_hash, identity_block_info.key_block_hash.data(), sizeof(key_block_hash)) != 0) {
+                if (!valid_context.hash.get_hash(key_block_hash, sizeof(key_block_hash))
+                    || memcmp(key_block_hash, identity_block_info.key_block_hash.data(), sizeof(key_block_hash)) != 0) {
                     return set_error_end(e2ee::key_block_hash_mismatch);
                 }
             }
@@ -1030,8 +1029,8 @@ bool PrusaPackGcodeReader::valid_for_print(bool full_check) {
                 return set_error_end(err);
             }
             uint8_t intro_hash[e2ee::HASH_SIZE];
-            if (valid_context.full_check) {
-                valid_context.hash.get_hash(intro_hash, sizeof(intro_hash));
+            if (valid_context.full_check && !valid_context.hash.get_hash(intro_hash, sizeof(intro_hash))) {
+                return set_error_end(e2ee::corrupted_metadata);
             }
             if (const char *err = e2ee::read_and_verify_identity_block(file.get(), block_header, valid_context.full_check ? intro_hash : nullptr, identity_block_info, valid_context.full_check); err != nullptr) {
                 return set_error_end(err);

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include <mbedtls/aes.h>
+#include <psa/crypto.h>
 
 namespace transfers {
 
@@ -16,23 +16,18 @@ public:
     using Block = std::array<uint8_t, BlockSize>;
 
 private:
-    size_t stoff = 0;
-
     // We now use the CTR mode of aes. That one is a stream cipher (doesn't
     // need to be block-padded). Nevertheless, for historical reasons, we _do_
     // the block padding on the sender side and cut it off here by the expected
     // size.
     size_t size_left;
-    // Note:
-    // There doesn't seem to be a legal way of moving this thing after it is
-    // initialized. At least, memcpy does *not* work. Discovered the hard way.
-    //
-    // Therefore, the whole Decryptor is not movable _on purpose_.
-    mbedtls_aes_context context;
-    Block stream = {};
-    Block nonce = {};
+    // PSA does not allow to move an operation. Therefore, the whole Decryptor is not movable
+    // _on purpose_.
+    psa_cipher_operation_t operation = PSA_CIPHER_OPERATION_INIT;
 
 public:
+    /// If the setup of the cipher fails (out of memory), decrypt() causes a BSOD, as for any other
+    /// decryption failure.
     Decryptor(const Block &key, const Block &nonce, size_t offset, size_t size_left);
     Decryptor(const Decryptor &other) = delete;
     Decryptor(Decryptor &&other) = delete;

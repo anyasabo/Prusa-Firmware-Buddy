@@ -25,7 +25,6 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src
           ${CMAKE_SOURCE_DIR}/src/common/http
           ${CMAKE_SOURCE_DIR}/src/common/utils
-          ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/include
           ${CMAKE_SOURCE_DIR}/include
           ${CMAKE_SOURCE_DIR}/tests/unit/connect/mock
   )

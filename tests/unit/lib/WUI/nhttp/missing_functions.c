@@ -75,10 +75,6 @@ void get_LFN(char *lfn, size_t lfn_size, char *path) {
     strlcpy(lfn, basename_b(path), lfn_size);
 }
 
-void mbedtls_platform_zeroize(void *b, size_t size) {
-    memset(b, 0, size);
-}
-
 bool wui_is_file_being_printed(const char *filename) {
     return false;
 }
@@ -116,8 +112,4 @@ void *calloc_fallible(size_t nmemb, size_t size) {
 
 void *malloc_fallible(size_t size) {
     return malloc(size);
-}
-
-int mbedtls_hardware_poll([[maybe_unused]] void *Data, unsigned char *Output, size_t Len, size_t *oLen) {
-    return 42;
 }

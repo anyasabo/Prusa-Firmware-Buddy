@@ -26,6 +26,9 @@ include_directories(${CMAKE_SOURCE_DIR}/tests/stubs/host)
 # transitively included by many unit tests and the codebase is too tightly coupled to stub per-test.
 include_directories(${CMAKE_SOURCE_DIR}/tests/stubs/global)
 
+# The platform callbacks of mbedtls (entropy, gmtime_r), which the firmware has in src/common.
+target_sources(mbedTLS PRIVATE ${CMAKE_SOURCE_DIR}/tests/stubs/mbedtls_platform.c)
+
 # include catch_discover_tests function from Catch2
 include(${Catch2_SOURCE_DIR}/extras/Catch.cmake)
 add_library(catch_main ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp)

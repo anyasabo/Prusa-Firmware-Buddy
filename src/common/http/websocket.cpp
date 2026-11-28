@@ -11,7 +11,7 @@
     #include <lwip/def.h>
 #endif
 #include <mbedtls/base64.h>
-#include <mbedtls/sha1.h>
+#include <psa/crypto.h>
 #include <cstring>
 #include <bsod/bsod.h>
 
@@ -168,15 +168,16 @@ void WebSocketKey::compute_response() {
     // Fixed string from the RFC (no, this is not a mock)
     constexpr const char *tail = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-    mbedtls_sha1_context ctx = {};
-    mbedtls_sha1_init(&ctx);
-    mbedtls_sha1_starts_ret(&ctx);
-    mbedtls_sha1_update_ret(&ctx, reinterpret_cast<const uint8_t *>(request), strlen(request));
-    mbedtls_sha1_update_ret(&ctx, reinterpret_cast<const uint8_t *>(tail), strlen(tail));
-    uint8_t out[20];
-    mbedtls_sha1_finish_ret(&ctx, out);
-
-    mbedtls_sha1_free(&ctx);
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    psa_hash_setup(&ctx, PSA_ALG_SHA_1);
+    psa_hash_update(&ctx, reinterpret_cast<const uint8_t *>(request), strlen(request));
+    psa_hash_update(&ctx, reinterpret_cast<const uint8_t *>(tail), strlen(tail));
+    uint8_t out[20] = {};
+    size_t out_len;
+    // If the hash fails, the response does not match the server answer and the connection fails.
+    if (psa_hash_finish(&ctx, out, sizeof out, &out_len) != PSA_SUCCESS) {
+        psa_hash_abort(&ctx);
+    }
 
     size_t out_pos = 0;
     int err = mbedtls_base64_encode(reinterpret_cast<uint8_t *>(response), sizeof response, &out_pos, out, sizeof out);

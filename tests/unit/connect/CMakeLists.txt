@@ -30,7 +30,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/common/path_utils.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/e2ee.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/sha256_multiuse.cpp
-  ${CMAKE_SOURCE_DIR}/src/common/e2ee/movable_aes_context.cpp
+  ${CMAKE_SOURCE_DIR}/src/common/e2ee/aes_block_decryptor.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/key.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/decryptor.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/utils.cpp
@@ -203,8 +203,6 @@ add_executable(
   gui_media_events_mock.cpp
   xbuddy_extension_mock.cpp
   side_strip_control_mock.cpp
-  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/aes.c
-  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/aesni.c
   # LwIP parts
   # See reason why we do it this way in
   # tests/unit/lib/WUI/nhttp/CMakeLists.txt
@@ -250,7 +248,6 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/lang
           ${CMAKE_SOURCE_DIR}/lib/jsmn
           ${CMAKE_SOURCE_DIR}/lib/WUI
-          ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/include
           ${CMAKE_SOURCE_DIR}/include/usb_host
           ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/src/include
           ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/system
@@ -262,6 +259,7 @@ add_dependencies(connect_planner_tests generate-httpc-automata-tests-connect)
 
 target_link_libraries(
   connect_planner_tests
+  mbedTLS
   raii
   xbuddy_extension
   otp
@@ -277,8 +275,6 @@ endif()
 add_executable(
   connect_registration_tests
   ${CMAKE_CURRENT_BINARY_DIR}/http_resp_automaton.cpp
-  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/aes.c
-  ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/aesni.c
   ${CMAKE_SOURCE_DIR}/src/common/automata/core.cpp
   ${CMAKE_SOURCE_DIR}/src/common/crc32.cpp
   ${CMAKE_SOURCE_DIR}/src/common/error_code_mangle.cpp
@@ -357,10 +353,8 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/common/marlin_server_types
           ${CMAKE_SOURCE_DIR}/src/common/utils
           ${CMAKE_SOURCE_DIR}/src/gui
-          ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/include
           ${CMAKE_SOURCE_DIR}/include/usb_host
           ${CMAKE_SOURCE_DIR}/lib/WUI
-          ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/include
           ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/src/include
           ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/LwIP/system
           ${CMAKE_SOURCE_DIR}/lib/libbgcode/src/LibBGCode
@@ -371,6 +365,7 @@ add_dependencies(connect_registration_tests generate-httpc-automata-tests-connec
 
 target_link_libraries(
   connect_registration_tests
+  mbedTLS
   raii
   xbuddy_extension
   otp

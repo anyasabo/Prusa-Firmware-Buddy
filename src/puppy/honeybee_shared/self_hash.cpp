@@ -5,7 +5,7 @@
 #include <device/peripherals.hpp>
 
 #ifndef HASH_ALGOSELECTION_SHA256
-    #include <mbedtls/sha256.h>
+    #include <psa/crypto.h>
 #endif /* HASH_ALGOSELECTION_SHA256 */
 
 // Linker script constants
@@ -31,24 +31,13 @@ bool self_hash_get(uint32_t salt, uint8_t output[32]) {
 
 #else /* HASH_ALGOSELECTION_SHA256 */
 
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    do {
-        if (mbedtls_sha256_starts_ret(&ctx, false) != 0) {
-            break;
-        }
-        if (mbedtls_sha256_update_ret(&ctx, reinterpret_cast<uint8_t *>(&salt), sizeof(salt)) != 0) {
-            break;
-        }
-        if (mbedtls_sha256_update_ret(&ctx, APP_START, APP_SIZE) != 0) {
-            break;
-        }
-        if (mbedtls_sha256_finish_ret(&ctx, output) != 0) {
-            break;
-        }
-        ret = true;
-    } while (0);
-    mbedtls_sha256_free(&ctx);
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    size_t hash_len;
+    ret = psa_hash_setup(&ctx, PSA_ALG_SHA_256) == PSA_SUCCESS
+        && psa_hash_update(&ctx, reinterpret_cast<uint8_t *>(&salt), sizeof(salt)) == PSA_SUCCESS
+        && psa_hash_update(&ctx, APP_START, APP_SIZE) == PSA_SUCCESS
+        && psa_hash_finish(&ctx, output, 32, &hash_len) == PSA_SUCCESS;
+    psa_hash_abort(&ctx);
 
 #endif /* HASH_ALGOSELECTION_SHA256 */
 

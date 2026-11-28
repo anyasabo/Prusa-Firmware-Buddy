@@ -3,7 +3,7 @@
 #include <unique_file_ptr.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
-#include <mbedtls/aes.h>
+#include <psa/crypto.h>
 
 constexpr uint8_t encryption_key[] = {
     0xb1, 0x1c, 0x6c, 0xb1, 0xf4, 0x10, 0x22, 0x11,
@@ -27,12 +27,24 @@ unique_file_ptr encrypted_block_file(const e2ee::Decryptor::Block &plaintext) {
     e2ee::Decryptor::Block iv_bytes = {};
     memcpy(iv_bytes.data(), &iv, sizeof(iv));
 
-    mbedtls_aes_context enc_ctx;
-    mbedtls_aes_init(&enc_ctx);
-    REQUIRE(mbedtls_aes_setkey_enc(&enc_ctx, encryption_key, e2ee::KEY_SIZE * 8) == 0);
+    // One CBC block: the AES encryption of the plaintext XOR the IV.
+    e2ee::Decryptor::Block input;
+    for (size_t i = 0; i < input.size(); i++) {
+        input[i] = plaintext[i] ^ iv_bytes[i];
+    }
+    REQUIRE(psa_crypto_init() == PSA_SUCCESS);
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_AES);
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_ENCRYPT);
+    psa_set_key_algorithm(&attributes, PSA_ALG_ECB_NO_PADDING);
+    mbedtls_svc_key_id_t key_id;
+    REQUIRE(psa_import_key(&attributes, encryption_key, e2ee::KEY_SIZE, &key_id) == PSA_SUCCESS);
     e2ee::Decryptor::Block ciphertext;
-    REQUIRE(mbedtls_aes_crypt_cbc(&enc_ctx, MBEDTLS_AES_ENCRYPT, plaintext.size(), iv_bytes.data(), plaintext.data(), ciphertext.data()) == 0);
-    mbedtls_aes_free(&enc_ctx);
+    size_t ciphertext_len;
+    const psa_status_t status = psa_cipher_encrypt(key_id, PSA_ALG_ECB_NO_PADDING, input.data(), input.size(), ciphertext.data(), ciphertext.size(), &ciphertext_len);
+    psa_destroy_key(key_id);
+    REQUIRE(status == PSA_SUCCESS);
+    REQUIRE(ciphertext_len == ciphertext.size());
 
     unique_file_ptr file(tmpfile());
     REQUIRE(file.get() != nullptr);
@@ -136,25 +148,6 @@ TEST_CASE("20 bytes encrypted") {
         REQUIRE(decryptor.decrypt(file.get(), buffer, 18));
         REQUIRE(memcmp(buffer, original, 18) == 0);
         REQUIRE(decryptor.decrypt(file.get(), buffer + 18, 2));
-    }
-
-    // Note: The move has to be either on the edge of the block or read enough after
-    // so that we don't just take it from cache and really call the decryption
-    SECTION("Test move constructor of decryptor") {
-        memset(buffer, 0, sizeof(buffer));
-        REQUIRE(decryptor.decrypt(file.get(), buffer, 16));
-        REQUIRE(memcmp(buffer, original, 16) == 0);
-        e2ee::Decryptor another_decryptor(std::move(decryptor));
-        REQUIRE(another_decryptor.decrypt(file.get(), buffer + 16, 4));
-    }
-
-    SECTION("Test move operator of decryptor") {
-        memset(buffer, 0, sizeof(buffer));
-        REQUIRE(decryptor.decrypt(file.get(), buffer, 16));
-        REQUIRE(memcmp(buffer, original, 16) == 0);
-        e2ee::Decryptor another_decryptor;
-        another_decryptor = std::move(decryptor);
-        REQUIRE(another_decryptor.decrypt(file.get(), buffer + 16, 4));
     }
 
     SECTION("Read by more sizes") {

@@ -3,13 +3,7 @@
 #include <http/connection.hpp>
 #include <http/connect_error.h>
 
-#include <mbedtls/net.h>
 #include <mbedtls/ssl.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/debug.h>
-#include <mbedtls/certs.h>
-#include <mbedtls/platform.h>
 
 #include "net_sockets.hpp"
 
@@ -19,7 +13,7 @@ class tls final : public http::Connection {
 
 private:
     mbedtls_ssl_config ssl_config;
-    mbedtls_net_context net_context;
+    NetContext net_context;
     mbedtls_ssl_context ssl_context;
     bool custom_cert;
 

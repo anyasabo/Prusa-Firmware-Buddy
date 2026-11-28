@@ -17,15 +17,6 @@ add_executable(
   partial_file_mock.cpp
   )
 
-if(NOT WEBSOCKET)
-  target_sources(
-    transfers_tests
-    PRIVATE ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/aes.c
-            ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/library/aesni.c
-            ${CMAKE_SOURCE_DIR}/src/transfers/decrypt.cpp decrypt.cpp
-    )
-endif()
-
 target_include_directories(
   transfers_tests
   PRIVATE .
@@ -34,7 +25,6 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/include
           ${CMAKE_SOURCE_DIR}/src/common
           ${CMAKE_SOURCE_DIR}/src/common/utils
-          ${CMAKE_SOURCE_DIR}/lib/Middlewares/Third_Party/mbedtls/include
           ${CMAKE_SOURCE_DIR}/lib/WUI
           ${CMAKE_SOURCE_DIR}/tests/stubs
           ${CMAKE_SOURCE_DIR}/include/usb_host
@@ -46,6 +36,7 @@ file(GLOB AUTOMATA_GENERATORS ${PROJECT_ROOT_DIR}/utils/gen-automata/*.py)
 
 target_link_libraries(
   transfers_tests
+  mbedTLS
   SG14
   freertos_tests
   logging-mock
@@ -55,3 +46,13 @@ target_link_libraries(
   )
 
 add_catch_test(transfers_tests)
+
+# Only iX builds the AES-CTR decryptor (WEBSOCKET is off), but test it in each configuration: it is
+# the only user of AES-CTR.
+add_executable(
+  transfers_decrypt_tests ${CMAKE_SOURCE_DIR}/src/transfers/decrypt.cpp decrypt.cpp
+                          decrypt_missing_functions.c
+  )
+target_include_directories(transfers_decrypt_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(transfers_decrypt_tests mbedTLS logging-mock)
+add_catch_test(transfers_decrypt_tests)

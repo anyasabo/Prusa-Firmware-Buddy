@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <inttypes.h> // PRIu* macros (not available in <cinttypes>)
 #include <http/percent_encode.h>
-#include <mbedtls/sha256.h>
+#include <psa/crypto.h>
 #include <bsod/bsod.h>
 
 using http::ConnectionHandling;
@@ -147,16 +147,20 @@ uint32_t compute_etag(const struct stat &stat) {
      * file with a different file but the same name. Hashing a bit of metadata
      * seems like a good candidate.
      */
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, false);
-    mbedtls_sha256_update_ret(&ctx, (const uint8_t *)&stat.st_ino, sizeof stat.st_ino);
-    mbedtls_sha256_update_ret(&ctx, (const uint8_t *)&stat.st_size, sizeof stat.st_size);
-    mbedtls_sha256_update_ret(&ctx, (const uint8_t *)&stat.st_mtime, sizeof stat.st_mtime);
-    mbedtls_sha256_update_ret(&ctx, (const uint8_t *)&stat.st_ctime, sizeof stat.st_ctime);
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    psa_hash_setup(&ctx, PSA_ALG_SHA_256);
+    psa_hash_update(&ctx, (const uint8_t *)&stat.st_ino, sizeof stat.st_ino);
+    psa_hash_update(&ctx, (const uint8_t *)&stat.st_size, sizeof stat.st_size);
+    psa_hash_update(&ctx, (const uint8_t *)&stat.st_mtime, sizeof stat.st_mtime);
+    psa_hash_update(&ctx, (const uint8_t *)&stat.st_ctime, sizeof stat.st_ctime);
     uint8_t hash[32];
-    mbedtls_sha256_finish_ret(&ctx, hash);
-    mbedtls_sha256_free(&ctx);
+    size_t hash_len;
+    if (psa_hash_finish(&ctx, hash, sizeof hash, &hash_len) != PSA_SUCCESS) {
+        // The hash of a few numbers cannot fail. If it does, all files get the same ETag
+        // and the client asks again.
+        psa_hash_abort(&ctx);
+        return 0;
+    }
 
     /*
      * Use memcpy to deal with alignment issues and such.

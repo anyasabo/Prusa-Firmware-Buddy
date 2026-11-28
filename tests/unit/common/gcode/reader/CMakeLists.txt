@@ -13,7 +13,7 @@ add_library(
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/e2ee.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/key.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/sha256_multiuse.cpp
-  ${CMAKE_SOURCE_DIR}/src/common/e2ee/movable_aes_context.cpp
+  ${CMAKE_SOURCE_DIR}/src/common/e2ee/aes_block_decryptor.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/decryptor.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/utils.cpp
   ${CMAKE_SOURCE_DIR}/src/common/e2ee/hmac.cpp

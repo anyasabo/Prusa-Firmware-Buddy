@@ -38,7 +38,6 @@ if(BOARD IN_LIST BUDDY_BOARDS)
             footer_eeprom.cpp
             fsm_states.cpp
             general_response.cpp
-            hardware_rng.cpp
             hardware_serial.cpp
             heap.cpp
             hw_check.cpp
@@ -56,6 +55,7 @@ if(BOARD IN_LIST BUDDY_BOARDS)
             marlin_server.cpp
             marlin_vars.cpp
             MarlinPin.cpp
+            mbedtls_platform.cpp
             media_prefetch/media_prefetch.cpp
             media_prefetch/prefetch_compression.cpp
             media_prefetch_instance.cpp

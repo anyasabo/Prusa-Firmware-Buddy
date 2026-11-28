@@ -25,7 +25,7 @@
 #include "resources/hash.hpp"
 #include "resources/tarball.hpp"
 #include <raii/scope_guard.hpp>
-#include <sha256.h>
+#include <psa/crypto.h>
 
 #include <common/mutable_path.hpp>
 
@@ -246,19 +246,20 @@ static bool find_suitable_bbf_file(const buddy::resources::Revision &revision, P
     buddy::bootstrap_state_set(0, buddy::BootstrapStage::copying_files);
 
     struct {
-        mbedtls_sha256_context sha;
+        psa_hash_operation_t sha = PSA_HASH_OPERATION_INIT;
         uint32_t length;
         uint32_t extracted = 0;
         unsigned last_percent = 0;
     } state;
     state.length = length;
 
-    mbedtls_sha256_init(&state.sha);
-    ScopeGuard free_sha = [&] { mbedtls_sha256_free(&state.sha); };
-    mbedtls_sha256_starts_ret(&state.sha, 0);
+    ScopeGuard free_sha = [&] { psa_hash_abort(&state.sha); };
+    if (psa_hash_setup(&state.sha, PSA_ALG_SHA_256) != PSA_SUCCESS) {
+        return false;
+    }
 
     const auto on_data = [&state](std::span<const uint8_t> data) {
-        mbedtls_sha256_update_ret(&state.sha, data.data(), data.size());
+        psa_hash_update(&state.sha, data.data(), data.size());
 
         state.extracted += data.size();
         const unsigned percent = state.extracted * 100 / state.length;
@@ -271,8 +272,8 @@ static bool find_suitable_bbf_file(const buddy::resources::Revision &revision, P
         return false;
     }
 
-    mbedtls_sha256_finish_ret(&state.sha, out_hash.data());
-    return true;
+    size_t hash_len;
+    return psa_hash_finish(&state.sha, out_hash.data(), out_hash.size(), &hash_len) == PSA_SUCCESS;
 }
 
 static bool do_bootstrap(const buddy::resources::Revision &revision) {

@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cstring>
 #include <option/developer_mode.h>
-#include <version.h>
 #include <tools_mapping.hpp>
 #include "mutable_path.hpp"
 #include <logging/log.hpp>

@@ -42,7 +42,3 @@ void *calloc_fallible(size_t nmemb, size_t size) {
 void *malloc_fallible(size_t size) {
     return malloc(size);
 }
-
-int mbedtls_hardware_poll([[maybe_unused]] void *Data, unsigned char *Output, size_t Len, size_t *oLen) {
-    return 3;
-}

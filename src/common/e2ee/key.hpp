@@ -1,6 +1,8 @@
 #include "e2ee.hpp"
 #include <mbedtls/pk.h>
 
+#include <span>
+
 class AsyncJobExecutionControl;
 
 namespace e2ee {
@@ -8,7 +10,12 @@ struct Pk {
     mbedtls_pk_context pk;
     Pk();
     ~Pk();
+    Pk(const Pk &) = delete;
+    Pk &operator=(const Pk &) = delete;
 };
+
+/// Puts the public part of an RSA private key (PKCS#1 DER) into \p public_key.
+[[nodiscard]] bool public_key_from_private_der(std::span<const uint8_t> private_key_der, Pk &public_key);
 
 // Note: This struct is written to file for the key, only add members
 //  never remove, so we don't lose backwards compatibility

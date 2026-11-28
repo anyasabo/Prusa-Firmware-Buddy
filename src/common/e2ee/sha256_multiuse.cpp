@@ -4,28 +4,28 @@
 namespace e2ee {
 
 SHA256MultiuseHash::SHA256MultiuseHash() {
-    mbedtls_sha256_init(&sha256_ctx);
-    mbedtls_sha256_starts_ret(&sha256_ctx, false);
-}
-
-SHA256MultiuseHash::~SHA256MultiuseHash() {
-    mbedtls_sha256_free(&sha256_ctx);
-}
-
-void SHA256MultiuseHash::get_hash(uint8_t *buffer, [[maybe_unused]] size_t buffer_size) {
-    debug_assert(buffer_size == e2ee::HASH_SIZE);
-    mbedtls_sha256_finish_ret(&sha256_ctx, buffer);
     reset();
 }
 
+SHA256MultiuseHash::~SHA256MultiuseHash() {
+    psa_hash_abort(&sha256_ctx);
+}
+
+bool SHA256MultiuseHash::get_hash(uint8_t *buffer, [[maybe_unused]] size_t buffer_size) {
+    debug_assert(buffer_size == e2ee::HASH_SIZE);
+    size_t hash_len;
+    const bool ok = psa_hash_finish(&sha256_ctx, buffer, e2ee::HASH_SIZE, &hash_len) == PSA_SUCCESS;
+    reset();
+    return ok;
+}
+
 void SHA256MultiuseHash::update(const uint8_t *data, size_t size) {
-    mbedtls_sha256_update_ret(&sha256_ctx, data, size);
+    psa_hash_update(&sha256_ctx, data, size);
 }
 
 void SHA256MultiuseHash::reset() {
-    mbedtls_sha256_free(&sha256_ctx);
-    mbedtls_sha256_init(&sha256_ctx);
-    mbedtls_sha256_starts_ret(&sha256_ctx, false);
+    psa_hash_abort(&sha256_ctx);
+    psa_hash_setup(&sha256_ctx, PSA_ALG_SHA_256);
 }
 
 } // namespace e2ee

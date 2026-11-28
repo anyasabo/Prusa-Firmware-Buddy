@@ -471,6 +471,8 @@ TEST_CASE("modularbed: a bedlet a little above its target becomes stable and get
     world.temperature[4] = 60.5f;
     test::boot_with_world();
     test::write_all_targets(60);
+    test::run_ms(100, true);
+    CHECK(test::bedlet(4).m_State == HeatbedletState::Cooling);
 
     test::run_ms(10'000, true);
     REQUIRE(test::bedlet(4).m_State == HeatbedletState::Stable);

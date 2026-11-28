@@ -1,5 +1,6 @@
 #include "multi_filament_change.hpp"
 
+#include <string>
 #include <gcode_info.hpp>
 #include <module/prusa/spool_join.hpp>
 #include <module/prusa/tool_mapper.hpp>
@@ -113,7 +114,7 @@ void Config::to_gcode(StringBuilder &sb) const {
     // Base64 has special characters '+', '/' and '='
     // These don't interfere with the G-Code special characters, which is handy for us
 
-    constexpr size_t expected_gcode_length = strlen(prefix) + base64_data_length;
+    constexpr size_t expected_gcode_length = std::char_traits<char>::length(prefix) + base64_data_length;
 
     // If you get this assert fail, you gotta optimize the Config struct to fit into MAX_CMD_SIZE
     // Suggestion to fix:

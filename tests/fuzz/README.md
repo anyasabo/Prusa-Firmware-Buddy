@@ -12,6 +12,7 @@ with the unit-test tree, so they share its stubs and mocks.
 | `e2ee_identity` | `e2ee::read_and_verify_identity_block` | encrypted `.bgcode` |
 | `gcode_parser` | `GCodeParser2` (options, quoted strings, number conversion) | every executed G-code line |
 | `marlin_parser` | Marlin `GCodeParser` (`lib/Marlin/Marlin/src/gcode/parser.cpp`) and the value accessors of the handlers | every executed G-code line |
+| `inih` | inih `ini_parse_file` with the firmware configuration (`lib/inih`) | `prusa_printer_settings.ini` on the USB drive (network and Prusa Connect settings) |
 | `motion_klipper` | `PreciseStepping` with the input shaper and pressure advance step generators, compared with Klipper's step generation | G-code moves and M593/M572 parameters (an oracle test, not a parser) |
 
 `corpus/<name>/` holds seed inputs. ctest replays them in both build flavours, so they double as

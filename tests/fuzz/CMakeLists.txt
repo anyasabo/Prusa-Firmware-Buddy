@@ -173,3 +173,9 @@ buddy_add_fuzzer(marlin_parser SOURCES marlin_parser.cpp LIBS marlin_gcode_parse
 # Not untrusted input: the oracle finds wrong steps, not only crashes. The library has the real
 # motion sources, the stubs and Klipper (tests/unit/lib/Marlin/motion_klipper_diff).
 buddy_add_fuzzer(motion_klipper SOURCES motion_klipper.cpp LIBS motion_diff_pipeline)
+
+# inih with the firmware configuration. The printer parses prusa_printer_settings.ini from the USB
+# drive with it (network and Prusa Connect settings).
+buddy_add_fuzzer(
+  inih SOURCES inih.cpp ${CMAKE_SOURCE_DIR}/lib/inih/ini.c INCLUDES ${CMAKE_SOURCE_DIR}/lib/inih
+  )

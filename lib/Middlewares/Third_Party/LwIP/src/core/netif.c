@@ -388,6 +388,8 @@ netif_add(struct netif *netif,
   if (init(netif) != ERR_OK) {
     return NULL;
   }
+  LWIP_ASSERT("netif->hwaddr_len <= NETIF_MAX_HWADDR_LEN",
+              (netif->hwaddr_len <= NETIF_MAX_HWADDR_LEN));
 #if LWIP_IPV6 && LWIP_ND6_ALLOW_RA_UPDATES
   /* Initialize the MTU for IPv6 to the one set by the netif driver.
      This can be updated later by RA. */
@@ -1759,9 +1761,12 @@ netif_find(const char *name)
 
   LWIP_ASSERT_CORE_LOCKED();
 
-  if (name == NULL) {
+  if ((name == NULL) ||
+      (name[0] == '\0') ||
+      (name[1] == '\0') ||
+      (name[2] == '\0')) {
     return NULL;
-  }
+}
 
   num = (u8_t)atoi(&name[2]);
   if (!num && (name[2] != '0')) {

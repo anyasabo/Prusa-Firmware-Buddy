@@ -773,9 +773,6 @@ dhcp_set_struct(struct netif *netif, struct dhcp *dhcp)
  * @ingroup dhcp4
  * Removes a struct dhcp from a netif.
  *
- * ATTENTION: Only use this when not using dhcp_set_struct() to allocate the
- *            struct dhcp since the memory is passed back to the heap.
- *
  * @param netif the netif from which to remove the struct dhcp
  */
 void dhcp_cleanup(struct netif *netif)
@@ -811,6 +808,7 @@ dhcp_start(struct netif *netif)
 {
   struct dhcp *dhcp;
   err_t result;
+  u8_t saved_flags;
 
   LWIP_ASSERT_CORE_LOCKED();
   LWIP_ERROR("netif != NULL", (netif != NULL), return ERR_ARG;);
@@ -833,6 +831,8 @@ dhcp_start(struct netif *netif)
       return ERR_MEM;
     }
 
+    /* clear the flags, the rest is cleared below */
+    dhcp->flags = 0;
     /* store this dhcp client in the netif */
     netif_set_client_data(netif, LWIP_NETIF_CLIENT_DATA_INDEX_DHCP, dhcp);
     LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_start(): allocated dhcp\n"));
@@ -846,9 +846,10 @@ dhcp_start(struct netif *netif)
     /* dhcp is cleared below, no need to reset flag*/
   }
 
-  /* clear data structure */
+  /* clear data structure but preserve DHCP_FLAG_EXTERNAL_MEM for dhcp_cleanup() */
+  saved_flags = dhcp->flags;
   memset(dhcp, 0, sizeof(struct dhcp));
-  /* dhcp_set_state(&dhcp, DHCP_STATE_OFF); */
+  dhcp->flags = saved_flags & DHCP_FLAG_EXTERNAL_MEM;
 
 
 #if LWIP_DHCP_DOES_ACD_CHECK
@@ -1693,18 +1694,16 @@ decode_next:
         }
       }
     }
-    if (offset >= q->len) {
+    while ((q != NULL) && (offset >= q->len)) {
       offset = (u16_t)(offset - q->len);
       offset_max = (u16_t)(offset_max - q->len);
-      if (offset < offset_max) {
-        q = q->next;
-        LWIP_DHCP_INPUT_ERROR("next pbuf was null", q != NULL, return ERR_VAL;);
-        options = (u8_t *)q->payload;
-      } else {
-        /* We've run out of bytes, probably no end marker. Don't proceed. */
-        return ERR_BUF;
-      }
+      q = q->next;
     }
+    if (q == NULL) {
+      /* We've run out of bytes, probably no end marker. Don't proceed. */
+      return ERR_BUF;
+    }
+    options = (u8_t *)q->payload;
   }
   /* is this an overloaded message? */
   if (dhcp_option_given(dhcp, DHCP_OPTION_IDX_OVERLOAD)) {
@@ -1838,20 +1837,32 @@ dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
       if ((netif->flags & NETIF_FLAG_ETHARP) != 0) {
         /* check if the acknowledged lease address is already in use */
         dhcp_check(netif);
-      } else {
+      } else
+#endif
+      {
         /* bind interface to the acknowledged lease address */
         dhcp_bind(netif);
       }
-#else
-      /* bind interface to the acknowledged lease address */
-      dhcp_bind(netif);
-#endif
     }
     /* already bound to the given lease address and using it? */
     else if ((dhcp->state == DHCP_STATE_REBINDING) ||
              (dhcp->state == DHCP_STATE_RENEWING)) {
       dhcp_handle_ack(netif, msg_in);
-      dhcp_bind(netif);
+#if LWIP_DHCP_DOES_ACD_CHECK
+      if (((netif->flags & NETIF_FLAG_ETHARP) != 0) &&
+          (!ip4_addr_cmp(&dhcp->offered_ip_addr, netif_ip4_addr(netif)) ||
+           !ip4_addr_cmp(&dhcp->acd.ipaddr, &dhcp->offered_ip_addr))) {
+        /* The ACK changed the address, or ACD is still monitoring another
+           address. Do not bind until the acknowledged address has passed ACD. */
+        acd_stop(&dhcp->acd);
+        /* check if the acknowledged lease address is already in use */
+        dhcp_check(netif);
+      } else
+#endif
+      {
+        /* bind interface to the acknowledged lease address */
+        dhcp_bind(netif);
+      }
     }
   }
   /* received a DHCP_NAK in appropriate state? */

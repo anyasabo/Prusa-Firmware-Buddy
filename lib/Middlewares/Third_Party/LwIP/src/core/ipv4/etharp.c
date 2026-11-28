@@ -650,6 +650,20 @@ etharp_input(struct pbuf *p, struct netif *netif)
 
   LWIP_ERROR("netif != NULL", (netif != NULL), return;);
 
+  /* drop short ARP packets: we have to check for p->len instead of p->tot_len
+     here since a struct etharp_hdr is pointed to p->payload, so it musn't be
+     chained! (regression re-fix: this check existed prior to commit 31778193
+     in 2016 and was accidentally dropped during a refactor) */
+  if (p->len < SIZEOF_ETHARP_HDR) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
+                ("etharp_input: packet dropped, too short (%"U16_F"/%"U16_F")\n",
+                 p->tot_len, (u16_t)SIZEOF_ETHARP_HDR));
+    ETHARP_STATS_INC(etharp.lenerr);
+    ETHARP_STATS_INC(etharp.drop);
+    pbuf_free(p);
+    return;
+  }
+
   hdr = (struct etharp_hdr *)p->payload;
 
   /* RFC 826 "Packet Reception": */
@@ -675,12 +689,7 @@ etharp_input(struct pbuf *p, struct netif *netif)
    * defending or retreating and will make sure a new IP address is selected.
    * etharp_input does not need to handle packets that originate "from_us".
    */
-  // ESP sometimes for some unknown reason decides to participate in the ARP negotiations
-  // and then it refuses all the IP addresses the printer wants, because it has the same IP.
-  // This hack prevents this behaviour, because sadly we cannot just turn off the ARP on the ESP.
-  if (!eth_addr_eq(&hdr->shwaddr, &hdr->dhwaddr) && !eth_addr_eq(&hdr->shwaddr, (struct eth_addr *)netif->hwaddr)) {
-    acd_arp_reply(netif, hdr);
-  }
+  acd_arp_reply(netif, hdr);
 #endif /* LWIP_ACD */
 
   /* Copy struct ip4_addr_wordaligned to aligned ip4_addr, to support compilers without
@@ -945,9 +954,9 @@ etharp_query(struct netif *netif, const ip4_addr_t *ipaddr, struct pbuf *q)
   netif_addr_idx_t i;
 
   /* non-unicast address? */
-  if (ip4_addr_isbroadcast(ipaddr, netif) ||
-      ip4_addr_ismulticast(ipaddr) ||
-      ip4_addr_isany(ipaddr)) {
+  if (ip4_addr_isany(ipaddr) ||
+      ip4_addr_isbroadcast(ipaddr, netif) ||
+      ip4_addr_ismulticast(ipaddr)) {
     LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("etharp_query: will not add non-unicast IP address to ARP cache\n"));
     return ERR_ARG;
   }

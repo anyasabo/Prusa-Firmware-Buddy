@@ -492,6 +492,28 @@ ip6_input_accept(struct netif *netif)
 }
 
 /**
+ * Validate and return the length of an IPv6 variable-length extension header
+ * (Hop-by-Hop, Destination Options, or Routing), or 0 if it does not fit in p
+ * (in which case p is freed and error stats are updated).
+ */
+static u16_t
+ip6_ext_hdr_len(struct pbuf *p)
+{
+  u16_t hlen = (u16_t)(8 * (1 + pbuf_get_at(p, 1)));
+  if (hlen > p->len) {
+    LWIP_DEBUGF(IP6_DEBUG | LWIP_DBG_LEVEL_SERIOUS,
+      ("IPv6 options header (hlen %"U16_F") does not fit in first pbuf (len %"U16_F"), IPv6 packet dropped.\n",
+          hlen, p->len));
+    /* free (drop) packet pbufs */
+    pbuf_free(p);
+    IP6_STATS_INC(ip6.lenerr);
+    IP6_STATS_INC(ip6.drop);
+    return 0;
+  }
+  return hlen;
+}
+
+/**
  * This function is called by the network interface device driver when
  * an IPv6 packet is received. The function does the basic checks of the
  * IP header such as packet size being at least larger than the header
@@ -523,6 +545,13 @@ ip6_input(struct pbuf *p, struct netif *inp)
   LWIP_ASSERT_CORE_LOCKED();
 
   IP6_STATS_INC(ip6.recv);
+
+  if (p->len < IP6_HLEN) {
+    pbuf_free(p);
+    IP6_STATS_INC(ip6.lenerr);
+    IP6_STATS_INC(ip6.drop);
+    return ERR_OK;
+  }
 
   /* identify the IP header */
   ip6hdr = (struct ip6_hdr *)p->payload;
@@ -722,24 +751,15 @@ netif_found:
       LWIP_DEBUGF(IP6_DEBUG, ("ip6_input: packet with Hop-by-Hop options header\n"));
 
       /* Get and check the header length, while staying in packet bounds. */
+      hlen = ip6_ext_hdr_len(p);
+      if (hlen == 0) {
+        goto ip6_input_cleanup;
+      }
+
       hbh_hdr = (struct ip6_hbh_hdr *)p->payload;
 
       /* Get next header type. */
       nexth = &IP6_HBH_NEXTH(hbh_hdr);
-
-      /* Get the header length. */
-      hlen = (u16_t)(8 * (1 + hbh_hdr->_hlen));
-
-      if ((p->len < 8) || (hlen > p->len)) {
-        LWIP_DEBUGF(IP6_DEBUG | LWIP_DBG_LEVEL_SERIOUS,
-          ("IPv6 options header (hlen %"U16_F") does not fit in first pbuf (len %"U16_F"), IPv6 packet dropped.\n",
-              hlen, p->len));
-        /* free (drop) packet pbufs */
-        pbuf_free(p);
-        IP6_STATS_INC(ip6.lenerr);
-        IP6_STATS_INC(ip6.drop);
-        goto ip6_input_cleanup;
-      }
 
       hlen_tot = (u16_t)(hlen_tot + hlen);
 
@@ -751,12 +771,20 @@ netif_found:
 
         opt_hdr = (struct ip6_opt_hdr *)((u8_t *)hbh_hdr + opt_offset);
 
+        if (IP6_OPT_TYPE(opt_hdr) == IP6_PAD1_OPTION) {
+          /* PAD1 option doesn't have length and value field */
+          opt_offset++;
+          continue;
+        }
+        if (opt_offset + IP6_OPT_HLEN > hlen) {
+          pbuf_free(p);
+          IP6_STATS_INC(ip6.lenerr);
+          IP6_STATS_INC(ip6.drop);
+          goto ip6_input_cleanup;
+        }
+
         switch (IP6_OPT_TYPE(opt_hdr)) {
         /* @todo: process IPV6 Hop-by-Hop option data */
-        case IP6_PAD1_OPTION:
-          /* PAD1 option doesn't have length and value field */
-          opt_dlen = -1;
-          break;
         case IP6_PADN_OPTION:
           opt_dlen = IP6_OPT_DLEN(opt_hdr);
           break;
@@ -812,23 +840,15 @@ netif_found:
       struct ip6_opt_hdr *opt_hdr;
       LWIP_DEBUGF(IP6_DEBUG, ("ip6_input: packet with Destination options header\n"));
 
+      hlen = ip6_ext_hdr_len(p);
+      if (hlen == 0) {
+        goto ip6_input_cleanup;
+      }
+
       dest_hdr = (struct ip6_dest_hdr *)p->payload;
 
       /* Get next header type. */
       nexth = &IP6_DEST_NEXTH(dest_hdr);
-
-      /* Get the header length. */
-      hlen = 8 * (1 + dest_hdr->_hlen);
-      if ((p->len < 8) || (hlen > p->len)) {
-        LWIP_DEBUGF(IP6_DEBUG | LWIP_DBG_LEVEL_SERIOUS,
-          ("IPv6 options header (hlen %"U16_F") does not fit in first pbuf (len %"U16_F"), IPv6 packet dropped.\n",
-              hlen, p->len));
-        /* free (drop) packet pbufs */
-        pbuf_free(p);
-        IP6_STATS_INC(ip6.lenerr);
-        IP6_STATS_INC(ip6.drop);
-        goto ip6_input_cleanup;
-      }
 
       hlen_tot = (u16_t)(hlen_tot + hlen);
 
@@ -840,13 +860,21 @@ netif_found:
 
         opt_hdr = (struct ip6_opt_hdr *)((u8_t *)dest_hdr + opt_offset);
 
+        if (IP6_OPT_TYPE(opt_hdr) == IP6_PAD1_OPTION) {
+          /* PAD1 option doesn't have length and value field */
+          opt_offset++;
+          continue;
+        }
+        if (opt_offset + IP6_OPT_HLEN > hlen) {
+          pbuf_free(p);
+          IP6_STATS_INC(ip6.lenerr);
+          IP6_STATS_INC(ip6.drop);
+          goto ip6_input_cleanup;
+        }
+
         switch (IP6_OPT_TYPE(opt_hdr))
         {
         /* @todo: process IPV6 Destination option data */
-        case IP6_PAD1_OPTION:
-          /* PAD1 option deosn't have length and value field */
-          opt_dlen = -1;
-          break;
         case IP6_PADN_OPTION:
           opt_dlen = IP6_OPT_DLEN(opt_hdr);
           break;
@@ -905,24 +933,15 @@ netif_found:
       struct ip6_rout_hdr *rout_hdr;
       LWIP_DEBUGF(IP6_DEBUG, ("ip6_input: packet with Routing header\n"));
 
+      hlen = ip6_ext_hdr_len(p);
+      if (hlen == 0) {
+        goto ip6_input_cleanup;
+      }
+
       rout_hdr = (struct ip6_rout_hdr *)p->payload;
 
       /* Get next header type. */
       nexth = &IP6_ROUT_NEXTH(rout_hdr);
-
-      /* Get the header length. */
-      hlen = 8 * (1 + rout_hdr->_hlen);
-
-      if ((p->len < 8) || (hlen > p->len)) {
-        LWIP_DEBUGF(IP6_DEBUG | LWIP_DBG_LEVEL_SERIOUS,
-          ("IPv6 options header (hlen %"U16_F") does not fit in first pbuf (len %"U16_F"), IPv6 packet dropped.\n",
-              hlen, p->len));
-        /* free (drop) packet pbufs */
-        pbuf_free(p);
-        IP6_STATS_INC(ip6.lenerr);
-        IP6_STATS_INC(ip6.drop);
-        goto ip6_input_cleanup;
-      }
 
       /* Skip over this header. */
       hlen_tot = (u16_t)(hlen_tot + hlen);

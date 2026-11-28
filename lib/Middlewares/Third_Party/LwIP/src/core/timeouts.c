@@ -264,15 +264,11 @@ lwip_cyclic_timer(void *arg)
 void sys_timeouts_init(void)
 {
   size_t i;
-  u32_t now = sys_now();
   /* tcp_tmr() at index 0 is started on demand */
   for (i = (LWIP_TCP ? 1 : 0); i < LWIP_ARRAYSIZE(lwip_cyclic_timers); i++) {
     /* we have to cast via size_t to get rid of const warning
       (this is OK as cyclic_timer() casts back to const* */
-    // We can't call sys_timeout() here, because it calls LWIP_ASSERT_CORE_LOCKED()
-    // which fails because tcpip thread is not started yet. This is a bug in LWIP.
-    u32_t next_timeout_time = (u32_t)(now + lwip_cyclic_timers[i].interval_ms); /* overflow handled by TIME_LESS_THAN macro */
-    sys_timeout_abs(next_timeout_time, lwip_cyclic_timer, LWIP_CONST_CAST(void *, &lwip_cyclic_timers[i]));
+    sys_timeout(lwip_cyclic_timers[i].interval_ms, lwip_cyclic_timer, LWIP_CONST_CAST(void *, &lwip_cyclic_timers[i]));
   }
 }
 
@@ -351,8 +347,11 @@ sys_untimeout(sys_timeout_handler handler, void *arg)
  * handler functions when timeouts expire.
  *
  * Must be called periodically from your main loop.
+ *
+ * @return the time left before the next timeout is due. If no timeouts are
+ * enqueued, returns 0xffffffff
  */
-void
+u32_t
 sys_check_timeouts(void)
 {
   u32_t now;
@@ -371,11 +370,13 @@ sys_check_timeouts(void)
 
     tmptimeout = next_timeout;
     if (tmptimeout == NULL) {
-      return;
+      return SYS_TIMEOUTS_SLEEPTIME_INFINITE;
     }
 
     if (TIME_LESS_THAN(now, tmptimeout->time)) {
-      return;
+      u32_t ret = (u32_t)(tmptimeout->time - now);
+      LWIP_ASSERT("invalid sleeptime", ret <= LWIP_MAX_TIMEOUT);
+      return ret;
     }
 
     /* Timeout has expired */

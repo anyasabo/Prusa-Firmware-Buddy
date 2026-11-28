@@ -2,9 +2,9 @@
 # Each one found a real defect or gave almost no false findings. clangd shows the bugprone checks
 # in the editor (.clangd turns them off outside src/, lib/Marlin/ and tests/).
 # utils/clang_tidy_diff.sh runs all of them on the changed lines of a branch.
-# clang-diagnostic-parentheses: clang warns for "x + (x < n) ? 1 : -1" (a boolean operand of "+"
-# before "?:"), GCC does not. It found three such lines in UBL G29, all wrong, and no other line in
-# src/ and lib/Marlin/. The warning is on with -Wall, which the compile database has.
+# clang-diagnostic-parentheses: clang warns for "x + (x < n) ? 1 : -1" (an arithmetic operator
+# before "?:" whose right operand is boolean), GCC does not. It found three such lines in UBL G29,
+# all wrong, and no other line in src/ and lib/Marlin/. clang has this warning on by default.
 # Not here: bugprone-suspicious-string-compare (all findings were the intended "if (strcmp(...))"),
 # bugprone-unchecked-string-to-number-conversion (only in the directories that parse outside input,
 # see their own .clang-tidy).

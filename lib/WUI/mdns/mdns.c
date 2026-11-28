@@ -1857,12 +1857,17 @@ mdns_handle_response(struct mdns_packet *pkt, struct netif *netif) {
                     u16_t values[3]; /* SRV: Prio, Weight, Port */
                     struct mdns_domain dom; /* PTR & SRV: Domain (uncompressed) */
                 } data;
-                u16_t off = (ans.info.type == DNS_RRTYPE_SRV ? 6 : 0);
-                u16_t len = mdns_readname(pkt->pbuf, ans.rd_offset + off, &data.dom);
+                u16_t off, len;
+                off = (ans.info.type == DNS_RRTYPE_SRV ? 6 : 0);
+                if (ans.rd_length < off) {
+                    /* An SRV record must include its 6-byte fixed header. */
+                    break;
+                }
+                len = mdns_readname(pkt->pbuf, ans.rd_offset + off, &data.dom);
                 if (len == MDNS_READNAME_ERROR) {
+                    u16_t copy_len = LWIP_MIN(MDNS_DOMAIN_MAXLEN, (u16_t)(ans.rd_length - off));
                     /* Ensure result_fn is called anyway, just copy failed domain as is */
-                    data.dom.length = ans.rd_length - off;
-                    memcpy(&data.dom, (const char *)p->payload + offset + off, data.dom.length);
+                    data.dom.length = pbuf_copy_partial(p, data.dom.name, copy_len, offset + off);
                 }
                 /* Adjust len/off according RR type */
                 if (ans.info.type == DNS_RRTYPE_SRV) {
@@ -2088,10 +2093,10 @@ mdns_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
     #endif
     #if LWIP_IPV4
     if (!IP_IS_V6(ip_current_dest_addr())) {
-        if (!ip_addr_cmp(ip_current_dest_addr(), &v4group)) {
+        if (!ip_addr_eq(ip_current_dest_addr(), &v4group)) {
             packet.recv_unicast = 1;
 
-            if (!ip_addr_netcmp(ip_2_ip4(ip_current_src_addr()),
+            if (!ip4_addr_net_eq(ip_2_ip4(ip_current_src_addr()),
                     netif_ip4_addr(recv_netif),
                     netif_ip4_netmask(recv_netif))) {
                 goto dealloc;
@@ -2121,7 +2126,7 @@ mdns_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr,
             /* this packet is a known-answer packet for a truncated question previously received */
             struct mdns_packet *q = pending_tc_questions;
             while (q) {
-                if ((packet.source_port == q->source_port) && ip_addr_cmp(&packet.source_addr, &q->source_addr)) {
+                if ((packet.source_port == q->source_port) && ip_addr_eq(&packet.source_addr, &q->source_addr)) {
                     break;
                 }
                 q = q->next_tc_question;
@@ -2383,16 +2388,21 @@ err_t mdns_resp_remove_netif(struct netif *netif) {
     LWIP_ERROR("mdns_resp_remove_netif: Not an active netif", (mdns != NULL), return ERR_VAL);
 
     sys_untimeout(mdns_probe_and_announce, netif);
-    // Disable all other timers
-    // (does nothing if it doesn't exist)
-    sys_untimeout(mdns_send_unicast_msg_delayed_ipv4, netif);
-    sys_untimeout(mdns_send_multicast_msg_delayed_ipv4, netif);
+    /* every timer that carries this netif dereferences the host freed below */
+    #if LWIP_IPV4
     sys_untimeout(mdns_multicast_timeout_reset_ipv4, netif);
     sys_untimeout(mdns_multicast_probe_timeout_reset_ipv4, netif);
     sys_untimeout(mdns_multicast_timeout_25ttl_reset_ipv4, netif);
-    // Note: There's possibly a timeout with a packet. We don't disable that one because:
-    // * The packet isn't a dangling pointer.
-    // * We don't have its address and we don't know it originated from this netif.
+    sys_untimeout(mdns_send_multicast_msg_delayed_ipv4, netif);
+    sys_untimeout(mdns_send_unicast_msg_delayed_ipv4, netif);
+    #endif
+    #if LWIP_IPV6
+    sys_untimeout(mdns_multicast_timeout_reset_ipv6, netif);
+    sys_untimeout(mdns_multicast_probe_timeout_reset_ipv6, netif);
+    sys_untimeout(mdns_multicast_timeout_25ttl_reset_ipv6, netif);
+    sys_untimeout(mdns_send_multicast_msg_delayed_ipv6, netif);
+    sys_untimeout(mdns_send_unicast_msg_delayed_ipv6, netif);
+    #endif
 
     #if 0
         // #error dead code found by automatic analyses (see BFW-5461)

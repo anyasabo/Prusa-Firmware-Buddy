@@ -7,8 +7,9 @@ changes to the source codes there). For that reason, the MDNS responder is
 imported separately.
 
 It's almost vanilla taken from 347054b329d141b858cc7180bf2aa23c672dc6d7, with
+the three later upstream mDNS fixes up to master
+a33328d0ee94ad4d4656dcf80cc60b83cba941e2 (ab2f69c7, 3a3182b0, 07de8c51), and
 minor adjustments:
 
 * Formatting (automatic commit hook)
 * Adjustment of headers (because it's not sitting in the apps directory)
-* Adjustment of few functions that got renamed between our version and upstream.

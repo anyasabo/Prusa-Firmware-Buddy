@@ -32,6 +32,9 @@ struct SimDevice {
     std::vector<uint8_t> out_received; // the data stage of WRITE(10), as the device got it
     bool csw_pending = false;
     uint8_t csw[13] {};
+    bool hang_in = false; // the bulk IN data stage never completes (the device NAKs forever)
+    int commands = 0; // CBWs that the device got
+    int closed_pipes = 0;
 };
 
 SimDevice dev;
@@ -53,6 +56,7 @@ void bot_command(const uint8_t *cbw) {
     dev.in_data.clear();
     dev.in_pos = 0;
     dev.out_remaining = 0;
+    dev.commands++;
     switch (op) {
     case 0x12: // INQUIRY
         dev.in_data.assign(std::min<uint32_t>(len, 36), 0);
@@ -97,7 +101,10 @@ uint32_t USBH_LL_GetLastXferSize(USBH_HandleTypeDef *, uint8_t pipe) { return de
 USBH_StatusTypeDef USBH_LL_DriverVBUS(USBH_HandleTypeDef *, uint8_t) { return USBH_OK; }
 USBH_StatusTypeDef USBH_LL_OpenPipe(USBH_HandleTypeDef *, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint16_t) { return USBH_OK; }
 USBH_StatusTypeDef USBH_LL_ActivatePipe(USBH_HandleTypeDef *, uint8_t) { return USBH_OK; }
-USBH_StatusTypeDef USBH_LL_ClosePipe(USBH_HandleTypeDef *, uint8_t) { return USBH_OK; }
+USBH_StatusTypeDef USBH_LL_ClosePipe(USBH_HandleTypeDef *, uint8_t) {
+    dev.closed_pipes++;
+    return USBH_OK;
+}
 USBH_StatusTypeDef USBH_LL_SetToggle(USBH_HandleTypeDef *, uint8_t, uint8_t) { return USBH_OK; }
 uint8_t USBH_LL_GetToggle(USBH_HandleTypeDef *, uint8_t) { return 0; }
 void USBH_Delay(uint32_t delay) { sim_ms += delay; }
@@ -134,6 +141,10 @@ USBH_StatusTypeDef USBH_LL_SubmitURB(USBH_HandleTypeDef *, uint8_t pipe, uint8_t
         return USBH_OK;
     }
     // bulk IN: the data stage, then the CSW
+    if (dev.hang_in && dev.in_pos < dev.in_data.size()) {
+        dev.urb[pipe] = USBH_URB_IDLE;
+        return USBH_OK;
+    }
     if (dev.in_pos < dev.in_data.size()) {
         const uint32_t n = std::min<uint32_t>(dev.in_data.size() - dev.in_pos, length);
         std::memcpy(pbuff, dev.in_data.data() + dev.in_pos, n);
@@ -198,7 +209,7 @@ USBH_HandleTypeDef *start(uint32_t block_size) {
     for (int i = 0; i < 1000 && st == USBH_BUSY; i++) {
         st = ph->pActiveClass->Requests(ph);
     }
-    // USB host 3.5.5: the class data is in the handle, not in the class.
+    // Since USB host 3.5.5, the class data is in the handle, not in the class.
     auto *msc = static_cast<MSC_HandleTypeDef *>(ph->pActiveClassData);
     for (int i = 0; i < 100000 && msc->state != MSC_IDLE; i++) {
         ph->pActiveClass->BgndProcess(ph);
@@ -237,7 +248,7 @@ TEST_CASE("usb_host: MSC read and write refuse a device with a block size other 
     USBH_HandleTypeDef *ph = start(block_size);
     std::vector<uint8_t> buf(block + guard, guard_fill);
 
-    // anya/main: USB host 3.5.5 refuses a block size above 4096 already in READ CAPACITY
+    // USB host 3.5.5 and 3.5.6 refuse a block size above 4096 already in READ CAPACITY
     // (usbh_msc_scsi.c), so the unit never gets ready and Read and Write give USBH_FAIL.
     const USBH_StatusTypeDef refused = block_size > 4096 ? USBH_FAIL : USBH_NOT_SUPPORTED;
     CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 1) == refused);
@@ -246,4 +257,58 @@ TEST_CASE("usb_host: MSC read and write refuse a device with a block size other 
     // A write must not send the memory after the buffer to the device
     CHECK(USBH_MSC_Write(ph, 0, 0, buf.data(), 1) == refused);
     CHECK(dev.out_received.empty());
+}
+
+TEST_CASE("usb_host: MSC read and write move several blocks", "[usb_host]") {
+    USBH_HandleTypeDef *ph = start(512);
+    std::vector<uint8_t> buf(3 * block + guard, guard_fill);
+
+    CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 3) == USBH_OK);
+    CHECK(std::all_of(buf.begin(), buf.begin() + 3 * block, [](uint8_t b) { return b == 0x5A; }));
+    CHECK(std::count_if(buf.begin() + 3 * block, buf.end(), [](uint8_t b) { return b != guard_fill; }) == 0);
+
+    for (size_t i = 0; i < 3 * block; i++) {
+        buf[i] = static_cast<uint8_t>(i * 7);
+    }
+    CHECK(USBH_MSC_Write(ph, 0, 0, buf.data(), 3) == USBH_OK);
+    REQUIRE(dev.out_received.size() == 3 * block);
+    CHECK(std::equal(dev.out_received.begin(), dev.out_received.end(), buf.begin()));
+}
+
+TEST_CASE("usb_host: MSC functions refuse a LUN that the device does not have", "[usb_host]") {
+    USBH_HandleTypeDef *ph = start(512);
+    std::vector<uint8_t> buf(block, 0);
+    MSC_LUNTypeDef info {};
+    const int commands = dev.commands;
+
+    CHECK(USBH_MSC_Read(ph, 1, 0, buf.data(), 1) == USBH_FAIL);
+    CHECK(USBH_MSC_Write(ph, 1, 0, buf.data(), 1) == USBH_FAIL);
+    CHECK(USBH_MSC_GetLUNInfo(ph, 1, &info) == USBH_FAIL);
+    CHECK(USBH_MSC_UnitIsReady(ph, 1) == 0);
+    CHECK(dev.commands == commands);
+}
+
+TEST_CASE("usb_host: MSC read that cannot start sends no command and leaves the unit ready", "[usb_host]") {
+    USBH_HandleTypeDef *ph = start(512);
+    std::vector<uint8_t> buf(block, 0);
+    const int commands = dev.commands;
+
+    // length * 512 does not fit in the 32-bit transfer length of the CBW
+    CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 0x00800000u) != USBH_OK);
+    CHECK(USBH_MSC_Write(ph, 0, 0, buf.data(), 0x00800000u) != USBH_OK);
+    CHECK(dev.commands == commands);
+
+    CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 1) == USBH_OK);
+}
+
+TEST_CASE("usb_host: MSC read timeout closes the bulk pipes", "[usb_host]") {
+    // After the timeout, the caller owns the buffer again. An open IN channel could still write
+    // into it by DMA until the USB power cycle stops the host.
+    USBH_HandleTypeDef *ph = start(512);
+    std::vector<uint8_t> buf(block, 0);
+    dev.hang_in = true;
+    dev.closed_pipes = 0;
+
+    CHECK(USBH_MSC_Read(ph, 0, 0, buf.data(), 1) == USBH_FAIL);
+    CHECK(dev.closed_pipes == 2);
 }

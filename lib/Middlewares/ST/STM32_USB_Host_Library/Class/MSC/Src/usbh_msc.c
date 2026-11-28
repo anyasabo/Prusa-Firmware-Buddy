@@ -843,6 +843,20 @@ USBH_StatusTypeDef USBH_MSC_GetLUNInfo(USBH_HandleTypeDef *phost, uint8_t lun, M
 }
 
 /**
+ * @brief USBH_MSC_ClosePipes
+ *        Prusa: halt the bulk channels after a failed transfer, as
+ *        USBH_MSC_FailTransfer() of v3.5.6 does. The caller owns the buffer
+ *        again, and the USB power cycle that follows stops the host only later.
+ *        Without this, the IN channel can still write into the buffer by DMA.
+ * @param  phost: Host handle
+ * @param  MSC_Handle: MSC handle
+ */
+static void USBH_MSC_ClosePipes(USBH_HandleTypeDef *phost, MSC_HandleTypeDef *MSC_Handle) {
+  (void)USBH_LL_ClosePipe(phost, MSC_Handle->InPipe);
+  (void)USBH_LL_ClosePipe(phost, MSC_Handle->OutPipe);
+}
+
+/**
  * @brief get_sof_counter
  *        Read OTG_HS host frame number (OTG_HS_HFNUM->FRNUM)
  * @param  phost: Host handle
@@ -909,7 +923,15 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
 
   MSC_Handle->unit[lun].state = MSC_READ;
 
-  (void)USBH_MSC_SCSI_Read(phost, lun, address, pbuf, length);
+  /* Prusa: a command that does not start (for example, length * block size
+     does not fit in 32 bits) is not on the bus. Return at once, as v3.5.6
+     does. Without this, the wait loop sends a command of 0 blocks. */
+  USBH_StatusTypeDef status = USBH_MSC_SCSI_Read(phost, lun, address, pbuf, length);
+  if (status != USBH_BUSY)
+  {
+    MSC_Handle->unit[lun].state = (status == USBH_UNRECOVERED_ERROR) ? MSC_UNRECOVERED_ERROR : MSC_IDLE;
+    return status;
+  }
 
   uint32_t timeout = ticks_ms();
   uint16_t sof_counter = get_sof_counter(phost);
@@ -918,7 +940,6 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
   /* Prusa: return the result of the transfer. The ST code returned USBH_OK
      also when USBH_MSC_RdWrProcess() gave USBH_FAIL (a failed command or a
      disabled port). */
-  USBH_StatusTypeDef status;
   while ((status = USBH_MSC_RdWrProcess(phost, lun)) == USBH_BUSY)
   {
     if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
@@ -945,12 +966,16 @@ USBH_StatusTypeDef USBH_MSC_Read(USBH_HandleTypeDef *phost,
     // or immediately if SOF generation stops (this is behavior observed by logic analyzers directly on the bus,
     // it is an undocumented error condition that will be investigated further)
     if (phost->device.is_connected == 0U ||
-        phost->device.PortEnabled == 0U ||
-        elapsed_ticks > (USBH_MSC_IO_TIMEOUT * length)) {
+        phost->device.PortEnabled == 0U) {
+      return USBH_FAIL;
+    }
+    if (elapsed_ticks > (USBH_MSC_IO_TIMEOUT * length)) {
+      USBH_MSC_ClosePipes(phost, MSC_Handle);
       return USBH_FAIL;
     }
     if (!filesystem_semihosting_active() && (uint32_t)(elapsed_sof + sof_counter_delta + 3) < elapsed_ticks) {
       USBH_ErrLog("USB MSC operation read - missing SOF");
+      USBH_MSC_ClosePipes(phost, MSC_Handle);
       return USBH_FAIL;
     }
   }
@@ -1014,7 +1039,15 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
 
   MSC_Handle->unit[lun].state = MSC_WRITE;
 
-  (void)USBH_MSC_SCSI_Write(phost, lun, address, pbuf, length);
+  /* Prusa: a command that does not start (for example, length * block size
+     does not fit in 32 bits) is not on the bus. Return at once, as v3.5.6
+     does. Without this, the wait loop sends a command of 0 blocks. */
+  USBH_StatusTypeDef status = USBH_MSC_SCSI_Write(phost, lun, address, pbuf, length);
+  if (status != USBH_BUSY)
+  {
+    MSC_Handle->unit[lun].state = (status == USBH_UNRECOVERED_ERROR) ? MSC_UNRECOVERED_ERROR : MSC_IDLE;
+    return status;
+  }
 
   uint32_t timeout = ticks_ms();
   uint16_t sof_counter = get_sof_counter(phost);
@@ -1022,7 +1055,6 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
   /* Prusa: return the result of the transfer. The ST code returned USBH_OK
      also when USBH_MSC_RdWrProcess() gave USBH_FAIL (a failed command or a
      disabled port). */
-  USBH_StatusTypeDef status;
   while ((status = USBH_MSC_RdWrProcess(phost, lun)) == USBH_BUSY)
   {
     if (USBH_LL_GetURBState(phost, MSC_Handle->OutPipe) != USBH_URB_DONE ||
@@ -1049,12 +1081,16 @@ USBH_StatusTypeDef USBH_MSC_Write(USBH_HandleTypeDef *phost,
     // or immediately if SOF generation stops (this is behavior observed by logic analyzers directly on the bus,
     // it is an undocumented error condition that will be investigated further)
     if (phost->device.is_connected == 0U ||
-        phost->device.PortEnabled == 0U ||
-        elapsed_ticks > (USBH_MSC_IO_TIMEOUT * length)) {
+        phost->device.PortEnabled == 0U) {
+      return USBH_FAIL;
+    }
+    if (elapsed_ticks > (USBH_MSC_IO_TIMEOUT * length)) {
+      USBH_MSC_ClosePipes(phost, MSC_Handle);
       return USBH_FAIL;
     }
     if(!filesystem_semihosting_active() && (uint32_t)elapsed_sof + sof_counter_delta + 3 < elapsed_ticks) {
       USBH_ErrLog("USB MSC operation write - missing SOF");
+      USBH_MSC_ClosePipes(phost, MSC_Handle);
       return USBH_FAIL;
     }
   }
